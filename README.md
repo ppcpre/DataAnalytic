@@ -40,6 +40,15 @@ npm run build
 | `THAIWATER_BASE_URL` | `https://api-v3.thaiwater.net/api/v1/thaiwater30/public` | |
 | `THAIWATER_WATERLEVEL_URL` / `THAIWATER_RAIN_URL` | `<base>/waterlevel_load`, `<base>/rain_24h` | กำหนดแยกรายตัว |
 | `THAIWATER_FLOODGATE_URL` | (ว่าง) | endpoint สถานะประตูระบายน้ำ — ว่าง = ชั้นข้อมูลนี้ไม่มีจุด |
+| `KEY_STATION_CODES` | `C.2,C.13,C.29A` | รหัสสถานีต้นน้ำสำคัญ (นครสวรรค์, ท้ายเขื่อนเจ้าพระยา, บางไทร) เรียงจากต้นน้ำ |
+| `GOOGLE_FLOOD_API_KEY` | (ว่าง) | API key ของ Google Flood Forecasting API — ว่าง = ปิดชั้นพยากรณ์ Google |
+| `GOOGLE_FLOOD_BBOX` | `13.3,99.7,15.9,101.2` | กรอบพื้นที่จุดพยากรณ์ที่แสดง (minLat,minLng,maxLat,maxLng) |
+
+### การขอใช้ Google Flood Forecasting API (ฟรี)
+
+1. สมัคร waitlist ที่ https://sites.research.google/gr/floodforecasting/api-waitlist/ (อาจรอหลายเดือน)
+2. เมื่อได้รับอีเมลอนุมัติ ตอบกลับด้วย Google Cloud Project ID
+3. เปิดใช้ Flood Forecasting API ใน project นั้น สร้าง API key แล้วตั้งเป็น `GOOGLE_FLOOD_API_KEY`
 
 ## ตัวแปรสภาพแวดล้อม (หน้าเว็บ, ตอน build)
 

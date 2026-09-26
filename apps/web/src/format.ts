@@ -39,8 +39,8 @@ export function formatAgo(iso: string | null | undefined, now = Date.now()): str
   return `${Math.floor(hrs / 24)} วันที่แล้ว`;
 }
 
-export function formatPlace(province: string, district?: string): string {
-  const p = PROVINCES[province] ?? '';
+export function formatPlace(province: string, district?: string, provinceName?: string): string {
+  const p = PROVINCES[province] ?? provinceName ?? '';
   return [district, p].filter(Boolean).join(', ');
 }
 

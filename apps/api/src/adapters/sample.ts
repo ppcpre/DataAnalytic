@@ -5,6 +5,8 @@
 import {
   rainStatus,
   waterLevelStatus,
+  type FloodForecast,
+  type FloodHubSeverity,
   type Floodgate,
   type RainStation,
   type WaterLevelStation,
@@ -67,5 +69,44 @@ export function sampleFloodgates(now = new Date()): Floodgate[] {
     upstreamMsl: 1.2 + i * 0.1,
     downstreamMsl: 0.8 + i * 0.05,
     agency: 'ข้อมูลตัวอย่าง',
+  }));
+}
+
+export function sampleKeyStations(now = new Date()): WaterLevelStation[] {
+  const rows: Array<[string, string, number, number, string, number]> = [
+    ['C.2', 'สถานีต้นน้ำตัวอย่าง A', 15.70, 100.12, 'นครสวรรค์', 64],
+    ['C.13', 'สถานีต้นน้ำตัวอย่าง B', 15.15, 100.18, 'ชัยนาท', 78],
+    ['C.29A', 'สถานีต้นน้ำตัวอย่าง C', 14.23, 100.52, 'พระนครศรีอยุธยา', 91],
+  ];
+  return rows.map(([code, name, lat, lng, provinceName, percent], i) => ({
+    id: `sample-key-${i + 1}`,
+    name,
+    code,
+    location: { lat, lng, province: '', provinceName },
+    observedAt: hoursAgo(now, 1),
+    levelMsl: null,
+    bankMsl: null,
+    percent,
+    status: waterLevelStatus(percent),
+    agency: 'ข้อมูลตัวอย่าง',
+  }));
+}
+
+export function sampleFloodForecasts(now = new Date()): FloodForecast[] {
+  const rows: Array<[number, number, FloodHubSeverity, string]> = [
+    [14.35, 100.58, 'SEVERE', 'RISE'],
+    [14.02, 100.47, 'ABOVE_NORMAL', 'RISE'],
+    [13.93, 100.24, 'NO_FLOODING', 'FALL'],
+  ];
+  const status = { EXTREME: 'critical', SEVERE: 'warning', ABOVE_NORMAL: 'watch', NO_FLOODING: 'normal', UNKNOWN: 'unknown' } as const;
+  return rows.map(([lat, lng, severity, trend], i) => ({
+    id: `sample-gfh-${i + 1}`,
+    location: { lat, lng, province: '' },
+    severity,
+    status: status[severity],
+    trend,
+    issuedAt: hoursAgo(now, 3),
+    forecastStart: hoursAgo(now, -24),
+    forecastEnd: hoursAgo(now, -72),
   }));
 }

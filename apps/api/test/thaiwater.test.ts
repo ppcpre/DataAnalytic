@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractRecords, parseRain, parseWaterLevel } from '../src/adapters/thaiwater.js';
+import { extractRecords, parseKeyStations, parseRain, parseWaterLevel } from '../src/adapters/thaiwater.js';
 
 const station = (id: number, province: string, lat = 13.75, lng = 100.5) => ({
   id,
@@ -100,5 +100,22 @@ describe('parseRain', () => {
 describe('extractRecords', () => {
   it('falls back to the first nested array', () => {
     expect(extractRecords({ data: { foo: { bar: [{ a: 1 }] } } }, [])).toEqual([{ a: 1 }]);
+  });
+});
+
+describe('parseKeyStations', () => {
+  it('picks configured stations anywhere in the country, in configured order', () => {
+    const rec = (id: number, code: string, province: string) => ({
+      waterlevel_datetime: '2026-09-26 14:00',
+      storage_percent: 80,
+      station: { ...station(id, province, 15, 100.1), tele_station_oldcode: code },
+      geocode: { province_code: province, province_name: { th: 'ชัยนาท' } },
+    });
+    const out = parseKeyStations({ data: [rec(1, 'C.29A', '14'), rec(2, 'C.13', '18'), rec(3, 'X.1', '18')] }, [
+      'C.13',
+      'c29a',
+    ]);
+    expect(out.map((s) => s.code)).toEqual(['C.13', 'C.29A']);
+    expect(out[0].location.provinceName).toBe('ชัยนาท');
   });
 });

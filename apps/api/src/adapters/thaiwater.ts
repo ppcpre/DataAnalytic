@@ -76,15 +76,17 @@ export function extractRecords(body: unknown, preferredPaths: string[]): Rec[] {
   return [];
 }
 
-function location(r: Rec, stationKey: string): Location | null {
+function location(r: Rec, stationKey: string, anyArea = false): Location | null {
   const lat = num(first(r, [`${stationKey}.tele_station_lat`, `${stationKey}.lat`, `${stationKey}.latitude`, 'lat']));
   const lng = num(first(r, [`${stationKey}.tele_station_long`, `${stationKey}.long`, `${stationKey}.lng`, `${stationKey}.longitude`, 'long', 'lng']));
   const province = String(first(r, ['geocode.province_code', `${stationKey}.province_code`, 'province_code']) ?? '');
-  if (lat === null || lng === null || !isServiceProvince(province)) return null;
+  if (lat === null || lng === null) return null;
+  if (!anyArea && !isServiceProvince(province)) return null;
   return {
     lat,
     lng,
     province,
+    provinceName: text(first(r, ['geocode.province_name', `${stationKey}.province_name`, 'province_name'])),
     district: text(first(r, ['geocode.amphoe_name', `${stationKey}.amphoe_name`, 'amphoe_name'])),
   };
 }
@@ -103,19 +105,21 @@ function stationName(r: Rec, stationKey: string): string {
   );
 }
 
-export function parseWaterLevel(body: unknown): WaterLevelStation[] {
+function parseWaterLevelRecords(body: unknown, anyArea: boolean): WaterLevelStation[] {
   const out: WaterLevelStation[] = [];
   for (const r of extractRecords(body, ['waterlevel_data.data', 'data.waterlevel_data.data', 'data'])) {
-    const loc = location(r, 'station');
+    const loc = location(r, 'station', anyArea);
     const observedAt = isoTime(first(r, ['waterlevel_datetime', 'datetime']));
     if (!loc || !observedAt) continue;
     const levelMsl = num(first(r, ['waterlevel_msl', 'value']));
     const bankMsl = num(first(r, ['station.min_bank', 'station.left_bank', 'min_bank']));
     let percent = num(first(r, ['storage_percent', 'percent']));
     if (percent === null && levelMsl !== null && bankMsl) percent = (levelMsl / bankMsl) * 100;
+    const code = text(first(r, ['station.tele_station_oldcode', 'station.station_oldcode', 'station.code']));
     out.push({
       id: `tw-wl-${String(first(r, ['station.id', 'id']) ?? `${loc.lat},${loc.lng}`)}`,
       name: stationName(r, 'station'),
+      code,
       location: loc,
       observedAt,
       levelMsl,
@@ -126,6 +130,27 @@ export function parseWaterLevel(body: unknown): WaterLevelStation[] {
     });
   }
   return out;
+}
+
+/** สถานีวัดระดับน้ำในพื้นที่ให้บริการ (กทม. และปริมณฑล) */
+export function parseWaterLevel(body: unknown): WaterLevelStation[] {
+  return parseWaterLevelRecords(body, false);
+}
+
+/** normalise รหัสสถานี เช่น "C.29A", "c29a" → "C29A" */
+function normCode(code: string): string {
+  return code.replace(/[^0-9a-z]/gi, '').toUpperCase();
+}
+
+/**
+ * สถานีสำคัญทางต้นน้ำ (อยู่นอกพื้นที่ให้บริการได้) ตามรหัสที่กำหนด
+ * เรียงตามลำดับรหัสใน codes (ปกติเรียงจากต้นน้ำลงมาท้ายน้ำ)
+ */
+export function parseKeyStations(body: unknown, codes: string[]): WaterLevelStation[] {
+  const order = codes.map(normCode);
+  return parseWaterLevelRecords(body, true)
+    .filter((s) => s.code && order.includes(normCode(s.code)))
+    .sort((a, b) => order.indexOf(normCode(a.code!)) - order.indexOf(normCode(b.code!)));
 }
 
 export function parseRain(body: unknown): RainStation[] {

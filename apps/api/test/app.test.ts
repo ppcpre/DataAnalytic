@@ -42,6 +42,35 @@ describe('api', () => {
     expect(body.data).toEqual([]);
   });
 
+  it('shares one upstream water-level fetch between endpoints', async () => {
+    let calls = 0;
+    const app = createApp(loadConfig({}), async () => {
+      calls++;
+      return { data: [] };
+    });
+    await app.request('/api/water-level');
+    await app.request('/api/key-stations');
+    expect(calls).toBe(1);
+  });
+
+  it('keeps flood forecast disabled without an API key', async () => {
+    const post = async () => {
+      throw new Error('should not be called');
+    };
+    const app = createApp(loadConfig({}), async () => ({}), post);
+    const body = await (await app.request('/api/flood-forecast')).json();
+    expect(body.data).toEqual([]);
+  });
+
+  it('fetches flood forecast when an API key is configured', async () => {
+    const post = async () => ({
+      floodStatuses: [{ gaugeId: 'g1', gaugeLocation: { latitude: 14, longitude: 100.5 }, severity: 'EXTREME' }],
+    });
+    const app = createApp(loadConfig({ GOOGLE_FLOOD_API_KEY: 'k' }), async () => ({}), post);
+    const body = await (await app.request('/api/flood-forecast')).json();
+    expect(body.data[0]).toMatchObject({ id: 'gfh-g1', status: 'critical' });
+  });
+
   it('lists CCTV links', async () => {
     const app = createApp(loadConfig({ DATA_MODE: 'sample' }));
     const body = await (await app.request('/api/links')).json();

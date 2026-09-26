@@ -22,12 +22,16 @@ export interface Location {
   lat: number;
   lng: number;
   province: string;
+  /** ชื่อจังหวัดจากต้นทาง (ใช้กับสถานีนอกพื้นที่ให้บริการ) */
+  provinceName?: string;
   district?: string;
 }
 
 export interface WaterLevelStation {
   id: string;
   name: string;
+  /** รหัสสถานี เช่น C.29A (ถ้ามี) */
+  code?: string;
   location: Location;
   observedAt: string;
   /** ระดับน้ำ (ม.รทก.) */
@@ -65,11 +69,36 @@ export interface Floodgate {
   sourceUrl?: string;
 }
 
+export type FloodHubSeverity = 'EXTREME' | 'SEVERE' | 'ABOVE_NORMAL' | 'NO_FLOODING' | 'UNKNOWN';
+
+export const FLOODHUB_SEVERITY_TH: Record<FloodHubSeverity, string> = {
+  EXTREME: 'น้ำท่วมรุนแรงมาก',
+  SEVERE: 'น้ำท่วมรุนแรง',
+  ABOVE_NORMAL: 'สูงกว่าปกติ',
+  NO_FLOODING: 'ไม่คาดว่าจะท่วม',
+  UNKNOWN: 'ไม่ทราบ',
+};
+
+/** พยากรณ์น้ำล้นตลิ่งจาก Google Flood Hub ต่อหนึ่งจุดวัด */
+export interface FloodForecast {
+  id: string;
+  location: Location;
+  severity: FloodHubSeverity;
+  status: Status;
+  /** แนวโน้ม เช่น RISE / FALL / NO_CHANGE ตามที่ API ส่งมา */
+  trend: string | null;
+  issuedAt: string | null;
+  forecastStart: string | null;
+  forecastEnd: string | null;
+}
+
 export interface CameraLink {
   id: string;
   name: string;
   description: string;
   url: string;
+  /** ใช้ได้เฉพาะพื้นที่ใด (เช่น "กทม.") ถ้าไม่ระบุ = ทุกพื้นที่ */
+  area?: string;
 }
 
 export interface ApiResponse<T> {

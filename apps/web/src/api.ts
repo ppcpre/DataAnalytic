@@ -1,6 +1,7 @@
 import type {
   ApiResponse,
   CameraLink,
+  FloodForecast,
   Floodgate,
   RainStation,
   WaterLevelStation,
@@ -28,5 +29,8 @@ export const api = {
   waterLevel: () => getJson<ApiResponse<WaterLevelStation>>('/api/water-level'),
   rain: () => getJson<ApiResponse<RainStation>>('/api/rain'),
   floodgates: () => getJson<ApiResponse<Floodgate>>('/api/floodgates'),
+  keyStations: () => getJson<ApiResponse<WaterLevelStation>>('/api/key-stations'),
+  floodForecast: () => getJson<ApiResponse<FloodForecast>>('/api/flood-forecast'),
+  health: () => getJson<{ ok: boolean; dataMode: string; floodhub: boolean; floodgates: boolean }>('/api/health'),
   links: () => getJson<{ cameras: CameraLink[]; official: CameraLink[] }>('/api/links'),
 };

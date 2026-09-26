@@ -8,20 +8,31 @@ export class UpstreamError extends Error {
   }
 }
 
-export async function fetchJson(url: string, timeoutMs = 15000): Promise<unknown> {
+export async function fetchJson(url: string, timeoutMs = 15000, init: RequestInit = {}): Promise<unknown> {
   let res: Response;
   try {
     res = await fetch(url, {
-      headers: { accept: 'application/json', 'user-agent': 'flood-watch-pwa/0.1' },
+      ...init,
+      headers: {
+        accept: 'application/json',
+        'user-agent': 'flood-watch-pwa/0.1',
+        ...(init.body ? { 'content-type': 'application/json' } : {}),
+      },
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (err) {
-    throw new UpstreamError(`เชื่อมต่อต้นทางไม่สำเร็จ: ${(err as Error).message}`, url);
+    throw new UpstreamError(`เชื่อมต่อต้นทางไม่สำเร็จ: ${(err as Error).message}`, url.split('?')[0]);
   }
-  if (!res.ok) throw new UpstreamError(`ต้นทางตอบกลับ HTTP ${res.status}`, url);
+  // ไม่ใส่ query string ใน error เพื่อไม่ให้ API key หลุดไปใน log
+  const safeUrl = url.split('?')[0];
+  if (!res.ok) throw new UpstreamError(`ต้นทางตอบกลับ HTTP ${res.status}`, safeUrl);
   try {
     return await res.json();
   } catch {
-    throw new UpstreamError('ต้นทางไม่ได้ส่งข้อมูลรูปแบบ JSON', url);
+    throw new UpstreamError('ต้นทางไม่ได้ส่งข้อมูลรูปแบบ JSON', safeUrl);
   }
+}
+
+export function postJson(url: string, body: unknown, timeoutMs = 20000): Promise<unknown> {
+  return fetchJson(url, timeoutMs, { method: 'POST', body: JSON.stringify(body) });
 }

@@ -14,7 +14,22 @@ export interface Config {
     rainUrl: string;
     /** ยังไม่พบ endpoint สาธารณะของสถานะประตูระบายน้ำ — เว้นว่างได้ */
     floodgateUrl: string;
+    /** รหัสสถานีต้นน้ำสำคัญที่จะแสดงเพิ่ม (เรียงจากต้นน้ำลงมา) */
+    keyStationCodes: string[];
   };
+  floodhub: {
+    /** API key ของ Google Flood Forecasting API — ว่าง = ปิดชั้นข้อมูลนี้ */
+    apiKey: string;
+    baseUrl: string;
+    regionCode: string;
+    /** กรอบพื้นที่ที่แสดง: minLat,minLng,maxLat,maxLng */
+    bbox: { minLat: number; minLng: number; maxLat: number; maxLng: number };
+  };
+}
+
+function parseBBox(v: string) {
+  const [minLat, minLng, maxLat, maxLng] = v.split(',').map(Number);
+  return { minLat, minLng, maxLat, maxLng };
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -29,6 +44,18 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       waterLevelUrl: env.THAIWATER_WATERLEVEL_URL ?? `${base}/waterlevel_load`,
       rainUrl: env.THAIWATER_RAIN_URL ?? `${base}/rain_24h`,
       floodgateUrl: env.THAIWATER_FLOODGATE_URL ?? '',
+      // C.2 นครสวรรค์, C.13 ท้ายเขื่อนเจ้าพระยา (ชัยนาท), C.29A บางไทร (อยุธยา)
+      keyStationCodes: (env.KEY_STATION_CODES ?? 'C.2,C.13,C.29A')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    },
+    floodhub: {
+      apiKey: env.GOOGLE_FLOOD_API_KEY ?? '',
+      baseUrl: env.GOOGLE_FLOOD_API_BASE ?? 'https://floodforecasting.googleapis.com',
+      regionCode: env.GOOGLE_FLOOD_REGION ?? 'TH',
+      // ลุ่มเจ้าพระยาตอนล่าง: นครสวรรค์ลงมาถึงอ่าวไทย
+      bbox: parseBBox(env.GOOGLE_FLOOD_BBOX ?? '13.3,99.7,15.9,101.2'),
     },
   };
 }

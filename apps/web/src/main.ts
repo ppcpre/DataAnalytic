@@ -3,9 +3,11 @@ import './style.css';
 import L from 'leaflet';
 import { registerSW } from 'virtual:pwa-register';
 import {
+  FLOODHUB_SEVERITY_TH,
   STATUS_LABEL_TH,
   type ApiResponse,
   type CameraLink,
+  type FloodForecast,
   type Floodgate,
   type RainStation,
   type Status,
@@ -22,6 +24,8 @@ const AUTO_REFRESH_MS = 5 * 60 * 1000;
 const BKK_CENTER: L.LatLngExpression = [13.78, 100.52];
 
 // ---------- แผนที่ ----------
+// เว้นที่ด้านบนให้ popup ไม่ถูกปุ่มชั้นข้อมูลบัง
+L.Popup.prototype.options.autoPanPaddingTopLeft = L.point(10, 150);
 const map = L.map('map', { zoomControl: false }).setView(BKK_CENTER, 11);
 L.control.zoom({ position: 'bottomright' }).addTo(map);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -29,14 +33,22 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
 }).addTo(map);
 
-type LayerKey = 'water' | 'rain' | 'gate';
+type LayerKey = 'water' | 'rain' | 'gate' | 'forecast';
 const layers: Record<LayerKey, L.LayerGroup> = {
   water: L.layerGroup().addTo(map),
   rain: L.layerGroup().addTo(map),
   gate: L.layerGroup().addTo(map),
+  forecast: L.layerGroup().addTo(map),
 };
 
-const SYMBOL: Record<LayerKey, string> = { water: 'น', rain: 'ฝ', gate: 'ป' };
+const SYMBOL: Record<LayerKey, string> = { water: 'น', rain: 'ฝ', gate: 'ป', forecast: 'ส' };
+
+const TREND_TH: Record<string, string> = {
+  RISE: 'มีแนวโน้มสูงขึ้น',
+  FALL: 'มีแนวโน้มลดลง',
+  NO_CHANGE: 'ทรงตัว',
+  REMAIN: 'ทรงตัว',
+};
 
 function icon(kind: LayerKey, status: Status): L.DivIcon {
   return L.divIcon({
@@ -91,20 +103,38 @@ function gatePopup(g: Floodgate): string {
     </dl>`;
 }
 
+function forecastPopup(f: FloodForecast): string {
+  const window =
+    f.forecastStart || f.forecastEnd ? `${formatTime(f.forecastStart)} – ${formatTime(f.forecastEnd)}` : '–';
+  return `
+    <strong>พยากรณ์น้ำล้นตลิ่ง (Google Flood Hub)</strong> ${statusBadge(f.status)}
+    <dl>
+      <dt>ระดับที่คาด</dt><dd>${escapeHtml(FLOODHUB_SEVERITY_TH[f.severity])}</dd>
+      <dt>แนวโน้ม</dt><dd>${escapeHtml(f.trend ? (TREND_TH[f.trend] ?? f.trend) : '–')}</dd>
+      <dt>ช่วงเวลาพยากรณ์</dt><dd>${window}</dd>
+      <dt>ออกพยากรณ์เมื่อ</dt><dd>${formatTime(f.issuedAt)}</dd>
+    </dl>
+    <a href="https://sites.research.google/floods" target="_blank" rel="noopener noreferrer">ดูรายละเอียดใน Google Flood Hub ↗</a>`;
+}
+
 // ---------- สถานะข้อมูล ----------
 interface State {
   water: ApiResponse<WaterLevelStation> | null;
   rain: ApiResponse<RainStation> | null;
   gates: ApiResponse<Floodgate> | null;
+  keyStations: ApiResponse<WaterLevelStation> | null;
+  forecast: ApiResponse<FloodForecast> | null;
   errors: string[];
 }
-const state: State = { water: null, rain: null, gates: null, errors: [] };
+const state: State = { water: null, rain: null, gates: null, keyStations: null, forecast: null, errors: [] };
 
 const bannersEl = document.getElementById('banners')!;
 function renderBanners() {
   const msgs: Array<[string, string]> = [];
   if (!navigator.onLine) msgs.push(['warn', 'ออฟไลน์อยู่ — แสดงข้อมูลชุดล่าสุดที่เคยโหลดไว้']);
-  const all = [state.water, state.rain, state.gates].filter(Boolean) as ApiResponse<unknown>[];
+  const all = [state.water, state.rain, state.gates, state.keyStations, state.forecast].filter(
+    Boolean,
+  ) as ApiResponse<unknown>[];
   if (all.some((r) => r.sample)) {
     msgs.push(['danger', 'กำลังแสดงข้อมูลตัวอย่างสำหรับทดสอบ ไม่ใช่สถานการณ์จริง']);
   }
@@ -124,6 +154,7 @@ function renderMap() {
   layers.water.clearLayers();
   layers.rain.clearLayers();
   layers.gate.clearLayers();
+  layers.forecast.clearLayers();
   for (const s of state.water?.data ?? []) {
     L.marker([s.location.lat, s.location.lng], { icon: icon('water', s.status), title: s.name })
       .bindPopup(waterPopup(s))
@@ -139,10 +170,40 @@ function renderMap() {
       .bindPopup(gatePopup(g))
       .addTo(layers.gate);
   }
+  for (const f of state.forecast?.data ?? []) {
+    L.marker([f.location.lat, f.location.lng], { icon: icon('forecast', f.status), title: 'พยากรณ์ Google' })
+      .bindPopup(forecastPopup(f))
+      .addTo(layers.forecast);
+  }
+}
+
+function renderKeyStations() {
+  const el = document.getElementById('key-list')!;
+  const list = state.keyStations?.data ?? [];
+  if (!list.length) {
+    el.innerHTML = `<li class="card muted">ยังไม่มีข้อมูลสถานีต้นน้ำ</li>`;
+    return;
+  }
+  el.innerHTML = list
+    .map(
+      (s) => `
+      <li class="card">
+        <div class="card-btn">
+          <span class="card-title">${escapeHtml(s.code ? `${s.code} ` : '')}${escapeHtml(s.name)} ${statusBadge(s.status)}</span>
+          <span>ระดับน้ำ ${formatNum(s.percent, 1)}% ของตลิ่ง${
+            s.levelMsl !== null ? ` (${formatNum(s.levelMsl)} ม.รทก.)` : ''
+          }</span>
+          <span class="muted">${escapeHtml(
+            formatPlace(s.location.province, s.location.district, s.location.provinceName),
+          )} · ${formatAgo(s.observedAt)}</span>
+        </div>
+      </li>`,
+    )
+    .join('');
 }
 
 interface RiskItem {
-  kind: 'water' | 'rain';
+  kind: 'water' | 'rain' | 'forecast';
   name: string;
   status: Status;
   detail: string;
@@ -164,6 +225,15 @@ function renderRiskList() {
       place: formatPlace(s.location.province, s.location.district),
       observedAt: s.observedAt,
       ...s.location,
+    })),
+    ...(state.forecast?.data ?? []).map((f) => ({
+      kind: 'forecast' as const,
+      name: 'พยากรณ์น้ำล้นตลิ่ง (Google)',
+      status: f.status,
+      detail: `${FLOODHUB_SEVERITY_TH[f.severity]}${f.trend ? ` · ${TREND_TH[f.trend] ?? f.trend}` : ''}`,
+      place: `ช่วง ${formatTime(f.forecastStart)}`,
+      observedAt: f.issuedAt ?? '',
+      ...f.location,
     })),
     ...(state.rain?.data ?? []).map((s) => ({
       kind: 'rain' as const,
@@ -216,7 +286,7 @@ function renderLinks(target: string, links: CameraLink[]) {
       (l) => `
       <li class="card">
         <a class="card-btn" href="${escapeHtml(l.url)}" target="_blank" rel="noopener noreferrer">
-          <span class="card-title">${escapeHtml(l.name)} ↗</span>
+          <span class="card-title">${escapeHtml(l.name)} ↗${l.area ? ` <span class="tag">เฉพาะ${escapeHtml(l.area)}</span>` : ''}</span>
           <span class="muted">${escapeHtml(l.description)}</span>
         </a>
       </li>`,
@@ -230,7 +300,13 @@ async function loadAll() {
   if (loading) return;
   loading = true;
   document.body.classList.add('loading');
-  const [water, rain, gates] = await Promise.allSettled([api.waterLevel(), api.rain(), api.floodgates()]);
+  const [water, rain, gates, keyStations, forecast] = await Promise.allSettled([
+    api.waterLevel(),
+    api.rain(),
+    api.floodgates(),
+    api.keyStations(),
+    api.floodForecast(),
+  ]);
   state.errors = [];
   const take = <T>(r: PromiseSettledResult<T>, label: string, prev: T | null): T | null => {
     if (r.status === 'fulfilled') return r.value;
@@ -240,8 +316,11 @@ async function loadAll() {
   state.water = take(water, 'ระดับน้ำ', state.water);
   state.rain = take(rain, 'ฝน', state.rain);
   state.gates = take(gates, 'ประตูระบายน้ำ', state.gates);
+  state.keyStations = take(keyStations, 'สถานีต้นน้ำ', state.keyStations);
+  state.forecast = take(forecast, 'พยากรณ์ Google', state.forecast);
   renderMap();
   renderRiskList();
+  renderKeyStations();
   renderBanners();
   document.body.classList.remove('loading');
   loading = false;
@@ -314,3 +393,9 @@ setInterval(() => {
 
 void loadAll();
 void loadLinks();
+api
+  .health()
+  .then((h) => {
+    document.getElementById('chip-forecast')!.hidden = !h.floodhub;
+  })
+  .catch(() => {});

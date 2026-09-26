@@ -25,6 +25,7 @@
             <label class="chip"><input type="checkbox" data-layer="water" checked /> ระดับน้ำ</label>
             <label class="chip"><input type="checkbox" data-layer="rain" checked /> ฝน 24 ชม.</label>
             <label class="chip"><input type="checkbox" data-layer="gate" checked /> ประตูระบายน้ำ</label>
+            <label class="chip" id="chip-forecast" hidden><input type="checkbox" data-layer="forecast" checked /> พยากรณ์ Google</label>
           </div>
           <button id="locate" class="chip chip-btn" type="button">◎ ใกล้ฉัน</button>
         </div>
@@ -36,20 +37,28 @@
           <h2>จุดที่ควรเฝ้าระวัง</h2>
           <p class="muted">เรียงจากระดับความเสี่ยงสูงสุด</p>
           <ol id="risk-list" class="cards"></ol>
+
+          <h2>น้ำเหนือ: สถานีต้นน้ำสำคัญ</h2>
+          <p class="muted">
+            ระดับน้ำที่สถานีเหล่านี้สูงขึ้น หมายถึงน้ำจากทางเหนือกำลังไหลลงมายังกรุงเทพฯ และปริมณฑล
+            ดูปริมาณน้ำในเขื่อนและอัตราการระบายเพิ่มเติมที่
+            <a href="https://www.thaiwater.net/new4all" target="_blank" rel="noopener noreferrer">ThaiWater ↗</a>
+          </p>
+          <ol id="key-list" class="cards"></ol>
         </div>
       </section>
 
       <section id="view-cctv" class="view" aria-label="กล้อง CCTV">
         <div class="pane">
-          <h2>กล้อง CCTV ตามถนน</h2>
-          <p class="muted">เปิดดูภาพจากระบบของหน่วยงานโดยตรง (เปิดในแท็บใหม่)</p>
+          <h2>กล้อง CCTV และรายงานน้ำท่วมบนถนน</h2>
+          <p class="muted">เปิดดูจากระบบของหน่วยงานโดยตรง (เปิดในแท็บใหม่)</p>
           <ul id="camera-links" class="cards"></ul>
         </div>
       </section>
 
       <section id="view-info" class="view" aria-label="แหล่งข้อมูล">
         <div class="pane">
-          <h2>แหล่งข้อมูลทางการ</h2>
+          <h2>เครื่องมือที่แนะนำ</h2>
           <ul id="official-links" class="cards"></ul>
           <h2>เกี่ยวกับแอปนี้</h2>
           <p class="muted">
@@ -58,6 +67,7 @@
           </p>
           <p class="muted">เกณฑ์สีระดับน้ำ: ต่ำกว่า 70% ของตลิ่ง = ปกติ, 70–90% = เฝ้าระวัง, 90–100% = เตือนภัย, เกิน 100% = วิกฤต (ล้นตลิ่ง)</p>
           <p class="muted">เกณฑ์สีฝนสะสม 24 ชม.: ≤10 มม. = ปกติ, 10–35 มม. = เฝ้าระวัง, 35–90 มม. = เตือนภัย (ฝนหนัก), เกิน 90 มม. = วิกฤต (ฝนหนักมาก)</p>
+          <p class="muted">จุดพยากรณ์ Google (ส): พยากรณ์น้ำล้นตลิ่งล่วงหน้าจาก Google Flood Hub — สูงกว่าปกติ = เฝ้าระวัง, รุนแรง = เตือนภัย, รุนแรงมาก = วิกฤต</p>
         </div>
       </section>
     </main>
