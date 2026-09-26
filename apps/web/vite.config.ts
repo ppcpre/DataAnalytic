@@ -44,8 +44,8 @@ export default defineConfig({
         short_name: 'น้ำท่วม กทม.',
         description: 'ดูระดับน้ำ ฝน ประตูระบายน้ำ และลิงก์กล้อง CCTV ในกรุงเทพฯ และปริมณฑล',
         lang: 'th',
-        theme_color: '#0b5cad',
-        background_color: '#ffffff',
+        theme_color: '#F4F1EA',
+        background_color: '#F4F1EA',
         display: 'standalone',
         start_url: '.',
         icons: [
@@ -62,7 +62,8 @@ export default defineConfig({
         runtimeCaching: [
           {
             // ข้อมูลล่าสุด: พยายามดึงใหม่ก่อน ถ้าออฟไลน์ใช้ชุดล่าสุดที่เคยโหลด
-            urlPattern: ({ url }) => url.pathname.startsWith('/api/') || url.pathname.includes('/api/'),
+            // ไม่ cache ผลค้นหาสถานที่ใน service worker (cache ที่เซิร์ฟเวอร์แล้ว)
+            urlPattern: ({ url }) => url.pathname.includes('/api/') && !url.pathname.endsWith('/api/geocode'),
             handler: 'NetworkFirst',
             options: {
               cacheName: 'api',
@@ -77,6 +78,16 @@ export default defineConfig({
             options: {
               cacheName: 'openfreemap',
               expiration: { maxEntries: 1000, maxAgeSeconds: 7 * 24 * 3600 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // ฟอนต์ Anuphan / IBM Plex Sans Thai
+            urlPattern: ({ url }) => url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts',
+              expiration: { maxEntries: 30, maxAgeSeconds: 365 * 24 * 3600 },
               cacheableResponse: { statuses: [0, 200] },
             },
           },

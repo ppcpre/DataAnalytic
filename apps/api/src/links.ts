@@ -13,6 +13,13 @@ export const CAMERA_LINKS: CameraLink[] = [
     area: 'กทม.',
   },
   {
+    id: 'bma-road-flood',
+    name: 'น้ำท่วมถนน กทม.',
+    description: 'ระดับน้ำขังบนถนนจากเซนเซอร์ของ กทม.',
+    url: 'https://weather.bangkok.go.th/flood',
+    area: 'กทม.',
+  },
+  {
     id: 'doh-hdms',
     name: 'กรมทางหลวง (HDMS Dashboard)',
     description: 'กล้อง CCTV และพิกัดจุดน้ำท่วมบนทางหลวงทั่วประเทศ',
@@ -28,13 +35,6 @@ export const CAMERA_LINKS: CameraLink[] = [
 
 /** เครื่องมือ/แหล่งข้อมูลที่ควรใช้ประกอบ */
 export const OFFICIAL_LINKS: CameraLink[] = [
-  {
-    id: 'bma-road-flood',
-    name: 'ระบบตรวจวัดน้ำท่วมถนน กทม.',
-    description: 'ระดับน้ำท่วมขังบนถนนจากเซนเซอร์ของกรุงเทพมหานคร',
-    url: 'https://weather.bangkok.go.th/flood',
-    area: 'กทม.',
-  },
   {
     id: 'thaiwater-new4all',
     name: 'ThaiWater — One Map น้ำของภาครัฐ',

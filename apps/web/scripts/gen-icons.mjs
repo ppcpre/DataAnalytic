@@ -1,4 +1,4 @@
-// สร้างไอคอน PNG ของ PWA (สี่เหลี่ยมมุมมนสีน้ำเงิน + หยดน้ำสีขาว) โดยไม่ต้องพึ่งไลบรารีภายนอก
+// สร้างไอคอน PNG ของ PWA (สี่เหลี่ยมมุมมนสีฟ้าพาสเทล + หยดน้ำสีน้ำเงิน) โดยไม่ต้องพึ่งไลบรารีภายนอก
 import { writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 
@@ -42,7 +42,7 @@ function png(size, { full = false } = {}) {
       const dy = Math.max(radius - y, 0, y - (size - 1 - radius));
       const inside = dx * dx + dy * dy <= radius * radius;
       const drop = inDrop(x / size, y / size);
-      const px = drop ? [255, 255, 255, 255] : inside ? [11, 92, 173, 255] : [0, 0, 0, 0];
+      const px = drop ? [47, 94, 134, 255] : inside ? [212, 230, 244, 255] : [0, 0, 0, 0];
       px.forEach((v, i) => (row[1 + x * 4 + i] = v));
     }
     rows.push(row);

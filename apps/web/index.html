@@ -3,80 +3,162 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#0b5cad" />
+    <meta name="theme-color" content="#F4F1EA" />
     <meta name="description" content="ติดตามสถานการณ์น้ำท่วม ระดับน้ำ ฝน ประตูระบายน้ำ และกล้อง CCTV ในกรุงเทพฯ และปริมณฑล" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Anuphan:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap"
+    />
     <title>ติดตามน้ำท่วม กทม. และปริมณฑล</title>
   </head>
-  <body>
+  <body data-view="map">
     <header class="topbar">
-      <h1>ติดตามน้ำท่วม <span>กทม. และปริมณฑล</span></h1>
-      <button id="refresh" class="icon-btn" type="button" aria-label="โหลดข้อมูลใหม่">⟳</button>
+      <button id="search-back" class="icon-btn only-searching" type="button" aria-label="ปิดการค้นหา"></button>
+      <div class="brand">
+        <span class="logo" data-icon="drop"></span>
+        <span class="brand-name">น้ำท่วม กทม. และปริมณฑล</span>
+      </div>
+      <div class="search" role="search">
+        <span class="search-icon" data-icon="search"></span>
+        <input
+          id="search-input"
+          type="search"
+          placeholder="ค้นหาสถานที่ ถนน เขต"
+          aria-label="ค้นหาสถานที่ ถนน เขต กล้อง หรือสถานี"
+          aria-controls="search-panel"
+          autocomplete="off"
+          enterkeyhint="search"
+        />
+        <kbd class="kbd-hint">/</kbd>
+        <button id="search-clear" class="search-clear" type="button" aria-label="ล้างคำค้น" hidden></button>
+      </div>
+      <span class="updated" data-updated></span>
+      <button id="refresh" class="icon-btn" type="button" aria-label="โหลดข้อมูลใหม่"></button>
     </header>
+
+    <div id="search-panel" class="search-panel" hidden>
+      <div class="seg-chips" role="group" aria-label="ประเภทผลลัพธ์">
+        <button type="button" data-filter="all" aria-pressed="true">ทั้งหมด</button>
+        <button type="button" data-filter="place" aria-pressed="false">สถานที่</button>
+        <button type="button" data-filter="camera" aria-pressed="false">กล้อง</button>
+        <button type="button" data-filter="station" aria-pressed="false">สถานีวัดน้ำ</button>
+      </div>
+      <div id="search-results" class="search-results" aria-live="polite"></div>
+      <p class="search-credit">ข้อมูลสถานที่ © ผู้ร่วมพัฒนา OpenStreetMap</p>
+    </div>
 
     <div id="banners" aria-live="polite"></div>
 
-    <main>
-      <section id="view-map" class="view active" aria-label="แผนที่">
+    <div class="layout">
+      <section class="mapwrap" aria-label="แผนที่">
         <div id="map"></div>
-        <div class="map-controls">
+        <div class="map-top">
+          <div class="summary" data-summary></div>
           <div class="chips" role="group" aria-label="ชั้นข้อมูล">
-            <label class="chip"><input type="checkbox" data-layer="water" checked /> ระดับน้ำ</label>
-            <label class="chip"><input type="checkbox" data-layer="rain" checked /> ฝน 24 ชม.</label>
-            <label class="chip"><input type="checkbox" data-layer="gate" checked /> ประตูระบายน้ำ</label>
-            <label class="chip" id="chip-forecast" hidden><input type="checkbox" data-layer="forecast" checked /> พยากรณ์ Google</label>
+            <button type="button" class="chip" data-layer="water" aria-pressed="true"><span data-icon="wave"></span>ระดับน้ำ</button>
+            <button type="button" class="chip" data-layer="rain" aria-pressed="true"><span data-icon="rain"></span>ฝน 24 ชม.</button>
+            <button type="button" class="chip" data-layer="camera" aria-pressed="true" hidden><span data-icon="camera"></span>กล้อง</button>
+            <button type="button" class="chip" data-layer="gate" aria-pressed="true" hidden><span data-icon="gate"></span>ประตูน้ำ</button>
+            <button type="button" class="chip" data-layer="forecast" aria-pressed="true" hidden><span data-icon="forecast"></span>พยากรณ์</button>
           </div>
-          <button id="locate" class="chip chip-btn" type="button">◎ ใกล้ฉัน</button>
         </div>
-        <div id="legend" class="legend" aria-label="คำอธิบายสี"></div>
+        <div class="map-fabs">
+          <button id="locate" class="fab" type="button" aria-label="ไปยังตำแหน่งของฉัน"></button>
+          <button id="legend-toggle" class="fab only-mobile" type="button" aria-label="คำอธิบายสัญลักษณ์" aria-expanded="false" aria-controls="legend"></button>
+        </div>
+        <div id="legend" class="legend" aria-label="คำอธิบายสัญลักษณ์"></div>
+        <div id="sheet" class="sheet" role="dialog" aria-label="รายละเอียด" hidden></div>
       </section>
 
-      <section id="view-list" class="view" aria-label="รายการจุดเฝ้าระวัง">
-        <div class="pane">
-          <h2>จุดที่ควรเฝ้าระวัง</h2>
-          <p class="muted">เรียงจากระดับความเสี่ยงสูงสุด</p>
-          <ol id="risk-list" class="cards"></ol>
-
-          <h2>น้ำเหนือ: สถานีต้นน้ำสำคัญ</h2>
-          <p class="muted">
-            ระดับน้ำที่สถานีเหล่านี้สูงขึ้น หมายถึงน้ำจากทางเหนือกำลังไหลลงมายังกรุงเทพฯ และปริมณฑล
-            ดูปริมาณน้ำในเขื่อนและอัตราการระบายเพิ่มเติมที่
-            <a href="https://www.thaiwater.net/new4all" target="_blank" rel="noopener noreferrer">ThaiWater ↗</a>
-          </p>
-          <ol id="key-list" class="cards"></ol>
+      <aside class="panel">
+        <div class="panel-head">
+          <div class="summary summary-tiles" data-summary></div>
+          <div class="seg" role="tablist" aria-label="แผงข้อมูล">
+            <button type="button" role="tab" data-panel="watch">เฝ้าระวัง</button>
+            <button type="button" role="tab" data-panel="cctv">กล้อง CCTV</button>
+            <button type="button" role="tab" data-panel="info">แหล่งข้อมูล</button>
+          </div>
         </div>
-      </section>
 
-      <section id="view-cctv" class="view" aria-label="กล้อง CCTV">
-        <div class="pane">
-          <h2>กล้อง CCTV และรายงานน้ำท่วมบนถนน</h2>
-          <p class="muted">เปิดดูจากระบบของหน่วยงานโดยตรง (เปิดในแท็บใหม่)</p>
+        <section id="sec-watch" class="sec" aria-labelledby="h-watch">
+          <div class="sec-head">
+            <div>
+              <h1 id="h-watch">เฝ้าระวัง</h1>
+              <span class="muted" id="watch-meta"></span>
+            </div>
+            <div class="seg seg-small" role="group" aria-label="เรียงรายการ">
+              <button type="button" data-sort="risk" aria-pressed="true">ทั้งหมด</button>
+              <button type="button" data-sort="near" aria-pressed="false">ใกล้ฉัน</button>
+            </div>
+          </div>
+          <div class="watch-grid">
+            <div class="watch-col">
+              <h2 class="col-title">ต้องระวังตอนนี้</h2>
+              <ol id="risk-list" class="cards"></ol>
+              <button id="risk-more" class="text-btn" type="button" hidden></button>
+            </div>
+            <div class="watch-col">
+              <div class="card upstream">
+                <div class="upstream-head">
+                  <h2>น้ำเหนือ</h2>
+                  <a href="https://www.thaiwater.net/new4all" target="_blank" rel="noopener noreferrer">เขื่อนและการระบาย ↗</a>
+                </div>
+                <p class="muted">น้ำจากทางเหนือไหลผ่านสถานีเหล่านี้ก่อนถึงกรุงเทพฯ</p>
+                <ol id="key-list" class="timeline"></ol>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="sec-cctv" class="sec" aria-labelledby="h-cctv">
+          <div class="sec-head">
+            <div>
+              <h1 id="h-cctv">กล้อง CCTV และถนน</h1>
+              <span class="muted">เปิดดูจากระบบของหน่วยงานโดยตรง</span>
+            </div>
+          </div>
+          <div id="cctv-hero"></div>
           <ul id="camera-links" class="cards"></ul>
-        </div>
-      </section>
+          <div class="tips">
+            <h2>ก่อนออกเดินทาง</h2>
+            <ol>
+              <li>ดูน้ำท่วมถนนบนเส้นทางที่จะไป</li>
+              <li>เปิดกล้อง CCTV ตรงจุดเสี่ยงเพื่อดูสภาพจริง</li>
+              <li>ติดตามประกาศจากหน่วยงานราชการประกอบเสมอ</li>
+            </ol>
+          </div>
+        </section>
 
-      <section id="view-info" class="view" aria-label="แหล่งข้อมูล">
-        <div class="pane">
-          <h2>เครื่องมือที่แนะนำ</h2>
+        <section id="sec-info" class="sec" aria-labelledby="h-info">
+          <div class="sec-head">
+            <div><h1 id="h-info">แหล่งข้อมูล</h1></div>
+          </div>
+          <h2 class="col-title">เครื่องมือที่แนะนำ</h2>
           <ul id="official-links" class="cards"></ul>
-          <h2>เกี่ยวกับแอปนี้</h2>
-          <p class="muted">
-            ข้อมูลในแอปนี้ดึงจากแหล่งข้อมูลสาธารณะเพื่อใช้ประกอบการตัดสินใจเท่านั้น
-            ไม่ใช่ประกาศเตือนภัยอย่างเป็นทางการ โปรดติดตามประกาศจากหน่วยงานราชการประกอบเสมอ
-          </p>
-          <p class="muted">เกณฑ์สีระดับน้ำ: ต่ำกว่า 70% ของตลิ่ง = ปกติ, 70–90% = เฝ้าระวัง, 90–100% = เตือนภัย, เกิน 100% = วิกฤต (ล้นตลิ่ง)</p>
-          <p class="muted">เกณฑ์สีฝนสะสม 24 ชม.: ≤10 มม. = ปกติ, 10–35 มม. = เฝ้าระวัง, 35–90 มม. = เตือนภัย (ฝนหนัก), เกิน 90 มม. = วิกฤต (ฝนหนักมาก)</p>
-          <p class="muted">จุดพยากรณ์ Google (ส): พยากรณ์น้ำล้นตลิ่งล่วงหน้าจาก Google Flood Hub — สูงกว่าปกติ = เฝ้าระวัง, รุนแรง = เตือนภัย, รุนแรงมาก = วิกฤต</p>
-        </div>
-      </section>
-    </main>
+          <div class="card about">
+            <h2>เกี่ยวกับแอปนี้</h2>
+            <p>
+              ข้อมูลในแอปนี้ดึงจากแหล่งข้อมูลสาธารณะเพื่อใช้ประกอบการตัดสินใจเท่านั้น
+              ไม่ใช่ประกาศเตือนภัยอย่างเป็นทางการ โปรดติดตามประกาศจากหน่วยงานราชการประกอบเสมอ
+            </p>
+            <h3>เกณฑ์สี</h3>
+            <p>ระดับน้ำเทียบตลิ่ง: ต่ำกว่า 70% ปกติ · 70–90% เฝ้าระวัง · 90–100% เตือนภัย · เกิน 100% วิกฤต (ล้นตลิ่ง)</p>
+            <p>ฝนสะสม 24 ชม.: ไม่เกิน 10 มม. ปกติ · 10–35 มม. เฝ้าระวัง · 35–90 มม. เตือนภัย · เกิน 90 มม. วิกฤต</p>
+            <p>พยากรณ์ Google: สูงกว่าปกติ = เฝ้าระวัง · รุนแรง = เตือนภัย · รุนแรงมาก = วิกฤต</p>
+          </div>
+        </section>
+      </aside>
+    </div>
 
     <nav class="tabbar" aria-label="เมนูหลัก">
-      <button type="button" data-view="map" class="active">แผนที่</button>
-      <button type="button" data-view="list">เฝ้าระวัง</button>
-      <button type="button" data-view="cctv">กล้อง CCTV</button>
-      <button type="button" data-view="info">แหล่งข้อมูล</button>
+      <button type="button" data-view="map"><span data-icon="map"></span>แผนที่</button>
+      <button type="button" data-view="watch"><span data-icon="alert"></span>เฝ้าระวัง<span class="tab-badge" id="tab-badge" hidden></span></button>
+      <button type="button" data-view="cctv"><span data-icon="camera"></span>กล้อง CCTV</button>
+      <button type="button" data-view="info"><span data-icon="info"></span>แหล่งข้อมูล</button>
     </nav>
 
     <script type="module" src="/src/main.ts"></script>

@@ -101,6 +101,30 @@ export interface CameraLink {
   area?: string;
 }
 
+/** กล้อง CCTV ที่ทราบพิกัด (แสดงเป็นหมุดบนแผนที่ แตะแล้วเปิดดูภาพที่เว็บของหน่วยงาน) */
+export interface Camera {
+  id: string;
+  name: string;
+  road?: string;
+  location: Location;
+  /** หน่วยงานเจ้าของกล้อง เช่น "กทม." */
+  owner: string;
+  /** ลิงก์ไปดูภาพกล้อง (หน้าของกล้องตัวนี้ หรือหน้ารวมของหน่วยงาน) */
+  url: string;
+}
+
+/** ผลการค้นหาสถานที่ */
+export interface Place {
+  id: string;
+  name: string;
+  /** รายละเอียดประกอบ เช่น เขต/จังหวัด */
+  detail: string;
+  lat: number;
+  lng: number;
+  /** ประเภทจาก OSM เช่น road, district */
+  kind: string;
+}
+
 export interface ApiResponse<T> {
   data: T[];
   source: string;

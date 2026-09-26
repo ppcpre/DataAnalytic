@@ -22,3 +22,15 @@ describe('format helpers', () => {
     expect(d).toBeLessThan(12.5);
   });
 });
+
+describe('new helpers', async () => {
+  const { formatDistance, highlight } = await import('../src/format');
+  it('formats distance in metres or km', () => {
+    expect(formatDistance(0.347)).toBe('350 ม.');
+    expect(formatDistance(1.84)).toBe('1.8 กม.');
+  });
+  it('highlights the query safely', () => {
+    expect(highlight('ถนนลาดพร้าว', 'ลาดพร้าว')).toBe('ถนน<b>ลาดพร้าว</b>');
+    expect(highlight('<x>', 'z')).toBe('&lt;x&gt;');
+  });
+});

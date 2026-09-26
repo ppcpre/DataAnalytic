@@ -6,7 +6,10 @@ import type { Config } from './config.js';
 import { fetchJson, postJson, UpstreamError } from './http.js';
 import { parseFloodgates, parseKeyStations, parseRain, parseWaterLevel } from './adapters/thaiwater.js';
 import { fetchFloodStatusPages, parseFloodStatuses } from './adapters/floodhub.js';
+import { geocodeUrl, parsePhoton } from './adapters/geocode.js';
+import { CAMERAS } from './data/cameras.js';
 import {
+  sampleCameras,
   sampleFloodForecasts,
   sampleFloodgates,
   sampleKeyStations,
@@ -32,6 +35,7 @@ interface Dataset<T> {
 
 export function createApp(config: Config, getJson: GetJson = fetchJson, post: PostJson = postJson) {
   const cache = new TtlCache(config.cacheTtlMs, config.staleMaxMs);
+  const geocodeCache = new TtlCache(config.geocode.cacheTtlMs, config.geocode.cacheTtlMs);
   const app = new Hono();
 
   app.use(
@@ -93,6 +97,8 @@ export function createApp(config: Config, getJson: GetJson = fetchJson, post: Po
       dataMode: config.dataMode,
       floodhub: config.dataMode === 'sample' || !!config.floodhub.apiKey,
       floodgates: config.dataMode === 'sample' || !!config.thaiwater.floodgateUrl,
+      cameras: config.dataMode === 'sample' || CAMERAS.length > 0,
+      geocode: !!config.geocode.url,
     }),
   );
 
@@ -154,6 +160,33 @@ export function createApp(config: Config, getJson: GetJson = fetchJson, post: Po
       sample: sampleFloodForecasts,
     }),
   );
+
+  app.get(
+    '/api/cameras',
+    serve({
+      key: 'cameras',
+      source: 'รายชื่อกล้องที่ตรวจสอบพิกัดแล้ว',
+      enabled: () => true,
+      load: async () => CAMERAS,
+      sample: sampleCameras,
+    }),
+  );
+
+  /** ค้นหาสถานที่ (ผ่านเซิร์ฟเวอร์เพื่อ cache ผลและไม่เรียกบริการต้นทางถี่เกินไป) */
+  app.get('/api/geocode', async (c) => {
+    const q = (c.req.query('q') ?? '').trim().slice(0, 100);
+    if (q.length < 2) return c.json({ data: [] });
+    if (!config.geocode.url) return c.json({ data: [] });
+    const url = geocodeUrl(config.geocode.url, q, config.geocode.bbox);
+    try {
+      const result = await geocodeCache.get(`q:${q.toLowerCase()}`, async () => parsePhoton(await getJson(url)));
+      c.header('cache-control', 'public, max-age=3600');
+      return c.json({ data: result.value });
+    } catch (err) {
+      console.error('[geocode]', err);
+      return c.json({ error: 'ค้นหาสถานที่ไม่สำเร็จ' }, 502);
+    }
+  });
 
   app.get('/api/links', (c) => {
     c.header('cache-control', 'public, max-age=3600');

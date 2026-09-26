@@ -5,6 +5,7 @@
 import {
   rainStatus,
   waterLevelStatus,
+  type Camera,
   type FloodForecast,
   type FloodHubSeverity,
   type Floodgate,
@@ -108,5 +109,22 @@ export function sampleFloodForecasts(now = new Date()): FloodForecast[] {
     issuedAt: hoursAgo(now, 3),
     forecastStart: hoursAgo(now, -24),
     forecastEnd: hoursAgo(now, -72),
+  }));
+}
+
+export function sampleCameras(): Camera[] {
+  const rows: Array<[string, string, number, number, string]> = [
+    ['กล้องตัวอย่าง 1', 'ถนนตัวอย่าง A', 13.7545, 100.5405, '10'],
+    ['กล้องตัวอย่าง 2', 'ถนนตัวอย่าง B', 13.8265, 100.5655, '10'],
+    ['กล้องตัวอย่าง 3', 'ถนนตัวอย่าง C', 13.7002, 100.6071, '10'],
+    ['กล้องตัวอย่าง 4', 'ถนนตัวอย่าง D', 13.8650, 100.5200, '12'],
+  ];
+  return rows.map(([name, road, lat, lng, province], i) => ({
+    id: `sample-cam-${i + 1}`,
+    name,
+    road,
+    location: { lat, lng, province },
+    owner: 'ข้อมูลตัวอย่าง',
+    url: 'https://cpudapp.bangkok.go.th/bmatraffic',
   }));
 }

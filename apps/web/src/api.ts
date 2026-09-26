@@ -1,5 +1,7 @@
 import type {
   ApiResponse,
+  Camera,
+  Place,
   CameraLink,
   FloodForecast,
   Floodgate,
@@ -10,8 +12,8 @@ import type {
 /** URL ของ API (ว่าง = origin เดียวกัน / ผ่าน proxy ของ Vite ตอนพัฒนา) */
 const API_BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
 
-async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`);
+async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, { signal });
   if (!res.ok) {
     let message = `HTTP ${res.status}`;
     try {
@@ -31,6 +33,12 @@ export const api = {
   floodgates: () => getJson<ApiResponse<Floodgate>>('/api/floodgates'),
   keyStations: () => getJson<ApiResponse<WaterLevelStation>>('/api/key-stations'),
   floodForecast: () => getJson<ApiResponse<FloodForecast>>('/api/flood-forecast'),
-  health: () => getJson<{ ok: boolean; dataMode: string; floodhub: boolean; floodgates: boolean }>('/api/health'),
+  cameras: () => getJson<ApiResponse<Camera>>('/api/cameras'),
+  geocode: (q: string, signal?: AbortSignal) =>
+    getJson<{ data: Place[] }>(`/api/geocode?q=${encodeURIComponent(q)}`, signal),
+  health: () =>
+    getJson<{ ok: boolean; dataMode: string; floodhub: boolean; floodgates: boolean; cameras: boolean; geocode: boolean }>(
+      '/api/health',
+    ),
   links: () => getJson<{ cameras: CameraLink[]; official: CameraLink[] }>('/api/links'),
 };

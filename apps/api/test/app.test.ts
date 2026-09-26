@@ -77,3 +77,39 @@ describe('api', () => {
     expect(body.cameras.length).toBeGreaterThan(0);
   });
 });
+
+describe('cameras and geocode', () => {
+  it('serves an empty camera list by default and sample cameras in sample mode', async () => {
+    const live = await (await createApp(loadConfig({})).request('/api/cameras')).json();
+    expect(live.data).toEqual([]);
+    const sample = await (await createApp(loadConfig({ DATA_MODE: 'sample' })).request('/api/cameras')).json();
+    expect(sample.data.length).toBeGreaterThan(0);
+  });
+
+  it('proxies place search, restricted to the service area, and caches it', async () => {
+    const urls: string[] = [];
+    const app = createApp(loadConfig({}), async (url) => {
+      urls.push(url);
+      return {
+        features: [
+          {
+            geometry: { coordinates: [100.56, 13.81] },
+            properties: { name: 'ลาดพร้าว', osm_value: 'suburb', city: 'กรุงเทพมหานคร', osm_type: 'R', osm_id: 1 },
+          },
+        ],
+      };
+    });
+    const body = await (await app.request('/api/geocode?q=%E0%B8%A5%E0%B8%B2%E0%B8%94%E0%B8%9E%E0%B8%A3%E0%B9%89%E0%B8%B2%E0%B8%A7')).json();
+    expect(body.data[0]).toMatchObject({ name: 'ลาดพร้าว', detail: 'กรุงเทพมหานคร', lat: 13.81, lng: 100.56 });
+    expect(urls[0]).toContain('bbox=99.8%2C13.4%2C100.95%2C14.3');
+    await app.request('/api/geocode?q=%E0%B8%A5%E0%B8%B2%E0%B8%94%E0%B8%9E%E0%B8%A3%E0%B9%89%E0%B8%B2%E0%B8%A7');
+    expect(urls).toHaveLength(1);
+  });
+
+  it('ignores too-short queries', async () => {
+    const app = createApp(loadConfig({}), async () => {
+      throw new Error('should not be called');
+    });
+    expect((await (await app.request('/api/geocode?q=a')).json()).data).toEqual([]);
+  });
+});

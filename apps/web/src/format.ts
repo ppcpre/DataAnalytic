@@ -27,6 +27,27 @@ export function formatTime(iso: string | null | undefined): string {
   return Number.isNaN(d.getTime()) ? 'ไม่ทราบเวลา' : `${timeFmt.format(d)} น.`;
 }
 
+const clockFmt = new Intl.DateTimeFormat('th-TH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' });
+
+/** เวลาแบบสั้น เช่น "14:20 น." */
+export function formatClock(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '' : `${clockFmt.format(d)} น.`;
+}
+
+/** ระยะทางแบบอ่านง่าย: "350 ม." หรือ "1.8 กม." */
+export function formatDistance(km: number): string {
+  return km < 1 ? `${Math.round(km * 100) * 10} ม.` : `${km.toLocaleString('th-TH', { maximumFractionDigits: 1 })} กม.`;
+}
+
+/** ครอบคำที่ค้นหาด้วย <b> (escape แล้ว) */
+export function highlight(text: string, q: string): string {
+  const i = q ? text.toLowerCase().indexOf(q.toLowerCase()) : -1;
+  if (i < 0) return escapeHtml(text);
+  return `${escapeHtml(text.slice(0, i))}<b>${escapeHtml(text.slice(i, i + q.length))}</b>${escapeHtml(text.slice(i + q.length))}`;
+}
+
 /** อธิบายว่าข้อมูลเก่าแค่ไหน เช่น "15 นาทีที่แล้ว" */
 export function formatAgo(iso: string | null | undefined, now = Date.now()): string {
   if (!iso) return '';

@@ -41,6 +41,8 @@ npm run build
 | `THAIWATER_WATERLEVEL_URL` / `THAIWATER_RAIN_URL` | `<base>/waterlevel_load`, `<base>/rain_24h` | กำหนดแยกรายตัว |
 | `THAIWATER_FLOODGATE_URL` | (ว่าง) | endpoint สถานะประตูระบายน้ำ — ว่าง = ชั้นข้อมูลนี้ไม่มีจุด |
 | `KEY_STATION_CODES` | `C.2,C.13,C.29A` | รหัสสถานีต้นน้ำสำคัญ (นครสวรรค์, ท้ายเขื่อนเจ้าพระยา, บางไทร) เรียงจากต้นน้ำ |
+| `GEOCODER_URL` | `https://photon.komoot.io/api/` | บริการค้นหาสถานที่ (รูปแบบ Photon, ข้อมูล OpenStreetMap) — ว่าง = ปิดการค้นหาสถานที่ |
+| `GEOCODER_BBOX` | `13.4,99.8,14.3,100.95` | กรอบพื้นที่ค้นหา (minLat,minLng,maxLat,maxLng) |
 | `GOOGLE_FLOOD_API_KEY` | (ว่าง) | API key ของ Google Flood Forecasting API — ว่าง = ปิดชั้นพยากรณ์ Google |
 | `GOOGLE_FLOOD_BBOX` | `13.3,99.7,15.9,101.2` | กรอบพื้นที่จุดพยากรณ์ที่แสดง (minLat,minLng,maxLat,maxLng) |
 
@@ -49,6 +51,11 @@ npm run build
 1. สมัคร waitlist ที่ https://sites.research.google/gr/floodforecasting/api-waitlist/ (อาจรอหลายเดือน)
 2. เมื่อได้รับอีเมลอนุมัติ ตอบกลับด้วย Google Cloud Project ID
 3. เปิดใช้ Flood Forecasting API ใน project นั้น สร้าง API key แล้วตั้งเป็น `GOOGLE_FLOOD_API_KEY`
+
+### เพิ่มกล้อง CCTV บนแผนที่
+
+ยังไม่มีแหล่งข้อมูลสาธารณะที่ให้พิกัดกล้อง จึงเริ่มจากรายการว่างใน `apps/api/src/data/cameras.ts`
+เพิ่มกล้องที่ตรวจสอบพิกัดแล้วลงในไฟล์นั้น ปุ่มชั้นข้อมูล "กล้อง" จะแสดงขึ้นเองเมื่อมีอย่างน้อย 1 ตัว
 
 ## ตัวแปรสภาพแวดล้อม (หน้าเว็บ, ตอน build)
 

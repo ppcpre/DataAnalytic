@@ -17,6 +17,13 @@ export interface Config {
     /** รหัสสถานีต้นน้ำสำคัญที่จะแสดงเพิ่ม (เรียงจากต้นน้ำลงมา) */
     keyStationCodes: string[];
   };
+  geocode: {
+    /** endpoint ค้นหาสถานที่แบบ Photon — ว่าง = ปิดการค้นหาสถานที่ */
+    url: string;
+    /** กรอบพื้นที่ค้นหา: กรุงเทพฯ และปริมณฑล */
+    bbox: { minLat: number; minLng: number; maxLat: number; maxLng: number };
+    cacheTtlMs: number;
+  };
   floodhub: {
     /** API key ของ Google Flood Forecasting API — ว่าง = ปิดชั้นข้อมูลนี้ */
     apiKey: string;
@@ -51,6 +58,11 @@ export function loadConfig(env: Env = process.env): Config {
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean),
+    },
+    geocode: {
+      url: env.GEOCODER_URL ?? 'https://photon.komoot.io/api/',
+      bbox: parseBBox(env.GEOCODER_BBOX ?? '13.4,99.8,14.3,100.95'),
+      cacheTtlMs: Number(env.GEOCODER_CACHE_SECONDS ?? 24 * 3600) * 1000,
     },
     floodhub: {
       apiKey: env.GOOGLE_FLOOD_API_KEY ?? '',
