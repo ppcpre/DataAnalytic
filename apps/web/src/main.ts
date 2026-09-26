@@ -28,10 +28,8 @@ const BKK_CENTER: L.LatLngExpression = [13.78, 100.52];
 L.Popup.prototype.options.autoPanPaddingTopLeft = L.point(10, 150);
 const map = L.map('map', { zoomControl: false }).setView(BKK_CENTER, 11);
 L.control.zoom({ position: 'bottomright' }).addTo(map);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 18,
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-}).addTo(map);
+// โหลดแผนที่ฐานแยกไฟล์ เพื่อให้หมุดข้อมูลขึ้นก่อนบนเน็ตช้า
+void import('./basemap').then((m) => m.addBasemap(map));
 
 type LayerKey = 'water' | 'rain' | 'gate' | 'forecast';
 const layers: Record<LayerKey, L.LayerGroup> = {

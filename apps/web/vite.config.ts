@@ -1,5 +1,32 @@
-import { defineConfig } from 'vite';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+import { defineConfig, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+
+/**
+ * maplibre-gl v6 โหลด web worker จากไฟล์แยก (maplibre-gl-worker.mjs + maplibre-gl-shared.mjs)
+ * ซึ่ง Vite ไม่ได้คัดลอกให้ — plugin นี้เสิร์ฟ/คัดลอกไฟล์ทั้งสองไปไว้ที่ /maplibre/
+ */
+function maplibreWorker(): Plugin {
+  const dir = dirname(createRequire(import.meta.url).resolve('maplibre-gl/package.json'));
+  const files = ['maplibre-gl-worker.mjs', 'maplibre-gl-shared.mjs'];
+  const read = (f: string) => readFileSync(join(dir, 'dist', f));
+  return {
+    name: 'maplibre-worker',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const f = files.find((name) => req.url?.endsWith(`/maplibre/${name}`));
+        if (!f) return next();
+        res.setHeader('content-type', 'text/javascript');
+        res.end(read(f));
+      });
+    },
+    generateBundle() {
+      for (const f of files) this.emitFile({ type: 'asset', fileName: `maplibre/${f}`, source: read(f) });
+    },
+  };
+}
 
 export default defineConfig({
   // ตั้ง BASE_PATH เมื่อโฮสต์ใต้ path ย่อย เช่น GitHub Pages (/DataAnalytic/)
@@ -8,6 +35,7 @@ export default defineConfig({
     proxy: { '/api': 'http://localhost:8787' },
   },
   plugins: [
+    maplibreWorker(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'apple-touch-icon.png'],
@@ -27,6 +55,9 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // maplibre-gl มีขนาดใหญ่ ต้องเพิ่มเพดานไฟล์ที่ precache ได้
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        globPatterns: ['**/*.{js,mjs,css,html,png,svg,webmanifest}'],
         navigateFallback: 'index.html',
         runtimeCaching: [
           {
@@ -40,6 +71,17 @@ export default defineConfig({
             },
           },
           {
+            // OpenFreeMap: style, vector tiles, fonts, sprites — ใช้ของใน cache ก่อน แล้วอัปเดตเบื้องหลัง
+            urlPattern: ({ url }) => url.hostname === 'tiles.openfreemap.org',
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'openfreemap',
+              expiration: { maxEntries: 1000, maxAgeSeconds: 7 * 24 * 3600 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // แผนที่สำรอง
             urlPattern: ({ url }) => url.hostname.endsWith('tile.openstreetmap.org'),
             handler: 'CacheFirst',
             options: {

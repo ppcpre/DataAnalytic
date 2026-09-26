@@ -9,7 +9,7 @@ Progressive Web App สำหรับประชาชนทั่วไป �
 
 ```
 apps/api         Node.js + Hono — ดึงข้อมูลจาก ThaiWater, กรองพื้นที่, cache, ส่ง JSON
-apps/web         PWA (Vite + TypeScript + Leaflet + vite-plugin-pwa)
+apps/web         PWA (Vite + TypeScript + Leaflet + vite-plugin-pwa), แผนที่ฐาน OpenFreeMap
 packages/shared  type และเกณฑ์สถานะที่ใช้ร่วมกัน
 ```
 
