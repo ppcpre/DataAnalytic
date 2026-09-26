@@ -32,7 +32,9 @@ function parseBBox(v: string) {
   return { minLat, minLng, maxLat, maxLng };
 }
 
-export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
+export type Env = Record<string, string | undefined>;
+
+export function loadConfig(env: Env = process.env): Config {
   const base = env.THAIWATER_BASE_URL ?? 'https://api-v3.thaiwater.net/api/v1/thaiwater30/public';
   return {
     port: Number(env.PORT ?? 8787),

@@ -57,12 +57,43 @@ npm run build
 | `VITE_API_BASE` | URL ของ API เช่น `https://flood-api.onrender.com` (ว่าง = origin เดียวกัน) |
 | `BASE_PATH` | path ย่อยเมื่อโฮสต์บน GitHub Pages เช่น `/DataAnalytic/` |
 
-## เผยแพร่แบบฟรี (แนะนำ)
+## เผยแพร่บน Cloudflare (ฟรี)
 
-- **API** → Render (Web Service, free): Build `npm install && npm run build --workspace @flood-watch/api`,
-  Start `npm start --workspace @flood-watch/api`, ตั้ง `CORS_ORIGIN` เป็น URL ของหน้าเว็บ
-- **หน้าเว็บ** → GitHub Pages หรือ Cloudflare Pages: build ด้วย
-  `VITE_API_BASE=<url ของ API> npm run build --workspace @flood-watch/web` แล้วอัปโหลด `apps/web/dist`
+หน้าเว็บและ API อยู่ใน Cloudflare Worker ตัวเดียว (`wrangler.jsonc`): ไฟล์ใน `apps/web/dist` เสิร์ฟเป็น
+Static Assets ส่วน `/api/*` รันโค้ดใน `apps/api/src/worker.ts` — อยู่ใน free plan ของ Workers (100,000 คำขอ/วัน)
+
+### Deploy อัตโนมัติจาก GitHub (แนะนำ)
+
+ทุกครั้งที่ push ไปยัง default branch, GitHub Actions (`.github/workflows/deploy.yml`) จะเทสต์แล้ว deploy ให้
+ต้องตั้งค่าครั้งเดียว:
+
+1. Cloudflare Dashboard → **My Profile → API Tokens → Create Token** → ใช้ template **Edit Cloudflare Workers**
+2. คัดลอก **Account ID** จากหน้า Workers & Pages (แถบด้านขวา)
+3. GitHub repo → **Settings → Secrets and variables → Actions → New repository secret** เพิ่ม
+   - `CLOUDFLARE_API_TOKEN`
+   - `CLOUDFLARE_ACCOUNT_ID`
+4. ไปที่แท็บ **Actions → Deploy to Cloudflare → Run workflow** (หรือ push commit ใหม่)
+5. เว็บจะอยู่ที่ `https://flood-watch.<subdomain>.workers.dev`
+
+ถ้ายังไม่ได้ตั้ง secret ขั้น deploy จะถูกข้าม (มีคำเตือนใน Actions) แต่เทสต์ยังรันตามปกติ
+
+### Deploy จากเครื่องตัวเอง
+
+```bash
+npx wrangler login
+npm run deploy
+```
+
+### ตั้งค่าเพิ่มเติม
+
+- ค่าทั่วไป (เช่น `DATA_MODE`, `KEY_STATION_CODES`) แก้ใน `vars` ของ `wrangler.jsonc`
+- ความลับ (เช่น Google Flood API key): `npx wrangler secret put GOOGLE_FLOOD_API_KEY`
+- ทดสอบแบบ Cloudflare บนเครื่อง: `npm run cf:dev` (เพิ่ม `-- --var DATA_MODE:sample` เพื่อใช้ข้อมูลตัวอย่าง)
+
+### ทางเลือก: รัน API ด้วย Node.js
+
+API ยังรันแบบ Node.js ได้ (`npm run build && npm start --workspace @flood-watch/api`) เช่นบน Render
+แล้ว build หน้าเว็บด้วย `VITE_API_BASE=<url ของ API>`
 
 ## ข้อจำกัดความรับผิดชอบ
 

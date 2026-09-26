@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "flood-watch",
+  "main": "apps/api/src/worker.ts",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "apps/web/dist",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "alias": {
+    "@flood-watch/shared": "./packages/shared/src/index.ts"
+  },
+  "vars": {
+    "DATA_MODE": "live",
+    "KEY_STATION_CODES": "C.2,C.13,C.29A"
+  }
+  // ความลับ (เช่น GOOGLE_FLOOD_API_KEY) ตั้งด้วย: npx wrangler secret put GOOGLE_FLOOD_API_KEY
+}
