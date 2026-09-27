@@ -214,6 +214,11 @@ body.loading #refresh svg { animation: spin 1s linear infinite; }
 .sum-pill {
   flex: 1; display: flex; align-items: center; gap: 8px;
   padding: 8px 12px; border-radius: 12px; font-size: 0.82rem; font-weight: 600;
+  white-space: nowrap; min-width: 0;
+}
+@media (max-width: 399px) {
+  .map-top .sum-pill { padding: 8px; gap: 6px; font-size: 0.76rem; justify-content: center; }
+  .map-top .sum-pill .dot { width: 8px; height: 8px; }
 }
 .sum-pill .dot { width: 10px; height: 10px; border-radius: 50%; }
 .chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
