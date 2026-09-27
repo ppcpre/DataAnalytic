@@ -4,13 +4,43 @@
  */
 import { createApp } from './app.js';
 import { loadConfig, type Env } from './config.js';
+import { D1HistoryStore, MemoryHistoryStore, RETENTION_MS, type D1Like, type HistoryStore } from './history.js';
+
+interface WorkerEnv {
+  /** ฐานข้อมูล D1 สำหรับเก็บข้อมูลย้อนหลัง (ไม่บังคับ — ไม่มีจะเก็บในหน่วยความจำชั่วคราว) */
+  DB?: D1Like;
+  [key: string]: unknown;
+}
+
+interface Ctx {
+  waitUntil(p: Promise<unknown>): void;
+}
 
 let app: ReturnType<typeof createApp> | null = null;
+let history: HistoryStore | null = null;
+
+function init(env: WorkerEnv) {
+  // สร้างครั้งเดียวต่อ isolate เพื่อให้ cache ในหน่วยความจำใช้ร่วมกันระหว่างคำขอ
+  history ??= env.DB ? new D1HistoryStore(env.DB) : new MemoryHistoryStore();
+  app ??= createApp(loadConfig(env as Env), undefined, undefined, { history });
+  return { app, history };
+}
 
 export default {
-  fetch(request: Request, env: Env, ctx: unknown) {
-    // สร้างครั้งเดียวต่อ isolate เพื่อให้ cache ในหน่วยความจำใช้ร่วมกันระหว่างคำขอ
-    app ??= createApp(loadConfig(env));
-    return app.fetch(request, env, ctx as never);
+  fetch(request: Request, env: WorkerEnv, ctx: Ctx) {
+    return init(env).app.fetch(request, env, ctx as never);
+  },
+
+  /** Cron Trigger: ดึงข้อมูลเป็นระยะเพื่อเก็บประวัติ แม้ไม่มีผู้ใช้เปิดแอป */
+  async scheduled(_event: unknown, env: WorkerEnv, ctx: Ctx) {
+    const { app, history } = init(env);
+    const run = async () => {
+      for (const path of ['/api/water-level', '/api/key-stations']) {
+        const res = await app.fetch(new Request(`https://internal${path}`), env, ctx as never);
+        if (!res.ok) console.error('[cron]', path, res.status);
+      }
+      await history.prune(Date.now() - RETENTION_MS);
+    };
+    ctx.waitUntil(run());
   },
 };

@@ -2,12 +2,14 @@
  * ข้อมูลตัวอย่างสำหรับพัฒนา/ทดสอบหน้าเว็บเท่านั้น — ไม่ใช่ข้อมูลจริง
  * ชื่อสถานีและพิกัดเป็นค่าสมมติ ใช้เมื่อ DATA_MODE=sample
  */
+import { computeTrend, HOUR, type Reading } from '../history.js';
 import {
   rainStatus,
   waterLevelStatus,
   type Camera,
   type FloodForecast,
   type FloodHubSeverity,
+  type HistoryPoint,
   type Floodgate,
   type RainStation,
   type WaterLevelStation,
@@ -29,7 +31,7 @@ function hoursAgo(now: Date, h: number): string {
   return new Date(now.getTime() - h * 3600_000).toISOString();
 }
 
-export function sampleWaterLevel(now = new Date()): WaterLevelStation[] {
+function sampleWaterLevelRaw(now = new Date()): WaterLevelStation[] {
   const percents = [45, 72, 93, 108, 60, 81, 55, 97, 30];
   return points.map(([lat, lng, province, district], i) => {
     const bankMsl = 2 + (i % 3) * 0.5;
@@ -73,7 +75,7 @@ export function sampleFloodgates(now = new Date()): Floodgate[] {
   }));
 }
 
-export function sampleKeyStations(now = new Date()): WaterLevelStation[] {
+function sampleKeyStationsRaw(now = new Date()): WaterLevelStation[] {
   const rows: Array<[string, string, number, number, string, number]> = [
     ['C.2', 'สถานีต้นน้ำตัวอย่าง A', 15.70, 100.12, 'นครสวรรค์', 64],
     ['C.13', 'สถานีต้นน้ำตัวอย่าง B', 15.15, 100.18, 'ชัยนาท', 78],
@@ -126,5 +128,63 @@ export function sampleCameras(): Camera[] {
     location: { lat, lng, province },
     owner: 'ข้อมูลตัวอย่าง',
     url: 'https://cpudapp.bangkok.go.th/bmatraffic',
+  }));
+}
+
+// ---------- ข้อมูลย้อนหลังตัวอย่าง ----------
+
+function seedOf(id: string): number {
+  let h = 0;
+  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return h;
+}
+
+/** เส้นโค้งสมมติที่จบที่ค่าปัจจุบัน: บางสถานีขึ้น บางสถานีลง บางสถานีทรงตัว */
+function samplePercentAt(id: string, current: number, hoursAgo: number): number {
+  const seed = seedOf(id);
+  const slope = [2.2, -1.1, 0.15][seed % 3];
+  const phase = seed % 7;
+  const wave = (h: number) => Math.sin(h / 2 + phase) * 1.5;
+  return Math.max(0, current - slope * hoursAgo + wave(hoursAgo) - wave(0));
+}
+
+function sampleReadings(s: WaterLevelStation, hours: number, now: number): Reading[] {
+  const out: Reading[] = [];
+  const end = new Date(s.observedAt).getTime() || now;
+  for (let h = hours; h >= 0; h -= 0.5) {
+    const percent = s.percent === null ? null : Math.round(samplePercentAt(s.id, s.percent, h) * 10) / 10;
+    out.push({
+      stationId: s.id,
+      t: end - h * HOUR,
+      percent,
+      level: percent !== null && s.bankMsl ? Math.round(((s.bankMsl * percent) / 100) * 100) / 100 : null,
+    });
+  }
+  return out;
+}
+
+function withSampleTrend(list: WaterLevelStation[], now: number): WaterLevelStation[] {
+  return list.map((s) => {
+    const readings = sampleReadings(s, 6, now);
+    return { ...s, trend: computeTrend(readings[readings.length - 1], readings) };
+  });
+}
+
+export function sampleWaterLevel(now = new Date()): WaterLevelStation[] {
+  return withSampleTrend(sampleWaterLevelRaw(now), now.getTime());
+}
+
+export function sampleKeyStations(now = new Date()): WaterLevelStation[] {
+  return withSampleTrend(sampleKeyStationsRaw(now), now.getTime());
+}
+
+/** ประวัติตัวอย่างของสถานี (ถ้าไม่ใช่สถานีตัวอย่างคืนค่าว่าง) */
+export function sampleHistory(stationId: string, hours: number, now = new Date()): HistoryPoint[] {
+  const s = [...sampleWaterLevelRaw(now), ...sampleKeyStationsRaw(now)].find((x) => x.id === stationId);
+  if (!s) return [];
+  return sampleReadings(s, hours, now.getTime()).map((r) => ({
+    t: new Date(r.t).toISOString(),
+    levelMsl: r.level,
+    percent: r.percent,
   }));
 }

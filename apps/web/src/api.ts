@@ -1,6 +1,7 @@
 import type {
   ApiResponse,
   Camera,
+  HistoryPoint,
   Place,
   CameraLink,
   FloodForecast,
@@ -33,6 +34,8 @@ export const api = {
   floodgates: () => getJson<ApiResponse<Floodgate>>('/api/floodgates'),
   keyStations: () => getJson<ApiResponse<WaterLevelStation>>('/api/key-stations'),
   floodForecast: () => getJson<ApiResponse<FloodForecast>>('/api/flood-forecast'),
+  history: (id: string, hours = 24) =>
+    getJson<{ data: HistoryPoint[]; sample: boolean }>(`/api/history/${encodeURIComponent(id)}?hours=${hours}`),
   cameras: () => getJson<ApiResponse<Camera>>('/api/cameras'),
   geocode: (q: string, signal?: AbortSignal) =>
     getJson<{ data: Place[] }>(`/api/geocode?q=${encodeURIComponent(q)}`, signal),

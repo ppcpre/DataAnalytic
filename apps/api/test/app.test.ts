@@ -113,3 +113,34 @@ describe('cameras and geocode', () => {
     expect((await (await app.request('/api/geocode?q=a')).json()).data).toEqual([]);
   });
 });
+
+describe('history endpoint', () => {
+  it('serves sample history ending at the current value, with trends on sample stations', async () => {
+    const app = createApp(loadConfig({ DATA_MODE: 'sample' }));
+    const stations = (await (await app.request('/api/water-level')).json()).data;
+    const s = stations[3];
+    expect(s.trend).toBeTruthy();
+    const hist = (await (await app.request(`/api/history/${s.id}?hours=6`)).json()).data;
+    expect(hist.length).toBe(13);
+    expect(hist[hist.length - 1].percent).toBeCloseTo(s.percent, 0);
+  });
+
+  it('serves recorded readings in live mode', async () => {
+    // เวลาวัด 1 ชม.ก่อน ในรูปแบบเวลาไทยของ ThaiWater
+    const observed = new Date(Math.floor((Date.now() - 3600_000) / 60_000) * 60_000);
+    const thai = new Date(observed.getTime() + 7 * 3600_000).toISOString().slice(0, 16).replace('T', ' ');
+    const app = createApp(loadConfig({}), async () => ({
+      data: [
+        {
+          waterlevel_datetime: thai,
+          waterlevel_msl: 1.5,
+          station: { id: 7, tele_station_name: 'ก', tele_station_lat: 13.7, tele_station_long: 100.5, min_bank: 2 },
+          geocode: { province_code: '10' },
+        },
+      ],
+    }));
+    await app.request('/api/water-level');
+    const body = await (await app.request('/api/history/tw-wl-7?hours=24')).json();
+    expect(body.data).toEqual([{ t: observed.toISOString(), levelMsl: 1.5, percent: 75 }]);
+  });
+});

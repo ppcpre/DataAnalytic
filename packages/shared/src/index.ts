@@ -27,6 +27,24 @@ export interface Location {
   district?: string;
 }
 
+/** แนวโน้มระดับน้ำเทียบกับเมื่อประมาณ 3 ชั่วโมงก่อน */
+export interface Trend {
+  direction: 'rise' | 'fall' | 'steady';
+  /** ค่าที่เปลี่ยน (หน่วยตาม unit) */
+  change: number;
+  unit: 'm' | '%';
+  /** เทียบกับเมื่อกี่ชั่วโมงก่อน */
+  sinceHours: number;
+}
+
+/** ค่าระดับน้ำย้อนหลัง 1 จุด */
+export interface HistoryPoint {
+  /** เวลา (ISO) */
+  t: string;
+  levelMsl: number | null;
+  percent: number | null;
+}
+
 export interface WaterLevelStation {
   id: string;
   name: string;
@@ -42,6 +60,8 @@ export interface WaterLevelStation {
   percent: number | null;
   status: Status;
   agency: string;
+  /** แนวโน้ม (ต้องมีข้อมูลย้อนหลังในระบบก่อน) */
+  trend?: Trend | null;
 }
 
 export interface RainStation {

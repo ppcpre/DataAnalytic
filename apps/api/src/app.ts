@@ -8,10 +8,12 @@ import { parseFloodgates, parseKeyStations, parseRain, parseWaterLevel } from '.
 import { fetchFloodStatusPages, parseFloodStatuses } from './adapters/floodhub.js';
 import { geocodeUrl, parsePhoton } from './adapters/geocode.js';
 import { CAMERAS } from './data/cameras.js';
+import { HOUR, MemoryHistoryStore, recordAndAttachTrends, type HistoryStore } from './history.js';
 import {
   sampleCameras,
   sampleFloodForecasts,
   sampleFloodgates,
+  sampleHistory,
   sampleKeyStations,
   sampleRain,
   sampleWaterLevel,
@@ -33,7 +35,17 @@ interface Dataset<T> {
   sample: () => T[];
 }
 
-export function createApp(config: Config, getJson: GetJson = fetchJson, post: PostJson = postJson) {
+export interface AppDeps {
+  history?: HistoryStore;
+}
+
+export function createApp(
+  config: Config,
+  getJson: GetJson = fetchJson,
+  post: PostJson = postJson,
+  deps: AppDeps = {},
+) {
+  const history = deps.history ?? new MemoryHistoryStore();
   const cache = new TtlCache(config.cacheTtlMs, config.staleMaxMs);
   const geocodeCache = new TtlCache(config.geocode.cacheTtlMs, config.geocode.cacheTtlMs);
   const app = new Hono();
@@ -108,7 +120,7 @@ export function createApp(config: Config, getJson: GetJson = fetchJson, post: Po
       key: 'water-level',
       source: THAIWATER,
       enabled: () => !!config.thaiwater.waterLevelUrl,
-      load: async () => parseWaterLevel(await waterLevelRaw()),
+      load: async () => recordAndAttachTrends(history, parseWaterLevel(await waterLevelRaw())),
       sample: sampleWaterLevel,
     }),
   );
@@ -119,7 +131,8 @@ export function createApp(config: Config, getJson: GetJson = fetchJson, post: Po
       key: 'key-stations',
       source: THAIWATER,
       enabled: () => !!config.thaiwater.waterLevelUrl && config.thaiwater.keyStationCodes.length > 0,
-      load: async () => parseKeyStations(await waterLevelRaw(), config.thaiwater.keyStationCodes),
+      load: async () =>
+        recordAndAttachTrends(history, parseKeyStations(await waterLevelRaw(), config.thaiwater.keyStationCodes)),
       sample: sampleKeyStations,
     }),
   );
@@ -171,6 +184,24 @@ export function createApp(config: Config, getJson: GetJson = fetchJson, post: Po
       sample: sampleCameras,
     }),
   );
+
+  /** ระดับน้ำย้อนหลังของสถานี (สูงสุด 7 วัน) */
+  app.get('/api/history/:id', async (c) => {
+    const id = c.req.param('id');
+    const hours = Math.min(168, Math.max(1, Number(c.req.query('hours') ?? 24) || 24));
+    c.header('cache-control', 'public, max-age=120');
+    if (config.dataMode === 'sample') return c.json({ data: sampleHistory(id, hours), sample: true });
+    try {
+      const rows = await history.series(id, Date.now() - hours * HOUR);
+      return c.json({
+        data: rows.map((r) => ({ t: new Date(r.t).toISOString(), levelMsl: r.level, percent: r.percent })),
+        sample: false,
+      });
+    } catch (err) {
+      console.error('[history]', err);
+      return c.json({ error: 'อ่านข้อมูลย้อนหลังไม่สำเร็จ' }, 502);
+    }
+  });
 
   /** ค้นหาสถานที่ (ผ่านเซิร์ฟเวอร์เพื่อ cache ผลและไม่เรียกบริการต้นทางถี่เกินไป) */
   app.get('/api/geocode', async (c) => {

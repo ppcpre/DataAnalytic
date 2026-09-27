@@ -28,6 +28,7 @@ import {
   formatTime,
 } from './format';
 import { initSearch } from './search';
+import { renderHistoryChart, trendText } from './chart';
 
 registerSW({ immediate: true });
 
@@ -234,6 +235,11 @@ function waterSheet(s: WaterLevelStation): string {
       <div class="bar"><span class="st-${s.status}" style="width:${width}%"></span></div>
       <div class="meter-scale"><span>0%</span><span>70% เฝ้าระวัง</span><span>ตลิ่ง 100%</span></div>
     </div>
+    ${s.trend ? `<div class="trend">${escapeHtml(trendText(s.trend))}</div>` : ''}
+    <div class="chart-block">
+      <div class="chart-title"><span>ระดับน้ำเทียบตลิ่ง 24 ชม.</span></div>
+      <div class="chart-host" data-history="${escapeHtml(s.id)}"><p class="chart-loading">กำลังโหลดข้อมูลย้อนหลัง…</p></div>
+    </div>
     ${tiles([
       ['ระดับน้ำ', `${formatNum(s.levelMsl)} ม.รทก.`],
       ['ตลิ่ง', `${formatNum(s.bankMsl)} ม.รทก.`],
@@ -368,6 +374,7 @@ export function openEntity(kind: LayerKey, id: string, pan = true) {
   ensureMapVisible();
   sheetEl.innerHTML = renderSheet(e);
   sheetEl.hidden = false;
+  void loadHistoryChart();
   document.body.classList.add('sheet-open');
   setSelectedMarker({ kind, id });
   // จัดให้จุดที่เลือกอยู่กลางพื้นที่แผนที่ที่ไม่ถูกแผ่นรายละเอียดบัง
@@ -378,6 +385,25 @@ export function openEntity(kind: LayerKey, id: string, pan = true) {
     else map.panBy([(sheetEl.offsetWidth + 16) / 2, 0]);
   });
   renderRiskList();
+}
+
+const historyCache = new Map<string, { at: number; data: Awaited<ReturnType<typeof api.history>>['data'] }>();
+async function loadHistoryChart() {
+  const host = sheetEl.querySelector<HTMLElement>('[data-history]');
+  if (!host) return;
+  const id = host.dataset.history!;
+  try {
+    let entry = historyCache.get(id);
+    if (!entry || Date.now() - entry.at > 2 * 60_000) {
+      entry = { at: Date.now(), data: (await api.history(id, 24)).data };
+      historyCache.set(id, entry);
+    }
+    // ผู้ใช้อาจเปิดจุดอื่นระหว่างรอ
+    if (!host.isConnected) return;
+    renderHistoryChart(host, entry.data, 24);
+  } catch {
+    if (host.isConnected) host.innerHTML = '<p class="chart-empty">โหลดข้อมูลย้อนหลังไม่สำเร็จ</p>';
+  }
 }
 
 function closeSheet() {
@@ -484,7 +510,7 @@ function riskItems(): RiskItem[] {
       id: s.id,
       name: s.name,
       status: s.status,
-      metric: `${formatNum(s.percent, 1)}% ตลิ่ง`,
+      metric: `${formatNum(s.percent, 1)}% ตลิ่ง${s.trend && s.trend.direction !== 'steady' ? ` ${trendText(s.trend, true)}` : ''}`,
       percent: s.percent,
       place: formatPlace(s.location.province, s.location.district),
       observedAt: s.observedAt,
@@ -615,8 +641,8 @@ function renderKeyStations() {
           <span><span class="tl-name">${escapeHtml(s.code ? `${s.code} ` : '')}${escapeHtml(s.name)}</span><br />
           <span class="tl-status ink-${s.status}">${STATUS_LABEL_TH[s.status]} · ${escapeHtml(
             formatPlace(s.location.province, s.location.district, s.location.provinceName),
-          )}</span></span>
-          <span class="tl-value ink-${s.status}">${formatNum(s.percent, 0)}%</span>
+          )}</span>${s.trend ? `<br /><span class="tl-trend">${escapeHtml(trendText(s.trend))}</span>` : ''}</span>
+          <span class="tl-value ink-${s.status}">${formatNum(s.percent, 0)}%${s.trend && s.trend.direction !== 'steady' ? ` ${trendText(s.trend, true)}` : ''}</span>
         </span>
       </li>`,
     )
