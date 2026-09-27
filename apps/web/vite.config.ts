@@ -82,7 +82,7 @@ export default defineConfig({
             },
           },
           {
-            // ฟอนต์ Noto Sans Thai
+            // ฟอนต์ Mitr
             urlPattern: ({ url }) => url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com',
             handler: 'CacheFirst',
             options: {
