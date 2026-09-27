@@ -35,8 +35,8 @@
   --st-unknown-ink: #3d4550;
   --camera: #16202a;
 
-  --font-display: 'Anuphan', 'IBM Plex Sans Thai', system-ui, sans-serif;
-  --font-body: 'IBM Plex Sans Thai', 'Noto Sans Thai', system-ui, sans-serif;
+  --font-display: 'Noto Sans Thai', system-ui, sans-serif;
+  --font-body: 'Noto Sans Thai', system-ui, sans-serif;
   --shadow-float: 0 2px 12px rgba(22, 32, 42, 0.12);
   --shadow-sheet: 0 -4px 20px rgba(22, 32, 42, 0.14);
   --tabbar-h: 68px;

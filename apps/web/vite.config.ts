@@ -82,7 +82,7 @@ export default defineConfig({
             },
           },
           {
-            // ฟอนต์ Anuphan / IBM Plex Sans Thai
+            // ฟอนต์ Noto Sans Thai
             urlPattern: ({ url }) => url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com',
             handler: 'CacheFirst',
             options: {
