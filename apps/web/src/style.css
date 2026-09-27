@@ -456,6 +456,8 @@ body.loading #refresh svg { animation: spin 1s linear infinite; }
   body[data-view='cctv'] #sec-cctv,
   body[data-view='info'] #sec-info { display: block; }
   .sheet-open .map-fabs, .sheet-open .legend { display: none; }
+  /* เหลือพื้นที่แผนที่ให้เห็นจุดที่เลือก — ส่วนที่เหลือของแผ่นเลื่อนดูได้ */
+  .sheet { max-height: 58%; }
 
   /* ค้นหาแบบเต็มจอ */
   body.searching .topbar {

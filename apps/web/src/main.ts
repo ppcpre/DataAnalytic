@@ -380,10 +380,7 @@ export function openEntity(kind: LayerKey, id: string, pan = true) {
   // จัดให้จุดที่เลือกอยู่กลางพื้นที่แผนที่ที่ไม่ถูกแผ่นรายละเอียดบัง
   const loc = e.item.location;
   map.setView([loc.lat, loc.lng], pan ? Math.max(map.getZoom(), 14) : map.getZoom(), { animate: false });
-  requestAnimationFrame(() => {
-    if (window.innerWidth < 600) map.panBy([0, sheetEl.offsetHeight / 2]);
-    else map.panBy([(sheetEl.offsetWidth + 16) / 2, 0]);
-  });
+  requestAnimationFrame(() => centerInVisibleArea(loc));
   renderRiskList();
 }
 
@@ -404,6 +401,32 @@ async function loadHistoryChart() {
   } catch {
     if (host.isConnected) host.innerHTML = '<p class="chart-empty">โหลดข้อมูลย้อนหลังไม่สำเร็จ</p>';
   }
+}
+
+/**
+ * เลื่อนแผนที่ให้จุดที่เลือกอยู่กลางพื้นที่ที่มองเห็นจริง
+ * (ไม่ถูกแถบค้นหา ปุ่มชั้นข้อมูล แถบแจ้งเตือน หรือแผ่นรายละเอียดบัง)
+ */
+function centerInVisibleArea(loc: { lat: number; lng: number }) {
+  const mapRect = map.getContainer().getBoundingClientRect();
+  const sheetRect = sheetEl.getBoundingClientRect();
+  let top = mapRect.top;
+  let bottom = mapRect.bottom;
+  let right = mapRect.right;
+  for (const sel of ['.map-top', '#banners']) {
+    const r = document.querySelector(sel)?.getBoundingClientRect();
+    if (r && r.height && r.bottom > top && r.top < mapRect.top + mapRect.height / 2) top = r.bottom;
+  }
+  if (window.innerWidth < 600) {
+    bottom = Math.min(bottom, sheetRect.top);
+    // ถ้าพื้นที่เหลือน้อยเกินไป ใช้ช่องใต้แถบค้นหาอย่างเดียว
+    if (bottom - top < 80) top = mapRect.top + 72;
+  } else {
+    right = Math.min(right, sheetRect.left);
+  }
+  const target = L.point((mapRect.left + right) / 2 - mapRect.left, (top + bottom) / 2 - mapRect.top);
+  const current = map.latLngToContainerPoint([loc.lat, loc.lng]);
+  map.panBy(current.subtract(target), { animate: true });
 }
 
 function closeSheet() {
