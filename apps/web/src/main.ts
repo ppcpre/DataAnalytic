@@ -29,6 +29,16 @@ import {
 } from './format';
 import { initSearch } from './search';
 import { renderHistoryChart, trendText } from './chart';
+import {
+  MAX_PLACES,
+  PLACE_LABELS,
+  PLACE_RADIUS_KM,
+  loadPlaces,
+  storePlaces,
+  summarizeArea,
+  type NearbyInput,
+  type SavedPlace,
+} from './places';
 
 registerSW({ immediate: true });
 
@@ -57,19 +67,20 @@ L.control.zoom({ position: 'bottomright' }).addTo(map);
 // โหลดแผนที่ฐานแยกไฟล์ เพื่อให้หมุดข้อมูลขึ้นก่อนบนเน็ตช้า
 void import('./basemap').then((m) => m.addBasemap(map));
 
-export type LayerKey = 'water' | 'rain' | 'camera' | 'gate' | 'forecast';
+export type LayerKey = 'water' | 'rain' | 'camera' | 'gate' | 'forecast' | 'place';
 const layers: Record<LayerKey, L.LayerGroup> = {
   water: L.layerGroup().addTo(map),
   rain: L.layerGroup().addTo(map),
   camera: L.layerGroup().addTo(map),
   gate: L.layerGroup().addTo(map),
   forecast: L.layerGroup().addTo(map),
+  place: L.layerGroup().addTo(map),
 };
-const LETTER: Record<Exclude<LayerKey, 'camera'>, string> = { water: 'น', rain: 'ฝ', gate: 'ป', forecast: 'ส' };
+const LETTER: Record<Exclude<LayerKey, 'camera' | 'place'>, string> = { water: 'น', rain: 'ฝ', gate: 'ป', forecast: 'ส' };
 
 function pinHtml(kind: LayerKey, status: Status, selected = false): string {
   const cls = `pin pin-${kind} pin-${status} ${kind === 'camera' ? '' : `st-${status}`}${selected ? ' is-selected' : ''}`;
-  const inner = kind === 'camera' ? icons.camera(16, 2.2) : LETTER[kind];
+  const inner = kind === 'camera' ? icons.camera(16, 2.2) : kind === 'place' ? icons.star(15) : LETTER[kind];
   return `<span class="${cls}" aria-hidden="true">${inner}</span>`;
 }
 
@@ -103,6 +114,9 @@ interface State {
   sort: 'risk' | 'near';
   showAllRisks: boolean;
   selected: { kind: LayerKey; id: string } | null;
+  places: SavedPlace[];
+  /** สถานที่จากการค้นหา/ตำแหน่งปัจจุบันที่ยังไม่ได้บันทึก */
+  tempPlace: SavedPlace | null;
 }
 const state: State = {
   water: null,
@@ -116,6 +130,8 @@ const state: State = {
   sort: 'risk',
   showAllRisks: false,
   selected: null,
+  places: loadPlaces(),
+  tempPlace: null,
 };
 
 type Entity =
@@ -123,10 +139,25 @@ type Entity =
   | { kind: 'rain'; item: RainStation }
   | { kind: 'gate'; item: Floodgate }
   | { kind: 'forecast'; item: FloodForecast }
-  | { kind: 'camera'; item: Camera };
+  | { kind: 'camera'; item: Camera }
+  | { kind: 'place'; item: PlaceItem };
+
+interface PlaceItem extends SavedPlace {
+  location: { lat: number; lng: number; province: string };
+  saved: boolean;
+}
+
+function toPlaceItem(p: SavedPlace, saved: boolean): PlaceItem {
+  return { ...p, location: { lat: p.lat, lng: p.lng, province: '' }, saved };
+}
 
 function findEntity(kind: LayerKey, id: string): Entity | null {
-  const lists: Record<LayerKey, { id: string }[] | undefined> = {
+  if (kind === 'place') {
+    const saved = state.places.find((p) => p.id === id);
+    if (saved) return { kind, item: toPlaceItem(saved, true) };
+    return state.tempPlace?.id === id ? { kind, item: toPlaceItem(state.tempPlace, false) } : null;
+  }
+  const lists: Record<Exclude<LayerKey, 'place'>, { id: string }[] | undefined> = {
     water: state.water?.data,
     rain: state.rain?.data,
     gate: state.gates?.data,
@@ -343,6 +374,82 @@ function cameraSheet(c: Camera): string {
     <span class="btn-caption">เปิดในเว็บของ ${escapeHtml(c.owner)}</span>`;
 }
 
+function nearbyInputs(): NearbyInput[] {
+  return [
+    ...(state.water?.data ?? []).map((s) => ({
+      kind: 'water' as const,
+      id: s.id,
+      name: s.name,
+      status: s.status,
+      text: `${s.name} ${formatNum(s.percent, 0)}%${s.trend && s.trend.direction !== 'steady' ? ` ${trendText(s.trend, true)}` : ''} · ${
+        STATUS_LABEL_TH[s.status]
+      }`,
+      location: s.location,
+    })),
+    ...(state.rain?.data ?? []).map((s) => ({
+      kind: 'rain' as const,
+      id: s.id,
+      name: s.name,
+      status: s.status,
+      text: `ฝน 24 ชม. ${formatNum(s.rain24h, 1)} มม. · ${STATUS_LABEL_TH[s.status]}`,
+      location: s.location,
+    })),
+  ];
+}
+
+function areaLine(counts: Record<Status, number>): string {
+  const parts = (['critical', 'warning', 'watch'] as Status[])
+    .filter((s) => counts[s])
+    .map((s) => `${STATUS_LABEL_TH[s]} ${counts[s]}`);
+  return parts.length ? parts.join(' · ') : 'ไม่มีจุดเสี่ยง';
+}
+
+function placeSheet(p: PlaceItem): string {
+  const area = summarizeArea(p.location, nearbyInputs());
+  const rows = area.items.length
+    ? area.items
+        .slice(0, 4)
+        .map(
+          (x) => `
+          <button type="button" class="nearby-row soft-${x.status}" data-open="${x.kind}:${escapeHtml(x.id)}">
+            <span class="mini-pin st-${x.status}">${LETTER[x.kind]}</span>
+            <span><strong>${escapeHtml(x.text)}</strong><small>ห่าง ${formatDistance(x.distKm)}</small></span>
+          </button>`,
+        )
+        .join('')
+    : `<div class="card-empty">ไม่มีสถานีวัดในรัศมี ${PLACE_RADIUS_KM} กม.</div>`;
+
+  const saveBlock = p.saved
+    ? `<button type="button" class="btn-secondary" data-remove-place="${escapeHtml(p.id)}">${icons.close(16)}เลิกติดตามจุดนี้</button>`
+    : state.places.length >= MAX_PLACES
+      ? `<p class="muted">ติดตามได้สูงสุด ${MAX_PLACES} จุด — ลบจุดเดิมในหน้าเฝ้าระวังก่อน</p>`
+      : `<div class="save-block">
+          <span class="nearby-title">บันทึกเป็นจุดที่ติดตาม</span>
+          <div class="label-chips" role="group" aria-label="ชื่อจุด">
+            ${PLACE_LABELS.map(
+              (l, i) =>
+                `<button type="button" class="chip" data-label="${escapeHtml(l)}" aria-pressed="${i === 0}">${escapeHtml(l)}</button>`,
+            ).join('')}
+          </div>
+          <button type="button" class="btn-primary" data-save-place="${escapeHtml(p.id)}">${icons.star(18)}บันทึกจุดนี้</button>
+        </div>`;
+
+  return `
+    ${sheetHead(
+      `${p.saved ? `<span class="badge-soft soft-unknown">${escapeHtml(p.label)}</span>` : ''}<span>${
+        p.saved ? 'จุดที่ติดตาม' : 'สถานที่'
+      }</span>`,
+      p.name,
+      escapeHtml(p.detail) + distanceText(p.location),
+      `<span class="cam-icon">${icons.star(24)}</span>`,
+    )}
+    <div class="nearby">
+      <span class="nearby-title">รอบจุดนี้ (รัศมี ${PLACE_RADIUS_KM} กม.) · ${escapeHtml(areaLine(area.counts))}</span>
+      ${rows}
+    </div>
+    ${p.saved ? `${cameraButton(p.location)}${saveBlock}` : `${saveBlock}${cameraButton(p.location)}`}`;
+}
+
 function renderSheet(e: Entity): string {
   switch (e.kind) {
     case 'water':
@@ -355,6 +462,8 @@ function renderSheet(e: Entity): string {
       return forecastSheet(e.item);
     case 'camera':
       return cameraSheet(e.item);
+    case 'place':
+      return placeSheet(e.item);
   }
 }
 
@@ -430,6 +539,10 @@ function centerInVisibleArea(loc: { lat: number; lng: number }) {
 }
 
 function closeSheet() {
+  if (state.tempPlace) {
+    state.tempPlace = null;
+    renderPlaces();
+  }
   sheetEl.hidden = true;
   document.body.classList.remove('sheet-open');
   setSelectedMarker(null);
@@ -437,9 +550,27 @@ function closeSheet() {
 }
 
 sheetEl.addEventListener('click', (ev) => {
-  const t = (ev.target as HTMLElement).closest<HTMLElement>('[data-close],[data-open],[data-goto]');
+  const t = (ev.target as HTMLElement).closest<HTMLElement>(
+    '[data-close],[data-open],[data-goto],[data-label],[data-save-place],[data-remove-place]',
+  );
   if (!t) return;
-  if (t.dataset.close !== undefined) closeSheet();
+  if (t.dataset.label) {
+    sheetEl.querySelectorAll('[data-label]').forEach((b) => b.setAttribute('aria-pressed', String(b === t)));
+  } else if (t.dataset.savePlace && state.tempPlace?.id === t.dataset.savePlace) {
+    const label = sheetEl.querySelector<HTMLElement>('[data-label][aria-pressed="true"]')?.dataset.label ?? 'อื่น ๆ';
+    // id ใหม่ทุกครั้ง เพื่อไม่ให้ชนกัน (เช่น บันทึก "ตำแหน่งของฉัน" หลายครั้ง)
+    const place = { ...state.tempPlace, id: `pl-${Date.now().toString(36)}`, label };
+    state.places = [...state.places, place];
+    state.tempPlace = null;
+    if (!storePlaces(state.places)) alert('บันทึกในเครื่องนี้ไม่ได้ (อาจเปิดโหมดส่วนตัวอยู่) — จุดนี้จะหายเมื่อปิดแอป');
+    renderPlaces();
+    openEntity('place', place.id, false);
+  } else if (t.dataset.removePlace) {
+    state.places = state.places.filter((p) => p.id !== t.dataset.removePlace);
+    storePlaces(state.places);
+    closeSheet();
+    renderPlaces();
+  } else if (t.dataset.close !== undefined) closeSheet();
   else if (t.dataset.open) {
     const [kind, ...rest] = t.dataset.open.split(':');
     openEntity(kind as LayerKey, rest.join(':'));
@@ -474,6 +605,7 @@ function renderMap() {
     camera: !!state.cameras?.data.length,
     gate: !!state.gates?.data.length,
     forecast: !!state.forecast?.data.length,
+    place: true,
   };
   document.querySelectorAll<HTMLButtonElement>('[data-layer]').forEach((b) => {
     b.hidden = !has[b.dataset.layer as LayerKey];
@@ -675,6 +807,50 @@ function renderKeyStations() {
     `<li class="tl-home"><span>${icons.home()}</span><span>กรุงเทพฯ และปริมณฑล</span></li>`;
 }
 
+// ---------- จุดที่ติดตาม ----------
+function renderPlaces() {
+  layers.place.clearLayers();
+  for (const [key] of markers) if (key.startsWith('place:')) markers.delete(key);
+  const all = [...state.places.map((p) => toPlaceItem(p, true)), ...(state.tempPlace ? [toPlaceItem(state.tempPlace, false)] : [])];
+  for (const p of all) addMarker('place', p.id, p.location, 'unknown', p.label || p.name);
+
+  const el = document.getElementById('saved-list')!;
+  if (!state.places.length) {
+    el.innerHTML = `<li class="card card-empty">ค้นหาสถานที่ เช่น บ้าน หรือที่ทำงาน แล้วกด "บันทึกจุดนี้" เพื่อดูสถานการณ์รอบจุดได้ทันที</li>`;
+    return;
+  }
+  const inputs = nearbyInputs();
+  el.innerHTML = state.places
+    .map((p) => {
+      const area = summarizeArea(p, inputs);
+      const nearestWater = area.items.filter((i) => i.kind === 'water').sort((a, b) => a.distKm - b.distKm)[0];
+      const badge =
+        area.worst === 'unknown'
+          ? '<span class="badge-soft soft-unknown">ไม่มีสถานี</span>'
+          : `<span class="badge-soft soft-${area.worst}">${STATUS_LABEL_TH[area.worst]}</span>`;
+      return `
+      <li>
+        <button type="button" class="risk" data-open="place:${escapeHtml(p.id)}">
+          <span class="risk-icon place-icon">${icons.star(20)}</span>
+          <span class="risk-body">
+            <span class="risk-top"><span class="risk-name">${escapeHtml(p.label)} · ${escapeHtml(p.name)}</span>${badge}</span>
+            <span class="risk-metric ink-${area.worst}">รัศมี ${PLACE_RADIUS_KM} กม.: ${escapeHtml(areaLine(area.counts))}</span>
+            <span class="risk-meta">${
+              nearestWater ? `ใกล้สุด: ${escapeHtml(nearestWater.text)} (${formatDistance(nearestWater.distKm)})` : escapeHtml(p.detail)
+            }</span>
+          </span>
+        </button>
+      </li>`;
+    })
+    .join('');
+}
+
+document.getElementById('saved-list')!.addEventListener('click', (ev) => {
+  const b = (ev.target as HTMLElement).closest<HTMLElement>('[data-open]');
+  if (!b) return;
+  openEntity('place', b.dataset.open!.slice('place:'.length));
+});
+
 // ---------- กล้อง CCTV / แหล่งข้อมูล ----------
 function linkCard(l: CameraLink, icon: string): string {
   return `
@@ -769,6 +945,7 @@ async function loadAll() {
   renderMap();
   renderRiskList();
   renderKeyStations();
+  renderPlaces();
   renderBanners();
   document.body.classList.remove('loading');
   loading = false;
@@ -815,7 +992,13 @@ document.getElementById('locate')!.addEventListener('click', () => void locate()
 document.getElementById('refresh')!.addEventListener('click', () => void loadAll());
 
 // ---------- ค้นหา ----------
-let placeMarker: L.Marker | null = null;
+function showTempPlace(p: SavedPlace) {
+  const existing = state.places.find((s) => Math.abs(s.lat - p.lat) < 1e-5 && Math.abs(s.lng - p.lng) < 1e-5);
+  if (existing) return openEntity('place', existing.id);
+  state.tempPlace = p;
+  renderPlaces();
+  openEntity('place', p.id);
+}
 initSearch({
   getStations: () => [
     ...(state.water?.data ?? []).map((s) => ({
@@ -837,16 +1020,11 @@ initSearch({
   ],
   getCameras: () => state.cameras?.data ?? [],
   openEntity: (kind, id) => openEntity(kind, id),
-  goToPlace: (lat, lng, name) => {
-    ensureMapVisible();
-    placeMarker?.remove();
-    placeMarker = L.marker([lat, lng], {
-      icon: L.divIcon({ className: '', html: '<span class="pin pin-place"></span>', iconSize: [22, 22], iconAnchor: [11, 22] }),
-      title: name,
-    }).addTo(map);
-    map.setView([lat, lng], 15);
+  goToPlace: (p) => showTempPlace({ id: `tmp-${p.id}`, label: '', name: p.name, detail: p.detail, lat: p.lat, lng: p.lng }),
+  locate: async () => {
+    if (!(await locate(false)) || !state.userPos) return;
+    showTempPlace({ id: 'tmp-me', label: '', name: 'ตำแหน่งของฉัน', detail: '', ...state.userPos });
   },
-  locate: () => void locate(),
 });
 
 // ---------- เริ่มต้น ----------

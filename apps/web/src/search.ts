@@ -16,7 +16,7 @@ interface SearchContext {
   getStations: () => SearchStation[];
   getCameras: () => Camera[];
   openEntity: (kind: 'water' | 'rain' | 'camera', id: string) => void;
-  goToPlace: (lat: number, lng: number, name: string) => void;
+  goToPlace: (place: Place) => void;
   locate: () => void;
 }
 
@@ -192,7 +192,7 @@ export function initSearch(ctx: SearchContext) {
     if (action === 'locate') ctx.locate();
     else if (action === 'place') {
       const p = places[Number(b.dataset.index)];
-      if (p) ctx.goToPlace(p.lat, p.lng, p.name);
+      if (p) ctx.goToPlace(p);
     } else ctx.openEntity(action as 'water' | 'rain' | 'camera', b.dataset.id!);
   });
 

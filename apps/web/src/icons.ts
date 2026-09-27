@@ -21,6 +21,7 @@ export const icons = {
   external: (s = 16) => svg(s, '<path d="M7 17L17 7"/><path d="M8 7h9v9"/>', 2.2),
   pin: (s = 20) => svg(s, '<circle cx="12" cy="10" r="3"/><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/>'),
   road: (s = 20) => svg(s, '<path d="M8 3L5 21"/><path d="M16 3l3 18"/><path d="M12 6v2"/><path d="M12 12v2"/>'),
+  star: (s = 20) => svg(s, '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>'),
   home: (s = 16) => svg(s, '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>', 2.4),
   roadFlood: (s = 22) => svg(s, '<path d="M4 19h16"/><path d="M3 15c2-2 4 2 6 0s4 2 6 0 4 2 6 0"/><path d="M12 3v8"/><path d="M9 8l3 3 3-3"/>'),
 };
