@@ -1,0 +1,55 @@
+name: Smoke test (deployed site)
+
+# ตรวจเว็บที่ deploy แล้วว่า API ตอบและดึงข้อมูลจริงได้ — กดรันเองจากแท็บ Actions
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: URL ของเว็บที่ deploy
+        default: https://dataanalytic.precare.workers.dev
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    env:
+      BASE: ${{ inputs.url }}
+    steps:
+      - name: Health
+        run: curl -sS -m 30 "$BASE/api/health"; echo
+
+      - name: Water level
+        run: |
+          curl -sS -m 60 -o wl.json -w "HTTP %{http_code}\n" "$BASE/api/water-level"
+          jq -c '{source, fetchedAt, sample, stale, error, count: (.data | length? // 0)}' wl.json || head -c 1000 wl.json
+          jq -c '.data[:2]' wl.json 2>/dev/null || true
+
+      - name: Rain
+        run: |
+          curl -sS -m 60 -o rain.json -w "HTTP %{http_code}\n" "$BASE/api/rain"
+          jq -c '{source, sample, stale, error, count: (.data | length? // 0)}' rain.json || head -c 1000 rain.json
+          jq -c '.data[:2]' rain.json 2>/dev/null || true
+
+      - name: Key stations and cameras
+        run: |
+          curl -sS -m 60 "$BASE/api/key-stations" | jq -c '{error, count: (.data | length? // 0), data: [.data[]? | {code, name, percent, trend}]}'
+          curl -sS -m 30 "$BASE/api/cameras" | jq -c '{error, count: (.data | length? // 0)}'
+
+      - name: Place search
+        run: curl -sS -m 30 -G "$BASE/api/geocode" --data-urlencode "q=ลาดพร้าว" | jq -c '{error, count: (.data | length? // 0), first: .data[0]}'
+
+      - name: Web app
+        run: |
+          curl -sS -m 30 -o index.html -w "HTTP %{http_code}\n" "$BASE/"
+          grep -o '<title>[^<]*</title>' index.html
+          curl -sS -m 30 -o /dev/null -w "manifest HTTP %{http_code}\n" "$BASE/manifest.webmanifest"
+          curl -sS -m 30 -o /dev/null -w "sw.js HTTP %{http_code}\n" "$BASE/sw.js"
+
+      # ดูโครงสร้างข้อมูลต้นทางโดยตรง เพื่อใช้ปรับตัวอ่านข้อมูล (adapter)
+      - name: ThaiWater upstream shape
+        run: |
+          for ep in waterlevel_load rain_24h; do
+            echo "== $ep"
+            curl -sS -m 60 -o up.json -w "HTTP %{http_code}\n" "https://api-v3.thaiwater.net/api/v1/thaiwater30/public/$ep"
+            jq -c 'paths(type == "array") | map(tostring) | join(".")' up.json 2>/dev/null | head -5 || head -c 500 up.json
+            jq -c '[.. | arrays | select(length > 0 and (.[0] | type) == "object")][0][0]' up.json 2>/dev/null | head -c 3000; echo
+          done
