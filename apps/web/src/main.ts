@@ -2,6 +2,7 @@ import 'leaflet/dist/leaflet.css';
 import './style.css';
 import L from 'leaflet';
 import { addOsmRaster, vectorMapSupported } from './osm';
+import { cameraViewHtml, hasCameraMedia, isLiveCamera, startCameraView, stopCameraView } from './camera-view';
 import { registerSW } from 'virtual:pwa-register';
 import {
   FLOODHUB_SEVERITY_TH,
@@ -335,60 +336,6 @@ function forecastSheet(f: FloodForecast): string {
     <a class="btn-primary" href="https://sites.research.google/floods" target="_blank" rel="noopener noreferrer">ดูใน Google Flood Hub ${icons.external()}</a>`;
 }
 
-// ---------- ภาพจากกล้องในแอป ----------
-/** ถ้าภาพเคลื่อนไหวไม่ขึ้นภายในเวลานี้ ให้สลับไปใช้ภาพนิ่ง */
-const CAM_STREAM_TIMEOUT_MS = 8000;
-const CAM_SNAPSHOT_REFRESH_MS = 10000;
-
-function cameraView(c: Camera): string {
-  const src = c.streamUrl ?? c.imageUrl;
-  if (!src) return '';
-  const mode = c.streamUrl ? 'live' : 'still';
-  return `
-    <figure class="cam-view" data-cam-view data-mode="${mode}">
-      <div class="cam-frame">
-        <img src="${escapeHtml(src)}" alt="ภาพจากกล้อง ${escapeHtml(c.name)}" referrerpolicy="no-referrer"
-          data-snapshot="${escapeHtml(c.imageUrl ?? '')}" />
-        <div class="cam-msg">กำลังโหลดภาพ…</div>
-      </div>
-      <figcaption>
-        <span class="cam-badge"><i></i><span data-cam-label>${mode === 'live' ? 'ภาพสด' : 'ภาพนิ่ง'}</span></span>
-        <span>ภาพ: ${escapeHtml(c.imageCredit ?? c.owner)} · กล้องของ ${escapeHtml(c.owner)}</span>
-      </figcaption>
-    </figure>`;
-}
-
-/** เปลี่ยนเป็นภาพนิ่งที่รีเฟรชเอง หรือแจ้งว่าภาพใช้ไม่ได้ */
-function degradeCameraView(view: HTMLElement) {
-  const img = view.querySelector('img')!;
-  const snapshot = img.dataset.snapshot;
-  if (view.dataset.mode === 'live' && snapshot) {
-    view.dataset.mode = 'still';
-    view.querySelector('[data-cam-label]')!.textContent = 'ภาพนิ่ง · อัปเดตทุก 10 วินาที';
-    img.src = snapshot;
-    const timer = window.setInterval(() => {
-      if (!img.isConnected || view.dataset.mode !== 'still') return window.clearInterval(timer);
-      img.src = `${snapshot}${snapshot.includes('?') ? '&' : '?'}t=${Date.now()}`;
-    }, CAM_SNAPSHOT_REFRESH_MS);
-    return;
-  }
-  view.dataset.mode = 'off';
-  img.removeAttribute('src');
-  view.querySelector('.cam-msg')!.textContent = 'ภาพจากกล้องนี้ใช้ไม่ได้ขณะนี้ — ลองเปิดดูในเว็บต้นทาง';
-}
-
-function startCameraView() {
-  const view = sheetEl.querySelector<HTMLElement>('[data-cam-view]');
-  if (!view) return;
-  const img = view.querySelector('img')!;
-  img.addEventListener('load', () => view.classList.add('is-loaded'));
-  img.addEventListener('error', () => degradeCameraView(view));
-  // กล้องที่ออฟไลน์บางตัวตอบกลับแต่ไม่มีภาพ จึงตั้งเวลาตรวจเอง
-  window.setTimeout(() => {
-    if (img.isConnected && view.dataset.mode === 'live' && !img.naturalWidth) degradeCameraView(view);
-  }, CAM_STREAM_TIMEOUT_MS);
-}
-
 function cameraSheet(c: Camera): string {
   const around = [
     ...(state.water?.data ?? []).map((s) => ({
@@ -429,13 +376,13 @@ function cameraSheet(c: Camera): string {
       escapeHtml(c.road ?? '') + distanceText(c.location),
       `<span class="cam-icon">${icons.camera(24)}</span>`,
     )}
-    ${cameraView(c)}
+    ${cameraViewHtml(c)}
     <div class="nearby">
       <span class="nearby-title">รอบกล้องนี้ (รัศมี ${NEARBY_KM} กม.)</span>
       ${nearby}
     </div>
     <a class="btn-primary" href="${escapeHtml(c.url)}" target="_blank" rel="noopener noreferrer">${
-      c.streamUrl || c.imageUrl ? 'เปิดดูในเว็บต้นทาง' : 'ดูภาพกล้องนี้'
+      hasCameraMedia(c) ? 'เปิดดูในเว็บต้นทาง' : 'ดูภาพกล้องนี้'
     } ${icons.external()}</a>
     <span class="btn-caption">${c.via ? `เปิดใน ${escapeHtml(c.via)} · กล้องของ ${escapeHtml(c.owner)}` : `เปิดในเว็บของ ${escapeHtml(c.owner)}`}</span>`;
 }
@@ -550,7 +497,8 @@ export function openEntity(kind: LayerKey, id: string, pan = true) {
   sheetEl.innerHTML = renderSheet(e);
   sheetEl.hidden = false;
   void loadHistoryChart();
-  startCameraView();
+  if (e.kind === 'camera') startCameraView(sheetEl, e.item);
+  else stopCameraView();
   document.body.classList.add('sheet-open');
   setSelectedMarker({ kind, id });
   // จัดให้จุดที่เลือกอยู่กลางพื้นที่แผนที่ที่ไม่ถูกแผ่นรายละเอียดบัง
@@ -611,7 +559,8 @@ function closeSheet() {
     renderPlaces();
   }
   sheetEl.hidden = true;
-  // ล้างเนื้อหาเพื่อหยุดดึงภาพจากกล้อง (ภาพเคลื่อนไหวจะโหลดต่อเนื่องถ้ายังอยู่ในหน้า)
+  // หยุดดึงภาพจากกล้อง (ภาพสดจะโหลดต่อเนื่องถ้ายังอยู่ในหน้า)
+  stopCameraView();
   sheetEl.innerHTML = '';
   document.body.classList.remove('sheet-open');
   setSelectedMarker(null);
@@ -620,7 +569,7 @@ function closeSheet() {
 
 sheetEl.addEventListener('click', (ev) => {
   const t = (ev.target as HTMLElement).closest<HTMLElement>(
-    '[data-close],[data-open],[data-goto],[data-label],[data-save-place],[data-remove-place]',
+    '[data-close],[data-open],[data-goto],[data-label],[data-save-place],[data-remove-place],[data-cam-refresh]',
   );
   if (!t) return;
   if (t.dataset.label) {
@@ -639,6 +588,11 @@ sheetEl.addEventListener('click', (ev) => {
     storePlaces(state.places);
     closeSheet();
     renderPlaces();
+  } else if (t.dataset.camRefresh !== undefined) {
+    if (state.selected?.kind === 'camera') {
+      const cam = findEntity('camera', state.selected.id);
+      if (cam?.kind === 'camera') startCameraView(sheetEl, cam.item, true);
+    }
   } else if (t.dataset.close !== undefined) closeSheet();
   else if (t.dataset.open) {
     const [kind, ...rest] = t.dataset.open.split(':');
@@ -673,8 +627,10 @@ function renderMap() {
   for (const g of state.gates?.data ?? []) addMarker('gate', g.id, g.location, 'unknown', g.name);
   for (const f of state.forecast?.data ?? []) addMarker('forecast', f.id, f.location, f.status, 'พยากรณ์ Google');
   // กล้องที่ดูภาพสดในแอปได้ ใช้หมุดสีน้ำเงินเข้ม
-  for (const c of state.cameras?.data ?? [])
-    addMarker('camera', c.id, c.location, 'unknown', c.streamUrl ? `${c.name} (ภาพสด)` : c.name, c.streamUrl ? 'pin-live' : '');
+  for (const c of state.cameras?.data ?? []) {
+    const live = isLiveCamera(c);
+    addMarker('camera', c.id, c.location, 'unknown', live ? `${c.name} (ภาพสด)` : c.name, live ? 'pin-live' : '');
+  }
 
   // ปุ่มชั้นข้อมูลที่ไม่มีข้อมูลจะซ่อนไว้
   const has: Record<LayerKey, boolean> = {
@@ -704,8 +660,8 @@ function renderLegend(has: Record<LayerKey, boolean>) {
   );
   if (has.camera) {
     const cams = state.cameras?.data ?? [];
-    if (cams.some((c) => c.streamUrl)) items.push('<span><i class="sq sq-live"></i>กล้องภาพสด</span>');
-    if (cams.some((c) => !c.streamUrl)) items.push('<span><i class="sq"></i>กล้อง</span>');
+    if (cams.some(isLiveCamera)) items.push('<span><i class="sq sq-live"></i>กล้องภาพสด</span>');
+    if (cams.some((c) => !isLiveCamera(c))) items.push('<span><i class="sq"></i>กล้อง</span>');
   }
   document.getElementById('legend')!.innerHTML = items.join('');
 }

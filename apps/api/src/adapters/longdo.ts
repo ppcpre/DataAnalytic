@@ -49,6 +49,7 @@ export function parseLongdoCameras(body: unknown): Camera[] {
       owner: str(it.organization) ?? str(it.sponsertext) ?? 'ไม่ระบุหน่วยงาน',
       url: longdoCameraUrl(camid),
       via: 'Longdo Traffic',
+      hlsUrl: https(it.hls_url),
       streamUrl: https(it.link) ?? https(it.vdourl),
       imageUrl: https(it.imgurl),
       imageCredit: 'มูลนิธิ iTIC',
