@@ -147,6 +147,20 @@ export interface Camera {
   embedUrl?: string;
   /** ประเภท: กล้องจราจร (ค่าเริ่มต้น) หรือกล้อง/จุดวัดระดับน้ำ */
   kind?: 'traffic' | 'water';
+  /** ค่าวัดประกอบของจุดนี้ (เช่น ระดับน้ำสองฝั่งประตูระบายน้ำ) */
+  readings?: CameraReading[];
+  /** เวลาของค่าวัด (ISO) */
+  observedAt?: string;
+}
+
+/** ค่าวัดหนึ่งค่าที่แสดงคู่กับภาพกล้อง */
+export interface CameraReading {
+  label: string;
+  value: number;
+  unit: string;
+  /** ระดับเฝ้าระวัง/วิกฤตของค่านี้ (หน่วยเดียวกับ value) */
+  warning?: number;
+  danger?: number;
 }
 
 /** ผลการค้นหาสถานที่ */

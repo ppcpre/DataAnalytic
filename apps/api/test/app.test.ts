@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CAMERAS } from '../src/data/cameras.js';
 import { createApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
+import { NONT_BODY, PAKKRET_HTML } from './fixtures.js';
 
 describe('api', () => {
   it('serves sample data flagged as sample', async () => {
@@ -94,29 +95,51 @@ describe('api', () => {
 });
 
 describe('cameras and geocode', () => {
-  it('serves cameras from the camera list and sample cameras in sample mode', async () => {
+  it('serves cameras from every source and sample cameras in sample mode', async () => {
     const urls: string[] = [];
-    const app = createApp(loadConfig({}), async (url) => {
-      urls.push(url);
-      return {
-        item: [
-          { camid: 'ITICM_BMAMI0123', title: '(กรุงเทพมหานคร) แยกตัวอย่าง', latitude: '13.75', longitude: '100.5', geocode: '103605', organization: 'กทม.' },
-          { camid: 'DOH-PER-10-006', title: '(จ.หนองบัวลำภู) นอกพื้นที่', latitude: '17.2', longitude: '102.3', geocode: '390113' },
-        ],
-      };
-    });
+    const app = createApp(
+      loadConfig({}),
+      async (url) => {
+        urls.push(url);
+        if (url.includes('182.52.224.70')) return NONT_BODY;
+        return {
+          item: [
+            { camid: 'ITICM_BMAMI0123', title: '(กรุงเทพมหานคร) แยกตัวอย่าง', latitude: '13.75', longitude: '100.5', geocode: '103605', organization: 'กทม.' },
+            { camid: 'DOH-PER-10-006', title: '(จ.หนองบัวลำภู) นอกพื้นที่', latitude: '17.2', longitude: '102.3', geocode: '390113' },
+          ],
+        };
+      },
+      undefined,
+      { getText: async () => PAKKRET_HTML },
+    );
     const live = await (await app.request('/api/cameras')).json();
-    expect(urls).toEqual(['https://traffic.longdo.com/camera.json']);
+    expect(urls.sort()).toEqual(['http://182.52.224.70/json.php?app=station', 'https://traffic.longdo.com/camera.json']);
     const fromList = live.data.filter((c: { id: string }) => c.id.startsWith('longdo-'));
     expect(fromList.map((c: { name: string; url: string }) => [c.name, c.url])).toEqual([
       ['แยกตัวอย่าง', 'https://traffic.longdo.com/camera?vdo=i123'],
     ]);
     // กล้อง/จุดวัดที่เพิ่มเองใน data/cameras.ts แสดงร่วมด้วยเสมอ
-    expect(live.data.length).toBe(CAMERAS.length + 1);
-    const off = await (await createApp(loadConfig({ CAMERA_LIST_URL: '' })).request('/api/cameras')).json();
+    const ids = live.data.map((c: { id: string }) => c.id);
+    expect(ids).toEqual(expect.arrayContaining([...CAMERAS.map((c) => c.id), 'nont-STN2', 'pakkret-eon-001']));
+    expect(live.data.length).toBe(CAMERAS.length + 4); // Longdo 1 + นนทบุรี 2 + ปากเกร็ด 1
+
+    // แหล่งใดล่ม ยังแสดงแหล่งที่เหลือ
+    const down = async () => {
+      throw new Error('down');
+    };
+    const off = await (
+      await createApp(loadConfig({ CAMERA_LIST_URL: '' }), down, undefined, { getText: down }).request('/api/cameras')
+    ).json();
     expect(off.data).toEqual(CAMERAS);
     const sample = await (await createApp(loadConfig({ DATA_MODE: 'sample' })).request('/api/cameras')).json();
     expect(sample.data.length).toBeGreaterThan(0);
+  });
+
+  it('rejects camera names that are not in the Nonthaburi format', async () => {
+    const app = createApp(loadConfig({}));
+    expect((await app.request('/api/nont/image?cam=http://evil.example/x')).status).toBe(400);
+    expect((await app.request('/api/nont/image?cam=A1-x%26width=9')).status).toBe(400);
+    expect((await app.request('/api/nont/image')).status).toBe(400);
   });
 
   it('proxies place search, restricted to the service area, and caches it', async () => {

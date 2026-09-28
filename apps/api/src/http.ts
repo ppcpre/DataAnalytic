@@ -36,3 +36,17 @@ export async function fetchJson(url: string, timeoutMs = 15000, init: RequestIni
 export function postJson(url: string, body: unknown, timeoutMs = 20000): Promise<unknown> {
   return fetchJson(url, timeoutMs, { method: 'POST', body: JSON.stringify(body) });
 }
+
+export async function fetchText(url: string, timeoutMs = 20000): Promise<string> {
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: { 'user-agent': 'Mozilla/5.0 PreMonitoring', 'accept-language': 'th' },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (err) {
+    throw new UpstreamError(`เชื่อมต่อต้นทางไม่สำเร็จ: ${(err as Error).message}`, url.split('?')[0]);
+  }
+  if (!res.ok) throw new UpstreamError(`ต้นทางตอบกลับ HTTP ${res.status}`, url.split('?')[0]);
+  return res.text();
+}

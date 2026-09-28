@@ -2,6 +2,7 @@ import type { Camera } from '@flood-watch/shared';
 import type HlsType from 'hls.js/light';
 import { escapeHtml } from './format';
 import { icons } from './icons';
+import { apiUrl } from './api';
 
 /**
  * แสดงภาพจากกล้องในหน้ารายละเอียด ลองแหล่งภาพตามลำดับ:
@@ -32,7 +33,7 @@ function sourcesOf(c: Camera): Source[] {
   const list: Source[] = [];
   if (c.hlsUrl) list.push({ kind: 'hls', url: c.hlsUrl });
   if (c.streamUrl) list.push({ kind: 'mjpeg', url: c.streamUrl });
-  if (c.imageUrl) list.push({ kind: 'still', url: c.imageUrl });
+  if (c.imageUrl) list.push({ kind: 'still', url: apiUrl(c.imageUrl) });
   // หน้าเว็บของผู้ให้บริการ (ฝังได้เฉพาะ https)
   if (c.embedUrl?.startsWith('https://')) list.push({ kind: 'page', url: c.embedUrl });
   return list;

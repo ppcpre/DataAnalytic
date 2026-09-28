@@ -27,6 +27,20 @@ export const CAMERA_LINKS: CameraLink[] = [
     area: 'กทม.',
   },
   {
+    id: 'pakkret-traffic',
+    name: 'กล้อง CCTV จราจร ปากเกร็ด',
+    description: 'กล้องจราจรในพื้นที่เทศบาลนครปากเกร็ด — เว็บเปิดได้เฉพาะจากในประเทศไทย',
+    url: 'https://www.thaiclouderp.com/CCTV_MONITOR/web/pakkred',
+    area: 'นนทบุรี',
+  },
+  {
+    id: 'nont-flood-center',
+    name: 'ศูนย์ป้องกันน้ำท่วม เทศบาลนครนนทบุรี',
+    description: 'ภาพกล้องและระดับน้ำตามคลองในเขตเทศบาลนครนนทบุรี (แสดงเป็นหมุดบนแผนที่ด้วย)',
+    url: 'http://182.52.224.70/?page=cctv',
+    area: 'นนทบุรี',
+  },
+  {
     id: 'doh-hdms',
     name: 'กรมทางหลวง (HDMS Dashboard)',
     description: 'กล้อง CCTV และพิกัดจุดน้ำท่วมบนทางหลวงทั่วประเทศ',

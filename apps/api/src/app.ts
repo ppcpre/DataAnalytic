@@ -3,12 +3,14 @@ import { cors } from 'hono/cors';
 import type { ApiResponse, Camera } from '@flood-watch/shared';
 import { TtlCache } from './cache.js';
 import type { Config } from './config.js';
-import { fetchJson, postJson, UpstreamError } from './http.js';
+import { fetchJson, fetchText, postJson, UpstreamError } from './http.js';
 import { parseFloodgates, parseKeyStations, parseRain, parseWaterLevel } from './adapters/thaiwater.js';
 import { fetchFloodStatusPages, parseFloodStatuses } from './adapters/floodhub.js';
 import { geocodeUrl, parsePhoton } from './adapters/geocode.js';
 import { CAMERAS } from './data/cameras.js';
 import { parseLongdoCameras } from './adapters/longdo.js';
+import { PAKKRET_EON_URL, parsePakkretEon } from './adapters/pakkret.js';
+import { NONT_CAMERA_NAME, NONT_STATIONS_URL, nontImageUrl, parseNonthaburiStations } from './adapters/nonthaburi.js';
 import { HOUR, MemoryHistoryStore, recordAndAttachTrends, type HistoryStore } from './history.js';
 import {
   sampleCameras,
@@ -38,6 +40,8 @@ interface Dataset<T> {
 
 export interface AppDeps {
   history?: HistoryStore;
+  /** ดึงหน้าเว็บแบบข้อความ (แทนได้ในการทดสอบ) */
+  getText?: (url: string) => Promise<string>;
 }
 
 export function createApp(
@@ -47,6 +51,7 @@ export function createApp(
   deps: AppDeps = {},
 ) {
   const history = deps.history ?? new MemoryHistoryStore();
+  const getText = deps.getText ?? fetchText;
   /** ตัดค่าวัดที่เก่าเกิน (เช่น สถานีที่หยุดส่งข้อมูลไปหลายวัน) */
   const fresh = <T extends { observedAt: string }>(list: T[]): T[] => {
     const cutoff = Date.now() - config.maxReadingAgeHours * 3600_000;
@@ -182,25 +187,68 @@ export function createApp(
     }),
   );
 
+  /** จุดเฝ้าระวังของเทศบาลนครนนทบุรี — ค่าระดับน้ำเปลี่ยนทุก 15 นาที จึงใช้ cache เดียวกับข้อมูลน้ำ */
+  const nontStations = async () => {
+    const r = await cache.get('nont-stations', async () => parseNonthaburiStations(await getJson(NONT_STATIONS_URL)));
+    return r.value;
+  };
+
+  /**
+   * ภาพกล้องของเทศบาลนครนนทบุรี (ต้นทางเป็น http จึงส่งต่อผ่าน https ที่นี่)
+   * รับเฉพาะชื่อกล้องตามรูปแบบของต้นทาง และดึงจากเซิร์ฟเวอร์ที่กำหนดไว้เท่านั้น
+   */
+  app.get('/api/nont/image', async (c) => {
+    const cam = c.req.query('cam') ?? '';
+    if (!NONT_CAMERA_NAME.test(cam)) return c.json({ error: 'ชื่อกล้องไม่ถูกต้อง' }, 400);
+    try {
+      const res = await fetch(nontImageUrl(cam), {
+        headers: { 'user-agent': 'Mozilla/5.0 PreMonitoring' },
+        signal: AbortSignal.timeout(15000),
+      });
+      const type = res.headers.get('content-type') ?? '';
+      const body = await res.arrayBuffer();
+      // ต้นทางตอบ 200 แต่ไม่มีภาพเมื่อกล้องออฟไลน์
+      if (!res.ok || !type.startsWith('image/') || body.byteLength === 0) {
+        return c.json({ error: 'กล้องนี้ไม่มีภาพขณะนี้' }, 502);
+      }
+      return c.body(body, 200, { 'content-type': type, 'cache-control': 'public, max-age=10' });
+    } catch (err) {
+      console.error('[nont-image]', err);
+      return c.json({ error: 'ดึงภาพจากกล้องไม่สำเร็จ' }, 502);
+    }
+  });
+
   app.get(
     '/api/cameras',
     serve({
       key: 'cameras',
-      source: 'Longdo Traffic / มูลนิธิ iTIC',
+      source: 'Longdo Traffic / มูลนิธิ iTIC / เทศบาลนครนนทบุรี',
       enabled: () => true,
       load: async () => {
         const url = config.cameras.listUrl;
-        if (!url) return CAMERAS;
-        let fromList: Camera[] = [];
-        try {
-          const r = await cameraCache.get('longdo-cameras', () => getJson(url));
-          fromList = parseLongdoCameras(r.value);
-        } catch (err) {
-          // รายชื่อจาก Longdo ดึงไม่ได้ ยังแสดงกล้อง/จุดวัดที่เพิ่มเองได้
-          console.error('[cameras]', err);
-        }
+        // ดึงแต่ละแหล่งแยกกัน แหล่งใดล่ม ยังแสดงกล้อง/จุดวัดจากแหล่งอื่นได้
+        const [fromList, fromNont, fromPakkret] = await Promise.all([
+          (url ? cameraCache.get('longdo-cameras', () => getJson(url)) : Promise.resolve({ value: null }))
+            .then((r) => parseLongdoCameras(r.value))
+            .catch((err: unknown) => {
+              console.error('[cameras] longdo', err);
+              return [] as Camera[];
+            }),
+          nontStations().catch((err: unknown) => {
+            console.error('[cameras] nonthaburi', err);
+            return [] as Camera[];
+          }),
+          cache
+            // เก็บเฉพาะผลที่แยกแล้ว หน้าเว็บต้นทางใหญ่ (~400 KB เพราะฝังภาพไว้ในหน้า)
+            .get('pakkret-eon', async () => parsePakkretEon(await getText(PAKKRET_EON_URL)))
+            .then((r) => r.value)
+            .catch((err: unknown) => {
+              console.error('[cameras] pakkret', err);
+              return [] as Camera[];
+            }),
+        ]);
         const own = new Set(CAMERAS.map((c) => c.id));
-        return [...CAMERAS, ...fromList.filter((c) => !own.has(c.id))];
+        return [...CAMERAS, ...fromPakkret, ...fromNont, ...fromList.filter((c) => !own.has(c.id))];
       },
       sample: sampleCameras,
     }),

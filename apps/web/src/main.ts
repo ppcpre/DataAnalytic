@@ -248,6 +248,24 @@ function tiles(items: Array<[string, string]>): string {
     .join('')}</div>`;
 }
 
+/** ค่าวัดประกอบกล้อง (เช่น ระดับน้ำสองฝั่งประตูระบายน้ำ) เป็นช่องสีตามระดับเตือน */
+function cameraReadings(c: Camera): string {
+  if (!c.readings?.length) return '';
+  const level = (r: NonNullable<Camera['readings']>[number]) =>
+    r.danger !== undefined && r.value >= r.danger ? 'critical' : r.warning !== undefined && r.value >= r.warning ? 'watch' : 'normal';
+  const limits = (r: NonNullable<Camera['readings']>[number]) =>
+    [r.warning !== undefined && `เฝ้าระวัง ${formatNum(r.warning)}`, r.danger !== undefined && `วิกฤต ${formatNum(r.danger)}`]
+      .filter(Boolean)
+      .join(' · ');
+  return `<div class="tiles">${c.readings
+    .map(
+      (r) => `<div class="tile soft-${level(r)}"><span>${escapeHtml(r.label)}</span><span>${formatNum(r.value)} ${escapeHtml(r.unit)}</span>${
+        limits(r) ? `<small>${escapeHtml(limits(r))}</small>` : ''
+      }</div>`,
+    )
+    .join('')}</div>${c.observedAt ? `<span class="btn-caption">ค่าวัดเมื่อ ${escapeHtml(formatAgo(c.observedAt) || formatTime(c.observedAt))}</span>` : ''}`;
+}
+
 function nearestCamera(loc: { lat: number; lng: number }, maxKm = 2): Camera | null {
   let best: Camera | null = null;
   let bestD = maxKm;
@@ -402,6 +420,7 @@ function cameraSheet(c: Camera): string {
       `<span class="cam-icon">${icons.camera(24)}</span>`,
     )}
     ${cameraViewHtml(c)}
+    ${cameraReadings(c)}
     <div class="nearby">
       <span class="nearby-title">รอบกล้องนี้ (รัศมี ${NEARBY_KM} กม.)</span>
       ${nearby}
@@ -957,7 +976,10 @@ function linkCard(l: CameraLink, icon: string): string {
 function renderWaterCams() {
   const host = document.getElementById('water-cams');
   if (!host) return;
-  const list = (state.cameras?.data ?? []).filter((c) => c.kind === 'water');
+  const pos = state.userPos;
+  const list = (state.cameras?.data ?? [])
+    .filter((c) => c.kind === 'water')
+    .sort((a, b) => (pos ? distanceKm(pos, a.location) - distanceKm(pos, b.location) : 0));
   host.hidden = list.length === 0;
   host.querySelector('ul')!.innerHTML = list
     .map(

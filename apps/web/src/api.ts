@@ -13,6 +13,9 @@ import type {
 /** URL ของ API (ว่าง = origin เดียวกัน / ผ่าน proxy ของ Vite ตอนพัฒนา) */
 const API_BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
 
+/** URL ที่ API ส่งมาแบบเส้นทาง (เช่น ภาพกล้องที่ส่งต่อผ่าน /api/…) → URL เต็ม */
+export const apiUrl = (url: string) => (url.startsWith('/') ? `${API_BASE}${url}` : url);
+
 async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, { signal });
   if (!res.ok) {

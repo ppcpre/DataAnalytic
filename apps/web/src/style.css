@@ -343,7 +343,13 @@ button.link-card { width: 100%; text-align: left; font: inherit; color: inherit;
 .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .tile { padding: 8px 10px; border-radius: 12px; background: var(--bg); display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .tile span:first-child { font-size: 0.7rem; color: var(--muted); }
-.tile span:last-child { font-size: 0.88rem; font-weight: 600; overflow-wrap: anywhere; }
+.tile span:nth-child(2) { font-size: 0.88rem; font-weight: 600; overflow-wrap: anywhere; }
+/* ค่าวัดประกอบกล้อง: สีตามระดับเตือน */
+.tile.soft-normal { background: var(--st-normal-bg); color: var(--st-normal-ink); }
+.tile.soft-watch { background: var(--st-watch-bg); color: var(--st-watch-ink); }
+.tile.soft-critical { background: var(--st-critical-bg); color: var(--st-critical-ink); }
+.tile[class*="soft-"] span:first-child { color: inherit; opacity: 0.8; }
+.tile small { font-size: 0.68rem; opacity: 0.8; }
 .btn-primary {
   display: flex; align-items: center; justify-content: center; gap: 8px;
   min-height: 48px; padding: 0 16px; border-radius: 14px;
