@@ -12,31 +12,21 @@ jobs:
     steps:
       - name: Longdo camera.json
         run: |
-          curl -sS -L -m 30 -A "$UA" -o cam.json -w "HTTP %{http_code} type=%{content_type} size=%{size_download}\n" https://traffic.longdo.com/camera.json || true
-          jq -c 'if type == "array" then {n: length, keys: (.[0] | keys), first: .[0], second: .[1]} else {type: type, keys: keys} end' cam.json 2>/dev/null || head -c 1500 cam.json
-          echo "-- in BKK bbox (13.4-14.3, 99.8-100.95):"
-          jq -c '[.[]? | select((.latitude // .lat | tonumber? // 0) > 13.4 and (.latitude // .lat | tonumber? // 0) < 14.3 and (.longitude // .lon // .lng | tonumber? // 0) > 99.8 and (.longitude // .lon // .lng | tonumber? // 0) < 100.95)] | length' cam.json 2>/dev/null || true
-          echo "-- owners:"; jq -r '.[]? | (.owner // .org // .source // .agency // "?") | tostring' cam.json 2>/dev/null | sort | uniq -c | sort -rn | head -15 || true
+          curl -sS -L -m 30 -A "$UA" -o cam.json https://traffic.longdo.com/camera.json
+          jq -c '{n: (.item | length), keys: (.item[0] | keys), first: .item[0], second: .item[1]}' cam.json
+          echo "-- all keys with sample values:"
+          jq -c '[.item[] | to_entries[] | {k: .key, t: (.value | type)}] | unique' cam.json
+          echo "-- in BKK bbox:"
+          jq -c '[.item[] | select(((.latitude // .lat) | tonumber? // 0) as $a | ((.longitude // .lon // .lng) | tonumber? // 0) as $o | $a > 13.4 and $a < 14.3 and $o > 99.8 and $o < 100.95)] | length' cam.json
+          echo "-- camid prefixes:"; jq -r '.item[].camid | tostring | sub("[0-9]+$"; "")' cam.json | sort | uniq -c | sort -rn | head -20
+          echo "-- samples with empty hls_url:"; jq '[.item[] | select((.hls_url // "") == "")] | length' cam.json
 
-      - name: Longdo camera deep links / terms
+      - name: Longdo camera deep links
         run: |
-          curl -sS -L -m 30 -A "$UA" -o s.js "https://traffic.longdo.com/sites/all/modules/traffic_camera/script.js?v=92" || true
-          grep -noE '.{0,120}(URLSearchParams|location\.(hash|search)|camid=|searchParams|history\.(push|replace)State|imgurl|snapshot|\.jpg|stream|m3u8|hls).{0,120}' s.js | head -40
-          curl -sS -L -m 30 -A "$UA" -o cam.html https://traffic.longdo.com/camera || true
-          echo "-- page text mentions:"; grep -oiE '.{0,80}(term|license|copyright|©|อนุญาต|เงื่อนไข|ITIC).{0,80}' cam.html | head -10
-
-      - name: DWR CCTV open data (gdcatalog)
-        run: |
-          for u in http://mekhala.dwr.go.th/cctv_rss.xml http://mekhala.dwr.go.th/imgbackend/doc_file/document_20240215-153132.csv; do
-            echo "===== $u"
-            curl -sS -L -m 30 -A "$UA" -o d.out -w "HTTP %{http_code} type=%{content_type} size=%{size_download}\n" "$u" || continue
-            head -c 1800 d.out; echo
+          curl -sS -L -m 30 -A "$UA" -o s.js "https://traffic.longdo.com/sites/all/modules/traffic_camera/script.js?v=92"
+          sed -n '245,275p;590,625p;1010,1035p' s.js
+          echo "-- terms pages:"
+          for u in https://traffic.longdo.com/terms https://map.longdo.com/terms https://www.longdo.com/terms https://traffic.longdo.com/api; do
+            curl -sS -L -m 20 -A "$UA" -o t.html -w "$u HTTP %{http_code} final=%{url_effective}\n" "$u" || true
+            grep -oiE '<title>[^<]*</title>' t.html | head -1
           done
-          echo "===== dataset metadata"
-          curl -sS -m 30 -G "https://gdcatalog.go.th/api/3/action/package_show" --data-urlencode "id=gdpublish-dwr_22_01" | jq -c '.result | {title, license_title, license_id, org: .organization.title, notes}' || true
-
-      - name: Nonthaburi floodgate CCTV
-        run: |
-          curl -sS -m 30 -G "https://gdcatalog.go.th/api/3/action/package_show" --data-urlencode "id=gdpublish-cctv2" | jq -c '.result | {title, license_title, notes}' || true
-          curl -sS -L -m 20 -A "$UA" -o n.html -w "HTTP %{http_code} size=%{size_download}\n" "http://182.52.224.70/?page=cctv" || true
-          grep -oiE '<title>[^<]*</title>|(src|href)="[^"]+"' n.html | head -30 || true
