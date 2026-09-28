@@ -7,43 +7,39 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
+    timeout-minutes: 6
     env:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
     steps:
-      - name: Nonthaburi stations
+      - name: Pak Kret EON sensors
         continue-on-error: true
+        timeout-minutes: 2
         run: |
-          base=http://182.52.224.70
-          curl -sS -m 25 -A "$UA" -o j.json "$base/json.php?app=station" || true
+          curl -sS -L -m 30 -A "$UA" -o e.html "https://www.pakkretconnect.com/liffwater/eon" || true
           python3 - <<'PY'
-          import json, urllib.parse, subprocess
-          d = json.load(open('j.json'))
-          st = d['station']
-          print('count', len(st), 'keys', list(st[0].keys()))
-          for s in st:
-              wl = s['data']
-              print(s['id'], s['code'], s['name'], s['address'], s['location'], 'cams', len(s['cctv']), 'date', s['date'], 'timeout', s['timeout'], 'door', s['door'],
-                    'up', (wl.get('wl_up') or {}).get('value'), 'down', (wl.get('wl_down') or {}).get('value'), 'rf', (wl.get('rf') or {}).get('value'))
-          print('other top keys', [k for k in d if k != 'station'])
-          for s in st[:3]:
-              for u in s['cctv'][:1]:
-                  q = urllib.parse.quote(u, safe=':/?&=')
-                  for v in (q, q.split('&ondate=')[0] + '&cameraname=' + q.split('&cameraname=')[1]):
-                      r = subprocess.run(['curl','-sS','-m','20','-o','img.bin','-w','%{http_code} %{content_type} %{size_download}',v],capture_output=True,text=True)
-                      print('IMG', v[:160], '->', r.stdout, r.stderr[:100])
+          import json, re, subprocess
+          h = open('e.html', encoding='utf-8', errors='replace').read()
+          m = re.search(r'const sensorData = (\[.*?\]);', h, re.S)
+          d = json.loads(m.group(1))
+          print('count', len(d), 'keys', list(d[0].keys()))
+          for s in d:
+              print(json.dumps({k: v for k, v in s.items() if k != 'snapshot'}, ensure_ascii=False)[:400])
+              print('  snapshot', s.get('snapshot'))
+          for s in d[:2]:
+              u = s['snapshot'].replace(' ', '%20')
+              r = subprocess.run(['curl','-sS','-m','15','-o','/dev/null','-w','%{http_code} %{content_type} %{size_download}',u],capture_output=True,text=True)
+              print('SNAP', r.stdout, r.stderr[:120])
+          for m2 in re.finditer(r'<img[^>]+snapshot[^>]*>', h): print('IMGTAG', m2.group(0)[:200])
+          i = h.find('thresholds'); print('THRESH', h[i:i+800])
           PY
-          echo "-- section svg:"; curl -sS -m 20 -o sec.svg -w "%{http_code} %{content_type} %{size_download}\n" "$base/CrossSectionService/CrossSectionService.svc/SVGService/GetFloodGate?stnID=STN2&wlUp=1.12&wlDown=1.84&wlUpH=1.5&wlUpHH=2&wlDownH=1.5&wlDownHH=2.5&isBinding=true"; head -c 300 sec.svg; echo
-          echo "-- station page:"; curl -sS -m 20 "$base/?page=station&id=STN2" | sed -e 's/<[^>]*>/ /g' | tr -s ' \n\t' ' ' | head -c 800; echo
+          curl -sS -m 15 -o /dev/null -w "local snapshot %{http_code} %{content_type} %{size_download}\n" "https://www.pakkretconnect.com/snapshots/192.168.21.66/192.168.21.66.jpg" || true
 
-      - name: Pak Kret pages
+      - name: Pak Kret traffic CCTV
+        continue-on-error: true
+        timeout-minutes: 2
         run: |
-          for page in "https://www.thaiclouderp.com/CCTV_MONITOR/web/pakkred" "https://www.pakkretconnect.com/liffwater/eon"; do
-            echo; echo "=================== $page"
-            curl -sS -L -m 25 -A "$UA" -D h.txt -o q.html "$page" -w "HTTP %{http_code} size=%{size_download}\n" || continue
-            tr -d '\r' < h.txt | grep -iE '^(x-frame-options|content-security-policy)'
-            grep -oiE '<title>[^<]*</title>' q.html | head -1
-            echo "-- local scripts:"; grep -oiE '<script[^>]+src="[^"]+"' q.html | grep -viE 'unpkg|jsdelivr|cdnjs|tailwind|googleapis|gstatic' | head
-            echo "-- iframes/img/video:"; grep -oiE '<(iframe|img|video|source)[^>]*>' q.html | head -30
-            echo "-- inline script lines of interest:"
-            awk '/<script/{s=1} s{print} /<\/script>/{s=0}' q.html | grep -nE 'lat|lng|L\.marker|fetch\(|ajax|url|src|jpg|m3u8|\.php|api|name|title|\[' | cut -c1-400 | head -150
+          for u in "https://www.thaiclouderp.com/CCTV_MONITOR/web/pakkred" "http://www.thaiclouderp.com/CCTV_MONITOR/web/pakkred" "http://www.thaiclouderp.com/video/pakkret_water_report.html"; do
+            echo "== $u"; curl -sS -L -m 20 -A "$UA" -o t.html -w "HTTP %{http_code} size=%{size_download}\n" "$u" 2>&1 | head -3
+            [ -s t.html ] && { grep -oiE '<(iframe|img|video|source)[^>]*>' t.html | head -20; awk '/<script/{s=1} s{print} /<\/script>/{s=0}' t.html | grep -nE 'lat|lng|m3u8|jpg|url|src|api|\.php' | cut -c1-300 | head -40; }
+            rm -f t.html
           done
