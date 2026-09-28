@@ -1,22 +1,23 @@
 name: Probe CCTV sources
 
-# สำรวจหน้าสถานีของสำนักการระบายน้ำ กทม. (รันเองจากแท็บ Actions)
+# ตรวจ ThaiWater: CORS, ขนาดข้อมูล และการจำกัดความถี่ (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
 
 jobs:
   probe:
     runs-on: ubuntu-latest
-    env:
-      UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
     steps:
-      - name: BMA drainage station pages
+      - name: ThaiWater CORS and rate limit
         run: |
-          for u in "https://weather.bangkok.go.th/water/StationDetail?id=73" "https://weather.bangkok.go.th/water" "https://weather.bangkok.go.th/" "http://weather.bangkok.go.th/water/StationDetail?id=73"; do
-            for opt in "" "--http1.1" "--tlsv1.2 --tls-max 1.2"; do
-              echo "===== $u [$opt]"
-              curl -sS -L -m 20 $opt -A "$UA" -H "Accept-Language: th-TH,th;q=0.9" -o p.html -w "HTTP %{http_code} ip=%{remote_ip} size=%{size_download}\n" "$u" 2>&1 | tail -2 || true
-              if [ -s p.html ]; then grep -oiE '<title>[^<]*</title>' p.html | head -1; grep -oiE '(src|href|url)\s*[=:]\s*["'"'"'][^"'"'"']*(api|json|image|img|jpg|png|cctv|station|ashx)[^"'"'"']*["'"'"']' p.html | sort -u | head -40; break; fi
-            done
+          for ep in waterlevel_load rain_24h; do
+            u="https://api-v3.thaiwater.net/api/v1/thaiwater30/public/$ep"
+            echo "===== $ep"
+            curl -sS -m 60 -H "Origin: https://dataanalytic.precare.workers.dev" -D h.txt -o b.json -w "HTTP %{http_code} size=%{size_download} time=%{time_total}\n" "$u"
+            grep -iE '^(access-control|content-encoding|content-type|retry-after|x-ratelimit|ratelimit|cache-control|server|cf-)' h.txt | tr -d '\r'
+            echo "-- preflight"
+            curl -sS -m 20 -X OPTIONS -H "Origin: https://dataanalytic.precare.workers.dev" -H "Access-Control-Request-Method: GET" -D - -o /dev/null "$u" | grep -iE '^(HTTP/|access-control)' | tr -d '\r'
+            echo "-- gzip size"; curl -sS -m 60 --compressed -H 'Accept-Encoding: gzip' -o /dev/null -w "%{size_download}\n" "$u"
           done
-          echo "-- DNS"; getent hosts weather.bangkok.go.th || true
+          echo "-- burst 6 requests"
+          for i in 1 2 3 4 5 6; do curl -sS -m 30 -o /dev/null -w "%{http_code} " "https://api-v3.thaiwater.net/api/v1/thaiwater30/public/rain_24h"; done; echo
