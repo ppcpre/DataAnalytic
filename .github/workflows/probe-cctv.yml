@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# สำรวจแหล่งรายชื่อกล้อง CCTV ที่มีพิกัด/ลิงก์รายตัว (รันเองจากแท็บ Actions)
+# ตรวจว่าหน้าดูกล้องฝังใน iframe ได้หรือไม่ (X-Frame-Options / CSP frame-ancestors) — รันเองจากแท็บ Actions
 on:
   workflow_dispatch:
 
@@ -10,23 +10,16 @@ jobs:
     env:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
     steps:
-      - name: Longdo camera.json
+      - name: Frame headers
         run: |
           curl -sS -L -m 30 -A "$UA" -o cam.json https://traffic.longdo.com/camera.json
-          jq -c '{n: (.item | length), keys: (.item[0] | keys), first: .item[0], second: .item[1]}' cam.json
-          echo "-- all keys with sample values:"
-          jq -c '[.item[] | to_entries[] | {k: .key, t: (.value | type)}] | unique' cam.json
-          echo "-- in BKK bbox:"
-          jq -c '[.item[] | select(((.latitude // .lat) | tonumber? // 0) as $a | ((.longitude // .lon // .lng) | tonumber? // 0) as $o | $a > 13.4 and $a < 14.3 and $o > 99.8 and $o < 100.95)] | length' cam.json
-          echo "-- camid prefixes:"; jq -r '.item[].camid | tostring | sub("[0-9]+$"; "")' cam.json | sort | uniq -c | sort -rn | head -20
-          echo "-- samples with empty hls_url:"; jq '[.item[] | select((.hls_url // "") == "")] | length' cam.json
-
-      - name: Longdo camera deep links
-        run: |
-          curl -sS -L -m 30 -A "$UA" -o s.js "https://traffic.longdo.com/sites/all/modules/traffic_camera/script.js?v=92"
-          sed -n '245,275p;590,625p;1010,1035p' s.js
-          echo "-- terms pages:"
-          for u in https://traffic.longdo.com/terms https://map.longdo.com/terms https://www.longdo.com/terms https://traffic.longdo.com/api; do
-            curl -sS -L -m 20 -A "$UA" -o t.html -w "$u HTTP %{http_code} final=%{url_effective}\n" "$u" || true
-            grep -oiE '<title>[^<]*</title>' t.html | head -1
+          bma=$(jq -r '[.item[] | select(.camid | startswith("ITICM_BMAMI"))][0] | .link' cam.json)
+          doh=$(jq -r '[.item[] | select(.camid | startswith("DOH"))][0] | .link' cam.json)
+          img=$(jq -r '[.item[] | select(.camid | startswith("ITICM_BMAMI"))][0] | .imgurl' cam.json)
+          for u in "https://traffic.longdo.com/camera?vdo=i294" "https://traffic.longdo.com/camera?vdo=i294&showfilter=false&autoplay=true" "$bma" "$doh" "$img"; do
+            echo "===== $u"
+            curl -sS -L -m 20 -A "$UA" -D - -o body.out "$u" | grep -iE '^(HTTP/|content-type|x-frame-options|content-security-policy|access-control|cross-origin|location)' || true
+            echo "size=$(wc -c < body.out)"; head -c 300 body.out | tr -d '\0' | head -c 300; echo
           done
+          echo "-- how many BKK-area cameras have https hls / https link / https img:"
+          jq -r '[.item[] | select((.geocode|tostring|.[0:2]) as $p | ["10","11","12","13","73","74"] | index($p))] | {n: length, hls_https: ([.[] | select((.hls_url // "") | startswith("https"))] | length), link_https: ([.[] | select((.link // "") | startswith("https"))] | length), img_https: ([.[] | select((.imgurl // "") | startswith("https"))] | length)}' cam.json
