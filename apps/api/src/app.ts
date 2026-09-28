@@ -234,6 +234,41 @@ export function createApp(
     }
   });
 
+  /**
+   * ชั่วคราว: ตรวจว่าเซิร์ฟเวอร์เข้าถึงเว็บสำนักการระบายน้ำ กทม. ได้หรือไม่ (เว็บตัดการเชื่อมต่อจากต่างประเทศ)
+   * ดึงเฉพาะ URL ที่กำหนดไว้ ไม่รับ URL จากผู้ใช้ — ลบออกเมื่อได้ข้อมูลโครงสร้างหน้าแล้ว
+   */
+  app.get('/api/debug/bma-water', async (c) => {
+    c.header('cache-control', 'no-store');
+    const colo = (c.req.raw as Request & { cf?: { colo?: string; country?: string } }).cf;
+    const targets = [
+      'https://weather.bangkok.go.th/water/StationDetail?id=73',
+      'https://weather.bangkok.go.th/water',
+    ];
+    const results = [];
+    for (const url of targets) {
+      try {
+        const res = await fetch(url, {
+          headers: { 'user-agent': 'Mozilla/5.0 PreMonitoring', 'accept-language': 'th' },
+          signal: AbortSignal.timeout(15000),
+        });
+        const html = await res.text();
+        const title = /<title>([^<]*)<\/title>/i.exec(html)?.[1]?.trim();
+        const links = [
+          ...new Set(
+            [...html.matchAll(/(?:src|href|url)\s*[=:]\s*["']([^"']+)["']/gi)]
+              .map((m) => m[1])
+              .filter((u) => /api|json|image|img|jpe?g|png|cctv|station|ashx|camera|snapshot/i.test(u)),
+          ),
+        ].slice(0, 60);
+        results.push({ url, status: res.status, size: html.length, title, links });
+      } catch (err) {
+        results.push({ url, error: String(err) });
+      }
+    }
+    return c.json({ colo: colo?.colo, country: colo?.country, results });
+  });
+
   app.get('/api/links', (c) => {
     c.header('cache-control', 'public, max-age=3600');
     return c.json({ cameras: CAMERA_LINKS, official: OFFICIAL_LINKS });
