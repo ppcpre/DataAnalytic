@@ -6,9 +6,16 @@ import type { CameraLink } from '@flood-watch/shared';
  */
 export const CAMERA_LINKS: CameraLink[] = [
   {
+    id: 'longdo-traffic',
+    name: 'กล้อง CCTV ทุกจุด (Longdo Traffic)',
+    description: 'ภาพสดกล้องของ กทม. และกรมทางหลวงผ่านมูลนิธิ iTIC — แตะหมุดกล้องบนแผนที่เพื่อเปิดดูกล้องตัวนั้นได้เลย',
+    url: 'https://traffic.longdo.com/camera',
+    area: 'กทม. และปริมณฑล',
+  },
+  {
     id: 'bma-traffic',
     name: 'กล้อง CCTV กรุงเทพมหานคร (BMA Traffic)',
-    description: 'ดูภาพกล้องวงจรปิดตามถนนใน กทม. ก่อนออกเดินทาง',
+    description: 'ระบบกล้องของ กทม. — ถ้าเปิดแล้วขึ้นหน้าตรวจสอบหรือโหลดไม่ได้ ให้ใช้ Longdo Traffic แทน',
     url: 'https://cpudapp.bangkok.go.th/bmatraffic',
     area: 'กทม.',
   },
@@ -24,12 +31,6 @@ export const CAMERA_LINKS: CameraLink[] = [
     name: 'กรมทางหลวง (HDMS Dashboard)',
     description: 'กล้อง CCTV และพิกัดจุดน้ำท่วมบนทางหลวงทั่วประเทศ',
     url: 'https://hdms.doh.go.th/dashboard',
-  },
-  {
-    id: 'longdo-traffic',
-    name: 'Longdo Traffic',
-    description: 'รวมภาพกล้องจราจรและสภาพการจราจรจากหลายหน่วยงาน',
-    url: 'https://traffic.longdo.com/',
   },
 ];
 

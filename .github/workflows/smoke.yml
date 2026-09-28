@@ -33,7 +33,7 @@ jobs:
       - name: Key stations and cameras
         run: |
           curl -sS -m 60 "$BASE/api/key-stations" | jq -c '{error, count: (.data | length? // 0), data: [.data[]? | {code, name, percent, trend}]}'
-          curl -sS -m 30 "$BASE/api/cameras" | jq -c '{error, count: (.data | length? // 0)}'
+          curl -sS -m 60 "$BASE/api/cameras" | jq -c '{error, source, count: (.data | length? // 0), byProvince: ([.data[]?.location.province] | group_by(.) | map({(.[0]): length}) | add), first: [.data[:3][]? | {name, owner, url}]}'
 
       - name: Place search
         run: |

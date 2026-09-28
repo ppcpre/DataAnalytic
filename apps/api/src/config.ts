@@ -26,6 +26,11 @@ export interface Config {
     bbox: { minLat: number; minLng: number; maxLat: number; maxLng: number };
     cacheTtlMs: number;
   };
+  cameras: {
+    /** รายชื่อกล้องพร้อมพิกัดแบบ Longdo Traffic (camera.json) — ว่าง = ใช้เฉพาะรายการใน data/cameras.ts */
+    listUrl: string;
+    cacheTtlMs: number;
+  };
   floodhub: {
     /** API key ของ Google Flood Forecasting API — ว่าง = ปิดชั้นข้อมูลนี้ */
     apiKey: string;
@@ -67,6 +72,10 @@ export function loadConfig(env: Env = process.env): Config {
       url: env.GEOCODER_URL ?? 'https://photon.komoot.io/api/',
       bbox: parseBBox(env.GEOCODER_BBOX ?? '13.4,99.8,14.3,100.95'),
       cacheTtlMs: Number(env.GEOCODER_CACHE_SECONDS ?? 24 * 3600) * 1000,
+    },
+    cameras: {
+      listUrl: env.CAMERA_LIST_URL ?? 'https://traffic.longdo.com/camera.json',
+      cacheTtlMs: Number(env.CAMERA_CACHE_SECONDS ?? 3600) * 1000,
     },
     floodhub: {
       apiKey: env.GOOGLE_FLOOD_API_KEY ?? '',

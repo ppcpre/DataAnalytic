@@ -44,6 +44,8 @@ npm run build
 | `MAX_READING_AGE_HOURS` | `12` | ไม่แสดงค่าที่ตรวจวัดเก่ากว่านี้ (ชั่วโมง) — สถานีที่หยุดส่งข้อมูลจะไม่ถูกนับเป็นเฝ้าระวัง |
 | `GEOCODER_URL` | `https://photon.komoot.io/api/` | บริการค้นหาสถานที่ (รูปแบบ Photon, ข้อมูล OpenStreetMap) — ว่าง = ปิดการค้นหาสถานที่ |
 | `GEOCODER_BBOX` | `13.4,99.8,14.3,100.95` | กรอบพื้นที่ค้นหา (minLat,minLng,maxLat,maxLng) |
+| `CAMERA_LIST_URL` | `https://traffic.longdo.com/camera.json` | รายชื่อกล้อง CCTV พร้อมพิกัด — ว่าง = ใช้เฉพาะ `data/cameras.ts` |
+| `CAMERA_CACHE_SECONDS` | `3600` | อายุ cache รายชื่อกล้อง |
 | `GOOGLE_FLOOD_API_KEY` | (ว่าง) | API key ของ Google Flood Forecasting API — ว่าง = ปิดชั้นพยากรณ์ Google |
 | `GOOGLE_FLOOD_BBOX` | `13.3,99.7,15.9,101.2` | กรอบพื้นที่จุดพยากรณ์ที่แสดง (minLat,minLng,maxLat,maxLng) |
 
@@ -71,10 +73,15 @@ npx wrangler d1 create flood-watch
 แล้วเอา `//` ออกจากส่วน `d1_databases` ใน `wrangler.jsonc` และใส่ `database_id` ที่ได้
 ตารางจะถูกสร้างอัตโนมัติเมื่อใช้งานครั้งแรก
 
-### เพิ่มกล้อง CCTV บนแผนที่
+### กล้อง CCTV บนแผนที่
 
-ยังไม่มีแหล่งข้อมูลสาธารณะที่ให้พิกัดกล้อง จึงเริ่มจากรายการว่างใน `apps/api/src/data/cameras.ts`
-เพิ่มกล้องที่ตรวจสอบพิกัดแล้วลงในไฟล์นั้น ปุ่มชั้นข้อมูล "กล้อง" จะแสดงขึ้นเองเมื่อมีอย่างน้อย 1 ตัว
+หมุดกล้องมาจากรายชื่อกล้องของ Longdo Traffic (`https://traffic.longdo.com/camera.json` — กล้องของ กทม. และกรมทางหลวงผ่านมูลนิธิ iTIC)
+API เลือกเฉพาะกล้องใน 6 จังหวัด แล้วแต่ละหมุดลิงก์ไปเปิดกล้องตัวนั้นที่ `https://traffic.longdo.com/camera?vdo=<รหัสกล้อง>`
+แอปไม่ได้นำภาพกล้องมาแสดงหรือเก็บซ้ำ ดึงรายชื่อชั่วโมงละครั้ง (`CAMERA_CACHE_SECONDS`)
+
+- ปิดแหล่งนี้: ตั้ง `CAMERA_LIST_URL` เป็นค่าว่าง
+- เพิ่มกล้องที่ตรวจสอบพิกัดเองได้ใน `apps/api/src/data/cameras.ts` (แสดงร่วมกัน)
+- ควรขออนุญาต/แจ้ง Longdo ก่อนเปิดใช้งานจริงในวงกว้าง เพราะเป็นข้อมูลที่เว็บ Longdo ใช้เอง ไม่ใช่ API ที่ประกาศให้ใช้สาธารณะ
 
 ## ตัวแปรสภาพแวดล้อม (หน้าเว็บ, ตอน build)
 

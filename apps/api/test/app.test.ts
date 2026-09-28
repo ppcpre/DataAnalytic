@@ -93,9 +93,24 @@ describe('api', () => {
 });
 
 describe('cameras and geocode', () => {
-  it('serves an empty camera list by default and sample cameras in sample mode', async () => {
-    const live = await (await createApp(loadConfig({})).request('/api/cameras')).json();
-    expect(live.data).toEqual([]);
+  it('serves cameras from the camera list and sample cameras in sample mode', async () => {
+    const urls: string[] = [];
+    const app = createApp(loadConfig({}), async (url) => {
+      urls.push(url);
+      return {
+        item: [
+          { camid: 'ITICM_BMAMI0123', title: '(กรุงเทพมหานคร) แยกตัวอย่าง', latitude: '13.75', longitude: '100.5', geocode: '103605', organization: 'กทม.' },
+          { camid: 'DOH-PER-10-006', title: '(จ.หนองบัวลำภู) นอกพื้นที่', latitude: '17.2', longitude: '102.3', geocode: '390113' },
+        ],
+      };
+    });
+    const live = await (await app.request('/api/cameras')).json();
+    expect(urls).toEqual(['https://traffic.longdo.com/camera.json']);
+    expect(live.data.map((c: { name: string; url: string }) => [c.name, c.url])).toEqual([
+      ['แยกตัวอย่าง', 'https://traffic.longdo.com/camera?vdo=i123'],
+    ]);
+    const off = await (await createApp(loadConfig({ CAMERA_LIST_URL: '' })).request('/api/cameras')).json();
+    expect(off.data).toEqual([]);
     const sample = await (await createApp(loadConfig({ DATA_MODE: 'sample' })).request('/api/cameras')).json();
     expect(sample.data.length).toBeGreaterThan(0);
   });

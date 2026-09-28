@@ -8,6 +8,7 @@ import { parseFloodgates, parseKeyStations, parseRain, parseWaterLevel } from '.
 import { fetchFloodStatusPages, parseFloodStatuses } from './adapters/floodhub.js';
 import { geocodeUrl, parsePhoton } from './adapters/geocode.js';
 import { CAMERAS } from './data/cameras.js';
+import { parseLongdoCameras } from './adapters/longdo.js';
 import { HOUR, MemoryHistoryStore, recordAndAttachTrends, type HistoryStore } from './history.js';
 import {
   sampleCameras,
@@ -53,6 +54,8 @@ export function createApp(
   };
   const cache = new TtlCache(config.cacheTtlMs, config.staleMaxMs);
   const geocodeCache = new TtlCache(config.geocode.cacheTtlMs, config.geocode.cacheTtlMs);
+  // รายชื่อกล้องเปลี่ยนไม่บ่อย เก็บนานกว่าข้อมูลน้ำ และใช้ค่าเก่าได้ถึง 7 วันถ้าต้นทางล่ม
+  const cameraCache = new TtlCache(config.cameras.cacheTtlMs, 7 * 24 * 3600_000);
   const app = new Hono();
 
   app.use(
@@ -114,7 +117,7 @@ export function createApp(
       dataMode: config.dataMode,
       floodhub: config.dataMode === 'sample' || !!config.floodhub.apiKey,
       floodgates: config.dataMode === 'sample' || !!config.thaiwater.floodgateUrl,
-      cameras: config.dataMode === 'sample' || CAMERAS.length > 0,
+      cameras: config.dataMode === 'sample' || CAMERAS.length > 0 || !!config.cameras.listUrl,
       geocode: !!config.geocode.url,
     }),
   );
@@ -183,9 +186,16 @@ export function createApp(
     '/api/cameras',
     serve({
       key: 'cameras',
-      source: 'รายชื่อกล้องที่ตรวจสอบพิกัดแล้ว',
+      source: 'Longdo Traffic / มูลนิธิ iTIC',
       enabled: () => true,
-      load: async () => CAMERAS,
+      load: async () => {
+        const url = config.cameras.listUrl;
+        if (!url) return CAMERAS;
+        const r = await cameraCache.get('longdo-cameras', () => getJson(url));
+        const fromList = parseLongdoCameras(r.value);
+        const own = new Set(CAMERAS.map((c) => c.id));
+        return [...CAMERAS, ...fromList.filter((c) => !own.has(c.id))];
+      },
       sample: sampleCameras,
     }),
   );
