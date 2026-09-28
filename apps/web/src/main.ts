@@ -1,6 +1,7 @@
 import 'leaflet/dist/leaflet.css';
 import './style.css';
 import L from 'leaflet';
+import { addOsmRaster, vectorMapSupported } from './osm';
 import { registerSW } from 'virtual:pwa-register';
 import {
   FLOODHUB_SEVERITY_TH,
@@ -65,7 +66,15 @@ document.getElementById('search-clear')!.innerHTML = icons.close(14);
 const map = L.map('map', { zoomControl: false }).setView(BKK_CENTER, 11);
 L.control.zoom({ position: 'bottomright' }).addTo(map);
 // โหลดแผนที่ฐานแยกไฟล์ เพื่อให้หมุดข้อมูลขึ้นก่อนบนเน็ตช้า
-void import('./basemap').then((m) => m.addBasemap(map));
+// ถ้าเครื่องไม่รองรับ หรือโหลดไฟล์ไม่ขึ้น (เช่น iPad รุ่นเก่า) ใช้ OpenStreetMap แทน
+if (vectorMapSupported()) {
+  import('./basemap')
+    .then((m) => m.addBasemap(map, addOsmRaster))
+    .catch((err) => {
+      console.warn('โหลดแผนที่ vector ไม่สำเร็จ — ใช้แผนที่ OpenStreetMap แทน', err);
+      addOsmRaster(map);
+    });
+} else addOsmRaster(map);
 
 export type LayerKey = 'water' | 'rain' | 'camera' | 'gate' | 'forecast' | 'place';
 const layers: Record<LayerKey, L.LayerGroup> = {

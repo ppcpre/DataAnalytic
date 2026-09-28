@@ -13,34 +13,20 @@ const OPENFREEMAP_ATTRIBUTION =
   '&copy; <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> ' +
   'Data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
 
-/** ใช้เมื่อโหลด OpenFreeMap ไม่สำเร็จ (เช่น เบราว์เซอร์ไม่รองรับ WebGL หรือเซิร์ฟเวอร์ล่ม) */
-function addOsmRaster(map: L.Map) {
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 18,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-  }).addTo(map);
-}
-
-function webglSupported(): boolean {
+/** แผนที่ vector โหลดไม่สำเร็จ → ใช้ OpenStreetMap แทน (แยกไว้ใน osm.ts เพื่อให้ใช้ได้แม้ไฟล์นี้โหลดไม่ขึ้น) */
+export function addBasemap(map: L.Map, addOsmRaster: (map: L.Map) => void) {
+  let layer: L.Layer;
   try {
-    const canvas = document.createElement('canvas');
-    return !!(canvas.getContext('webgl2') || canvas.getContext('webgl'));
-  } catch {
-    return false;
-  }
-}
-
-export function addBasemap(map: L.Map) {
-  if (!webglSupported()) {
+    // plugin อ่านเครดิตจาก attributionControl.customAttribution แล้วส่งให้ attribution ของ Leaflet
+    layer = maplibreGL({
+      style: OPENFREEMAP_STYLE,
+      attributionControl: { customAttribution: OPENFREEMAP_ATTRIBUTION },
+    }).addTo(map);
+  } catch (err) {
+    console.warn('สร้างแผนที่ vector ไม่ได้ — ใช้แผนที่ OpenStreetMap แทน', err);
     addOsmRaster(map);
     return;
   }
-
-  // plugin อ่านเครดิตจาก attributionControl.customAttribution แล้วส่งให้ attribution ของ Leaflet
-  const layer = maplibreGL({
-    style: OPENFREEMAP_STYLE,
-    attributionControl: { customAttribution: OPENFREEMAP_ATTRIBUTION },
-  }).addTo(map);
 
   let loaded = false;
   let fellBack = false;
@@ -52,9 +38,10 @@ export function addBasemap(map: L.Map) {
     addOsmRaster(map);
   };
 
-  const gl = layer.getMaplibreMap();
+  const gl = (layer as ReturnType<typeof maplibreGL>).getMaplibreMap();
   gl.once('load', () => (loaded = true));
   // error ก่อน style โหลดเสร็จ = ใช้ OpenFreeMap ไม่ได้ (error ของ tile ย่อยหลังโหลดแล้วไม่นับ)
   gl.on('error', fallback);
-  setTimeout(fallback, 15000);
+  // worker ของ MapLibre โหลดไม่ขึ้นบนเบราว์เซอร์รุ่นเก่าโดยไม่แจ้ง error จึงตั้งเวลาไว้
+  setTimeout(fallback, 10000);
 }
