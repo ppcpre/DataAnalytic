@@ -1,6 +1,6 @@
 import { Hono, type Context } from 'hono';
 import { cors } from 'hono/cors';
-import type { ApiResponse } from '@flood-watch/shared';
+import type { ApiResponse, Camera } from '@flood-watch/shared';
 import { TtlCache } from './cache.js';
 import type { Config } from './config.js';
 import { fetchJson, postJson, UpstreamError } from './http.js';
@@ -191,8 +191,14 @@ export function createApp(
       load: async () => {
         const url = config.cameras.listUrl;
         if (!url) return CAMERAS;
-        const r = await cameraCache.get('longdo-cameras', () => getJson(url));
-        const fromList = parseLongdoCameras(r.value);
+        let fromList: Camera[] = [];
+        try {
+          const r = await cameraCache.get('longdo-cameras', () => getJson(url));
+          fromList = parseLongdoCameras(r.value);
+        } catch (err) {
+          // รายชื่อจาก Longdo ดึงไม่ได้ ยังแสดงกล้อง/จุดวัดที่เพิ่มเองได้
+          console.error('[cameras]', err);
+        }
         const own = new Set(CAMERAS.map((c) => c.id));
         return [...CAMERAS, ...fromList.filter((c) => !own.has(c.id))];
       },
