@@ -12,6 +12,7 @@ jobs:
       - name: Live site
         run: |
           site=https://dataanalytic.precare.workers.dev
+          curl -sS -m 60 "$site/api/debug/bma-water" | python3 -c "import json,sys; d=json.load(sys.stdin); [print(r.get('url'), r.get('status'), r.get('size'), r.get('error'), (r.get('text') or '')[:200]) for r in d['results']]" || true
           curl -sS -m 40 "$site/api/cameras" -o c.json
           python3 - <<'PY'
           import json, collections
@@ -21,7 +22,7 @@ jobs:
           for c in d['data']:
               if c['id'].startswith(('nont-STN2', 'nont-STN41', 'pakkret', 'water-')):
                   print(json.dumps(c, ensure_ascii=False)[:500])
-          img = next(c['imageUrl'] for c in d['data'] if c['id'].startswith('nont-'))
+          img = next((c['imageUrl'] for c in d['data'] if c['id'].startswith('nont-')), '/api/nont/image?cam=A2-%E0%B8%A7%E0%B8%B1%E0%B8%94%E0%B8%95%E0%B8%B3%E0%B8%AB%E0%B8%99%E0%B8%B1%E0%B8%81%E0%B9%83%E0%B8%95%E0%B9%89%20Cam1')
           open('img.txt', 'w').write(img)
           PY
           u="$site$(cat img.txt)"; echo "$u"

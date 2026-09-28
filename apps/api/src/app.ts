@@ -298,6 +298,7 @@ export function createApp(
     const targets = [
       'https://weather.bangkok.go.th/water/StationDetail?id=73',
       'https://weather.bangkok.go.th/water',
+      NONT_STATIONS_URL,
     ];
     c.header('content-type', 'application/json; charset=utf-8');
     const results = [];
