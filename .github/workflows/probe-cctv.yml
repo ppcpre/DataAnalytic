@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# หา endpoint กราฟระดับน้ำย้อนหลังรายสถานีของ ThaiWater (รันเองจากแท็บ Actions)
+# ตรวจกราฟระดับน้ำ ThaiWater และหน้ากล้องระดับน้ำที่ผู้ใช้ส่งมา (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
 
@@ -10,31 +10,30 @@ jobs:
     env:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
     steps:
-      - name: Graph endpoints in new4all bundle
-        run: |
-          curl -sS -L -m 30 -A "$UA" -o n.html https://www.thaiwater.net/new4all
-          for s in $(grep -oE 'src="[^"]+\.js"' n.html | sed -E 's/src="([^"]+)"/\1/' | head -10); do
-            case "$s" in http*) u="$s";; /*) u="https://www.thaiwater.net$s";; *) u="https://www.thaiwater.net/$s";; esac
-            curl -sS -L -m 30 -A "$UA" -o s.js "$u" || continue
-            grep -oE '"[^"]{0,60}(graph|Graph|history|History)[^"]{0,80}"' s.js | grep -iE 'water|level|thaiwater30|api|/' | sort -u | head -40
-          done
-
-      - name: Try candidate endpoints
+      - name: ThaiWater waterlevel_graph
         run: |
           B=https://api-v3.thaiwater.net/api/v1/thaiwater30
-          # สถานีคลองมหาสวัสดิ์ บางกรวย-สวนผัก — หา id จาก waterlevel_load
           curl -sS -m 60 -o wl.json "$B/public/waterlevel_load"
-          id=$(jq -r '[.waterlevel_data.data[] | select(.station.tele_station_name.th | test("มหาสวัสดิ์"))][0].station.id' wl.json)
-          jq -c '[.waterlevel_data.data[] | select(.station.tele_station_name.th | test("มหาสวัสดิ์"))][0] | {station: .station, msl: .waterlevel_msl, prev: .waterlevel_msl_previous, pct: .storage_percent, t: .waterlevel_datetime}' wl.json
-          echo "station id=$id"
-          end=$(date -u +%Y-%m-%d); start=$(date -u -d '-2 day' +%Y-%m-%d)
-          for path in \
-            "public/waterlevel_graph?station_type=tele_waterlevel&station_id=$id&start_date=$start&end_date=$end" \
-            "public/waterlevel_graph?station_id=$id" \
-            "analyst/waterlevel_graph?station_type=tele_waterlevel&station_id=$id&start_date=$start&end_date=$end" \
-            "analyst/waterlevel_graph?station_id=$id&start_date=$start&end_date=$end" \
-            "public/tele_waterlevel_graph?station_id=$id" \
-            "analyst/waterlevel_yearly_graph?station_id=$id&year=2026" ; do
-            curl -sS -m 30 -A "$UA" -o g.json -w "$path -> HTTP %{http_code} size=%{size_download}\n" "$B/$path" || true
-            head -c 400 g.json; echo
+          jq -c '[.waterlevel_data.data[] | select(.geocode.province_code == "10" or .geocode.province_code == "12")][0:3][] | {id: .station.id, name: .station.tele_station_name.th, lat: .station.tele_station_lat, lng: .station.tele_station_long, bank: .station.min_bank, ground: .station.ground_level, msl: .waterlevel_msl, prev: .waterlevel_msl_previous}' wl.json
+          echo "-- names containing มหาสวัสดิ์ / นนทบุรี / ปากเกร็ด"
+          jq -c '.waterlevel_data.data[] | select(.station.tele_station_name.th | test("มหาสวัสดิ|นนทบุรี|ปากเกร็ด")) | {id: .station.id, name: .station.tele_station_name.th, lat: .station.tele_station_lat, lng: .station.tele_station_long}' wl.json
+          id=$(jq -r '[.waterlevel_data.data[] | select(.geocode.province_code == "10")][0].station.id' wl.json)
+          end=$(date -u +%Y-%m-%d); start=$(date -u -d '-1 day' +%Y-%m-%d)
+          for q in "station_type=tele_waterlevel&station_id=$id&start_date=$start&end_date=$end" "station_id=$id"; do
+            curl -sS -m 30 -H "Origin: https://dataanalytic.precare.workers.dev" -D h.txt -o g.json -w "[$q] HTTP %{http_code} size=%{size_download}\n" "$B/public/waterlevel_graph?$q"
+            grep -i '^access-control-allow-origin' h.txt | tr -d '\r'
+            jq -c '{result, keys: (.data | if type=="object" then keys else type end)}' g.json 2>/dev/null
+            jq -c '.data | if type=="object" then (to_entries | map({k: .key, v: (.value | if type=="array" then {len: length, first: .[0], last: .[-1]} else . end)})) else . end' g.json 2>/dev/null | head -c 2500; echo
+          done
+
+      - name: Water camera pages
+        run: |
+          for u in "https://cctv-nont.firsttech.co.th/" "http://www.thaiclouderp.com/video/pakkret_water_report.html" "https://www.thaiclouderp.com/video/pakkret_water_report.html"; do
+            echo "===== $u"
+            curl -sS -L -m 20 -A "$UA" -D h.txt -o p.html -w "HTTP %{http_code} final=%{url_effective} type=%{content_type} size=%{size_download}\n" "$u" || { echo fail; continue; }
+            grep -iE '^(x-frame-options|content-security-policy|access-control)' h.txt | tr -d '\r'
+            grep -oiE '<title>[^<]*</title>' p.html | head -1
+            echo "-- media/src:"; grep -oiE '(src|href|data-src|url)\s*[=:(]\s*["'"'"']?[^"'"'"' )>]*(m3u8|mjpe?g|jpe?g|png|mp4|rtsp|stream|video|cam|cgi|php|snapshot|hls|iframe|live)[^"'"'"' )>]*' p.html | sort -u | head -40
+            echo "-- iframes:"; grep -oiE '<iframe[^>]*>' p.html | head -10
+            echo "-- text:"; sed -e 's/<[^>]*>/ /g' p.html | tr -s ' \n' ' ' | head -c 600; echo
           done
