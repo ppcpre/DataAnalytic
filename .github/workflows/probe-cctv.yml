@@ -11,18 +11,29 @@ jobs:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
     steps:
       - name: Nonthaburi stations
+        continue-on-error: true
         run: |
           base=http://182.52.224.70
-          curl -sS -L -m 25 -A "$UA" -o n.html "$base/?page=cctv" || true
-          echo "-- STATION in page:"; grep -n 'STATION' n.html | cut -c1-6000 | head -5
-          echo "-- json.php?app=station:"
-          curl -sS -L -m 25 -A "$UA" -D h.txt -o j.txt "$base/json.php?app=station" -w "HTTP %{http_code} type=%{content_type} size=%{size_download}\n" || true
-          tr -d '\r' < h.txt | grep -iE '^(access-control|content-type)'
-          head -c 8000 j.txt; echo
-          echo "-- first photo urls:"
-          img=$( (grep -oE 'http[^"\\]+\.(jpe?g|png|cgi)[^"\\]*' n.html j.txt; grep -oE '"cctv":\["[^"]+' j.txt | sed 's/.*\["//') | head -3)
-          for u in $img; do u=$(echo "$u" | sed 's#\\/#/#g'); echo "$u"; curl -sS -m 20 -A "$UA" -o /dev/null -D - "$u" | tr -d '\r' | grep -iE '^(HTTP|content-type|content-length|access-control)'; done
-          echo "-- 8081:"; curl -sS -m 15 -A "$UA" "http://182.52.224.70:8081/index.html" | head -c 1500; echo
+          curl -sS -m 25 -A "$UA" -o j.json "$base/json.php?app=station" || true
+          python3 - <<'PY'
+          import json, urllib.parse, subprocess
+          d = json.load(open('j.json'))
+          st = d['station']
+          print('count', len(st), 'keys', list(st[0].keys()))
+          for s in st:
+              wl = s['data']
+              print(s['id'], s['code'], s['name'], s['address'], s['location'], 'cams', len(s['cctv']), 'date', s['date'], 'timeout', s['timeout'], 'door', s['door'],
+                    'up', (wl.get('wl_up') or {}).get('value'), 'down', (wl.get('wl_down') or {}).get('value'), 'rf', (wl.get('rf') or {}).get('value'))
+          print('other top keys', [k for k in d if k != 'station'])
+          for s in st[:3]:
+              for u in s['cctv'][:1]:
+                  q = urllib.parse.quote(u, safe=':/?&=')
+                  for v in (q, q.split('&ondate=')[0] + '&cameraname=' + q.split('&cameraname=')[1]):
+                      r = subprocess.run(['curl','-sS','-m','20','-o','img.bin','-w','%{http_code} %{content_type} %{size_download}',v],capture_output=True,text=True)
+                      print('IMG', v[:160], '->', r.stdout, r.stderr[:100])
+          PY
+          echo "-- section svg:"; curl -sS -m 20 -o sec.svg -w "%{http_code} %{content_type} %{size_download}\n" "$base/CrossSectionService/CrossSectionService.svc/SVGService/GetFloodGate?stnID=STN2&wlUp=1.12&wlDown=1.84&wlUpH=1.5&wlUpHH=2&wlDownH=1.5&wlDownHH=2.5&isBinding=true"; head -c 300 sec.svg; echo
+          echo "-- station page:"; curl -sS -m 20 "$base/?page=station&id=STN2" | sed -e 's/<[^>]*>/ /g' | tr -s ' \n\t' ' ' | head -c 800; echo
 
       - name: Pak Kret pages
         run: |
