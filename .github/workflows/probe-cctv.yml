@@ -10,33 +10,33 @@ jobs:
     env:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
     steps:
-      - name: Open data portals (CKAN)
+      - name: Longdo camera.json
         run: |
-          for base in https://data.bangkok.go.th https://data.go.th https://gdcatalog.go.th; do
-            for q in cctv "กล้อง" "กล้องวงจรปิด"; do
-              echo "===== $base q=$q"
-              curl -sS -m 30 -A "$UA" -G "$base/api/3/action/package_search" --data-urlencode "q=$q" --data-urlencode "rows=15" -o ck.json -w "HTTP %{http_code}\n" || continue
-              jq -c '.result.results[]? | {name, title, org: .organization.title, res: [.resources[]? | {format, url}][:4]}' ck.json 2>/dev/null | head -15 || head -c 400 ck.json
-            done
-          done
+          curl -sS -L -m 30 -A "$UA" -o cam.json -w "HTTP %{http_code} type=%{content_type} size=%{size_download}\n" https://traffic.longdo.com/camera.json || true
+          jq -c 'if type == "array" then {n: length, keys: (.[0] | keys), first: .[0], second: .[1]} else {type: type, keys: keys} end' cam.json 2>/dev/null || head -c 1500 cam.json
+          echo "-- in BKK bbox (13.4-14.3, 99.8-100.95):"
+          jq -c '[.[]? | select((.latitude // .lat | tonumber? // 0) > 13.4 and (.latitude // .lat | tonumber? // 0) < 14.3 and (.longitude // .lon // .lng | tonumber? // 0) > 99.8 and (.longitude // .lon // .lng | tonumber? // 0) < 100.95)] | length' cam.json 2>/dev/null || true
+          echo "-- owners:"; jq -r '.[]? | (.owner // .org // .source // .agency // "?") | tostring' cam.json 2>/dev/null | sort | uniq -c | sort -rn | head -15 || true
 
-      - name: Longdo camera page
+      - name: Longdo camera deep links / terms
         run: |
-          curl -sS -L -m 30 -A "$UA" -o cam.html -w "HTTP %{http_code} size=%{size_download}\n" https://traffic.longdo.com/camera || true
-          echo "-- scripts:"; grep -oiE 'src="[^"]+"' cam.html | sort -u | head -30
-          echo "-- hints:"; grep -oiE '[a-zA-Z0-9_/.:?=&-]*(camera|cctv|cam_|camid|json|feed|api)[a-zA-Z0-9_/.?=&:-]*' cam.html | sort -u | head -60
-          echo "-- inline sample:"; grep -oiE '(lat|lon|latitude|longitude)["'"'"']?\s*[:=]\s*[0-9.]+' cam.html | head -10
-          for s in $(grep -oiE 'src="[^"]+\.js[^"]*"' cam.html | sed -E 's/src="([^"]+)"/\1/' | grep -vi 'google\|jquery' | head -12); do
-            case "$s" in http*) url="$s";; //*) url="https:$s";; /*) url="https://traffic.longdo.com$s";; *) url="https://traffic.longdo.com/$s";; esac
-            echo "===== $url"
-            curl -sS -L -m 30 -A "$UA" -o s.js "$url" || continue
-            grep -oiE '["'"'"'`][^"'"'"'`]*(camera|cctv|/api/|\.json|feed)[^"'"'"'`]*["'"'"'`]' s.js | sort -u | head -25
-          done
+          curl -sS -L -m 30 -A "$UA" -o s.js "https://traffic.longdo.com/sites/all/modules/traffic_camera/script.js?v=92" || true
+          grep -noE '.{0,120}(URLSearchParams|location\.(hash|search)|camid=|searchParams|history\.(push|replace)State|imgurl|snapshot|\.jpg|stream|m3u8|hls).{0,120}' s.js | head -40
+          curl -sS -L -m 30 -A "$UA" -o cam.html https://traffic.longdo.com/camera || true
+          echo "-- page text mentions:"; grep -oiE '.{0,80}(term|license|copyright|©|อนุญาต|เงื่อนไข|ITIC).{0,80}' cam.html | head -10
 
-      - name: DOH HDMS
+      - name: DWR CCTV open data (gdcatalog)
         run: |
-          for u in https://hdms.doh.go.th/dashboard https://hdms.doh.go.th/ https://cctv.doh.go.th/; do
+          for u in http://mekhala.dwr.go.th/cctv_rss.xml http://mekhala.dwr.go.th/imgbackend/doc_file/document_20240215-153132.csv; do
             echo "===== $u"
-            curl -sS -L -m 30 -A "$UA" -o d.html -w "HTTP %{http_code} final=%{url_effective} size=%{size_download}\n" "$u" || continue
-            grep -oiE '[a-zA-Z0-9_/.:?=&-]*(camera|cctv|api|json)[a-zA-Z0-9_/.?=&:-]*' d.html | sort -u | head -30
+            curl -sS -L -m 30 -A "$UA" -o d.out -w "HTTP %{http_code} type=%{content_type} size=%{size_download}\n" "$u" || continue
+            head -c 1800 d.out; echo
           done
+          echo "===== dataset metadata"
+          curl -sS -m 30 -G "https://gdcatalog.go.th/api/3/action/package_show" --data-urlencode "id=gdpublish-dwr_22_01" | jq -c '.result | {title, license_title, license_id, org: .organization.title, notes}' || true
+
+      - name: Nonthaburi floodgate CCTV
+        run: |
+          curl -sS -m 30 -G "https://gdcatalog.go.th/api/3/action/package_show" --data-urlencode "id=gdpublish-cctv2" | jq -c '.result | {title, license_title, notes}' || true
+          curl -sS -L -m 20 -A "$UA" -o n.html -w "HTTP %{http_code} size=%{size_download}\n" "http://182.52.224.70/?page=cctv" || true
+          grep -oiE '<title>[^<]*</title>|(src|href)="[^"]+"' n.html | head -30 || true
