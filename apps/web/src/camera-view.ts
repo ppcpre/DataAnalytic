@@ -39,9 +39,12 @@ export function hasCameraMedia(c: Camera): boolean {
   return sourcesOf(c).length > 0;
 }
 
-/** กล้องที่น่าจะดูภาพสดได้ (ใช้แยกสีหมุด) */
+/**
+ * กล้องที่น่าจะดูภาพสดได้ (ใช้แยกสีหมุด) — นับเฉพาะที่มีวิดีโอ HLS
+ * เพราะกล้องที่มีแต่ MJPEG/ภาพนิ่งส่วนใหญ่ออฟไลน์ที่ต้นทาง (ตรวจ ก.ย. 2569)
+ */
 export function isLiveCamera(c: Camera): boolean {
-  return !!(c.hlsUrl || c.streamUrl);
+  return !!c.hlsUrl;
 }
 
 export function cameraViewHtml(c: Camera): string {
