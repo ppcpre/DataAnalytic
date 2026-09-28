@@ -22,7 +22,7 @@
   // ],
   "vars": {
     "DATA_MODE": "live",
-    "KEY_STATION_CODES": "C.2,C.13,C.29A"
+    "KEY_STATION_CODES": "C.2,C.13,C.7A,C.35"
   }
   // ความลับ (เช่น GOOGLE_FLOOD_API_KEY) ตั้งด้วย: npx wrangler secret put GOOGLE_FLOOD_API_KEY
 }

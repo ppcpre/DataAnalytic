@@ -56,8 +56,9 @@ export function loadConfig(env: Env = process.env): Config {
       waterLevelUrl: env.THAIWATER_WATERLEVEL_URL ?? `${base}/waterlevel_load`,
       rainUrl: env.THAIWATER_RAIN_URL ?? `${base}/rain_24h`,
       floodgateUrl: env.THAIWATER_FLOODGATE_URL ?? '',
-      // C.2 นครสวรรค์, C.13 ท้ายเขื่อนเจ้าพระยา (ชัยนาท), C.29A บางไทร (อยุธยา)
-      keyStationCodes: (env.KEY_STATION_CODES ?? 'C.2,C.13,C.29A')
+      // C.2 นครสวรรค์, C.13 ท้ายเขื่อนเจ้าพระยา (ชัยนาท), C.7A บ้านบางแก้ว (อ่างทอง), C.35 บ้านป้อม (อยุธยา)
+      // (C.29A บางไทร ไม่มีในชุดข้อมูล waterlevel_load)
+      keyStationCodes: (env.KEY_STATION_CODES ?? 'C.2,C.13,C.7A,C.35')
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean),

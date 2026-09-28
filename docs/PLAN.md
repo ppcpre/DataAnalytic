@@ -21,7 +21,7 @@
 | กลุ่มข้อมูล | แหล่งข้อมูล | สถานะ | หมายเหตุ |
 |---|---|---|---|
 | ระดับน้ำ (คลอง/แม่น้ำ) ใน 6 จังหวัด | ThaiWater public API `waterlevel_load` | ✅ | **[ต้องยืนยัน]** โครงสร้าง JSON — adapter อ่านค่าแบบยืดหยุ่น |
-| สถานีต้นน้ำสำคัญ (น้ำเหนือ) | ThaiWater `waterlevel_load` (ชุดเดียวกัน) กรองตามรหัสสถานี C.2, C.13, C.29A | ✅ | **[ต้องยืนยัน]** ชื่อ field รหัสสถานี (`tele_station_oldcode`) |
+| สถานีต้นน้ำสำคัญ (น้ำเหนือ) | ThaiWater `waterlevel_load` (ชุดเดียวกัน) กรองตามรหัสสถานี C.2, C.13, C.7A, C.35 | ✅ | ใช้ `tele_station_oldcode` (C.29A บางไทร ไม่มีในชุดข้อมูลนี้) |
 | ฝนสะสม 24 ชม. | ThaiWater public API `rain_24h` | ✅ | **[ต้องยืนยัน]** |
 | พยากรณ์น้ำล้นตลิ่งล่วงหน้า | Google Flood Forecasting API (`floodStatus:searchLatestFloodStatusByArea`) | ✅ พร้อมใช้เมื่อมี API key | ฟรี แต่ต้องสมัคร waitlist และรออนุมัติ |
 | สถานะประตูระบายน้ำ | ThaiWater / กรมชลประทาน / สำนักการระบายน้ำ กทม. | ⚠️ ตั้งค่า URL ได้ | **[ต้องยืนยัน]** ยังไม่พบ endpoint สาธารณะ |

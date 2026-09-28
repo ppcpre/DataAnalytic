@@ -40,7 +40,8 @@ npm run build
 | `THAIWATER_BASE_URL` | `https://api-v3.thaiwater.net/api/v1/thaiwater30/public` | |
 | `THAIWATER_WATERLEVEL_URL` / `THAIWATER_RAIN_URL` | `<base>/waterlevel_load`, `<base>/rain_24h` | กำหนดแยกรายตัว |
 | `THAIWATER_FLOODGATE_URL` | (ว่าง) | endpoint สถานะประตูระบายน้ำ — ว่าง = ชั้นข้อมูลนี้ไม่มีจุด |
-| `KEY_STATION_CODES` | `C.2,C.13,C.29A` | รหัสสถานีต้นน้ำสำคัญ (นครสวรรค์, ท้ายเขื่อนเจ้าพระยา, บางไทร) เรียงจากต้นน้ำ |
+| `KEY_STATION_CODES` | `C.2,C.13,C.7A,C.35` | รหัสสถานีต้นน้ำสำคัญ (นครสวรรค์, ท้ายเขื่อนเจ้าพระยา, บ้านบางแก้ว อ่างทอง, บ้านป้อม อยุธยา) เรียงจากต้นน้ำ |
+| `MAX_READING_AGE_HOURS` | `12` | ไม่แสดงค่าที่ตรวจวัดเก่ากว่านี้ (ชั่วโมง) — สถานีที่หยุดส่งข้อมูลจะไม่ถูกนับเป็นเฝ้าระวัง |
 | `GEOCODER_URL` | `https://photon.komoot.io/api/` | บริการค้นหาสถานที่ (รูปแบบ Photon, ข้อมูล OpenStreetMap) — ว่าง = ปิดการค้นหาสถานที่ |
 | `GEOCODER_BBOX` | `13.4,99.8,14.3,100.95` | กรอบพื้นที่ค้นหา (minLat,minLng,maxLat,maxLng) |
 | `GOOGLE_FLOOD_API_KEY` | (ว่าง) | API key ของ Google Flood Forecasting API — ว่าง = ปิดชั้นพยากรณ์ Google |
