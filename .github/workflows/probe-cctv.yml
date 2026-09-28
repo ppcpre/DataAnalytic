@@ -1,54 +1,31 @@
 name: Probe CCTV sources
 
-# เปิดเว็บจริงใน Chrome แล้วลองเปิดภาพกล้อง เพื่อดูว่าภาพโหลดได้หรือไม่ (รันเองจากแท็บ Actions)
+# ตรวจว่าภาพกล้องแต่ละแบบ (MJPEG / ภาพนิ่ง / HLS) ใช้ได้จริงหรือไม่ (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
-    inputs:
-      url:
-        description: URL ของเว็บที่ deploy
-        default: https://dataanalytic.precare.workers.dev
 
 jobs:
   probe:
     runs-on: ubuntu-latest
     env:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
-      BASE: ${{ inputs.url }}
+      ORIGIN: https://dataanalytic.precare.workers.dev
     steps:
-      - name: Image server with and without referer
+      - name: Per-camera media check
         run: |
-          curl -sS -m 30 "$BASE/api/cameras" -o cams.json
-          jq -c '{n: (.data|length), live: ([.data[] | select(.streamUrl)] | length), first: .data[0]}' cams.json
-          for u in $(jq -r '[.data[] | select(.imageUrl)][0:4][] | .imageUrl' cams.json); do
-            for ref in none "$BASE/" "https://traffic.longdo.com/camera"; do
-              if [ "$ref" = none ]; then h=(); else h=(-H "Referer: $ref"); fi
-              curl -sS -m 15 -A "$UA" "${h[@]}" -o i.out -D hdr.txt "$u" || true
-              echo "$u | ref=$ref | $(head -1 hdr.txt | tr -d '\r') | $(grep -i '^content-type' hdr.txt | tr -d '\r') | size=$(wc -c < i.out) | $(grep -iE '^(cross-origin|access-control|x-frame)' hdr.txt | tr -d '\r' | tr '\n' ' ')"
-            done
-          done
-
-      - name: Real browser test
-        run: |
-          mkdir b && cd b && npm init -y >/dev/null && npm i playwright-core@1 >/dev/null 2>&1
-          cat > t.mjs <<'JS'
-          import { chromium } from 'playwright-core';
-          const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome' });
-          const p = await b.newPage({ viewport: { width: 1280, height: 900 } });
-          p.on('response', r => { if (/itic/.test(r.url())) console.log('RESP', r.status(), r.headers()['content-type'], r.url().slice(0, 100)); });
-          p.on('requestfailed', r => { if (/itic/.test(r.url())) console.log('FAIL', r.failure()?.errorText, r.url().slice(0, 100)); });
-          p.on('console', m => { if (m.type() !== 'log') console.log('CONSOLE', m.type(), m.text().slice(0, 200)); });
-          await p.goto(process.env.BASE + '/', { waitUntil: 'domcontentloaded' });
-          await p.waitForSelector('.pin-camera', { timeout: 30000 });
-          const n = await p.locator('.pin-camera').count();
-          console.log('camera pins', n, 'live pins', await p.locator('.pin-live').count());
-          for (let i = 0; i < Math.min(5, n); i++) {
-            await p.locator('.pin-camera').nth(i).dispatchEvent('click');
-            await p.waitForSelector('[data-cam-view]', { timeout: 5000 }).catch(() => {});
-            await p.waitForTimeout(11000);
-            const r = await p.evaluate(() => { const v = document.querySelector('[data-cam-view]'); const img = v?.querySelector('img'); return v && { title: document.querySelector('.sheet-title')?.textContent, mode: v.dataset.mode, loaded: v.classList.contains('is-loaded'), w: img?.naturalWidth, src: img?.getAttribute('src')?.slice(0, 90) }; });
-            console.log('CAM', i, JSON.stringify(r));
-          }
-          await p.screenshot({ path: 'shot.png' });
-          await b.close();
-          JS
-          BASE="$BASE" node t.mjs
+          curl -sS -m 30 -A "$UA" -o cam.json https://traffic.longdo.com/camera.json
+          jq -c '.item[] | select((.geocode|tostring|.[0:2]) as $p | ["10","11","12","13","73","74"] | index($p))' cam.json > area.jsonl
+          wc -l < area.jsonl
+          echo "camid | jpeg_size | mjpeg_5s_bytes | hls | hls_status | acao | first_segment"
+          while read -r row; do
+            id=$(jq -r .camid <<<"$row"); img=$(jq -r '.imgurl // ""' <<<"$row"); link=$(jq -r '.link // ""' <<<"$row"); hls=$(jq -r '.hls_url // ""' <<<"$row")
+            js=$( [ -n "$img" ] && curl -sS -m 10 -A "$UA" "$img" 2>/dev/null | wc -c || echo -)
+            mj=$( [ -n "$link" ] && curl -sS -m 5 -A "$UA" "$link" 2>/dev/null | wc -c || echo -)
+            hs=-; ac=-; seg=-
+            if [[ "$hls" == https://* ]]; then
+              hs=$(curl -sS -m 10 -A "$UA" -H "Origin: $ORIGIN" -D h.txt -o pl.m3u8 -w '%{http_code}' "$hls" 2>/dev/null || echo err)
+              ac=$(grep -i '^access-control-allow-origin' h.txt | tr -d '\r' | cut -d' ' -f2- || true)
+              seg=$(grep -v '^#' pl.m3u8 | head -1)
+            fi
+            echo "$id | $js | $mj | ${hls:0:70} | $hs | ${ac:-none} | ${seg:0:60}"
+          done < area.jsonl
