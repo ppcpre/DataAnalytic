@@ -22,5 +22,10 @@ jobs:
           for c in d['data']:
               if c['id'].startswith(('nont-STN2', 'nont-STN41', 'pakkret', 'water-')):
                   print(json.dumps(c, ensure_ascii=False)[:500])
+          img = next((c.get('imageUrl') for c in d['data'] if c['id'].startswith('nont-') and c.get('imageUrl')), None)
+          print('nont with image', sum(1 for c in d['data'] if c['id'].startswith('nont-') and c.get('imageUrl')), 'with readings', sum(1 for c in d['data'] if c['id'].startswith('nont-') and c.get('readings')))
+          open('img.txt', 'w').write(img or '/api/nont/image?cam=A2-%E0%B8%A7%E0%B8%B1%E0%B8%94%E0%B8%95%E0%B8%B3%E0%B8%AB%E0%B8%99%E0%B8%B1%E0%B8%81%E0%B9%83%E0%B8%95%E0%B9%89%20Cam1')
           PY
+          curl -sS -m 30 -o i.bin -w "image: %{http_code} %{content_type} %{size_download} %{time_total}s\n" "$site$(cat img.txt)"
+          head -c 200 i.bin | grep -a error || true
           curl -sS -m 10 -o /dev/null -w "bad name: %{http_code}\n" "$site/api/nont/image?cam=x"

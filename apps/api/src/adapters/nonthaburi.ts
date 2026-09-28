@@ -4,16 +4,19 @@
  * แอปปักหมุดเฉพาะจุดที่มีกล้อง ภาพกล้องต้องผ่าน /api/nont/image เพราะต้นทางเป็น http
  * (browser ไม่แสดงภาพ http ในหน้า https)
  *
- * เซิร์ฟเวอร์ API ที่ใช้ดึงข้อมูลสดตั้งได้ด้วย NONT_API_BASE — Cloudflare Workers เรียก URL ที่เป็น IP ไม่ได้
- * จึงต้องเป็นชื่อโดเมน (หรือใช้ IP ได้เมื่อรัน API บน Node.js) ถ้าไม่ตั้ง แอปใช้รายชื่อจุดใน data/nonthaburi.ts
+ * เซิร์ฟเวอร์มีแต่ IP — Cloudflare Workers ใช้ fetch() กับ IP ไม่ได้ (error 1003) จึงดึงผ่าน TCP socket (raw-http.ts)
+ * ถ้าดึงไม่ได้ แอปใช้รายชื่อจุดใน data/nonthaburi.ts
  */
 import type { Camera, CameraReading } from '@flood-watch/shared';
 
 type Rec = Record<string, unknown>;
 
+export const NONT_HOST = '182.52.224.70';
 /** เว็บของเทศบาล (ลิงก์ "เปิดดูในเว็บต้นทาง") */
-export const NONT_BASE = 'http://182.52.224.70';
-export const nontStationsUrl = (apiBase: string) => `${apiBase}/json.php?app=station`;
+export const NONT_BASE = `http://${NONT_HOST}`;
+/** หน้ารวมภาพกล้องทุกจุด (หน้ารายละเอียดสถานีของต้นทางเปิดแล้วว่างในหลายเครื่อง) */
+export const NONT_CCTV_PAGE = `${NONT_BASE}/?page=cctv`;
+export const NONT_STATIONS_PATH = '/json.php?app=station';
 export const NONT_OWNER = 'เทศบาลนครนนทบุรี';
 /** ค่าวัดที่เก่ากว่านี้ไม่แสดง (หลายจุดหยุดส่งข้อมูลไปนานแล้ว แต่ภาพกล้องยังใช้ได้) */
 const MAX_READING_AGE_MS = 12 * 3600_000;
@@ -21,8 +24,8 @@ const MAX_READING_AGE_MS = 12 * 3600_000;
 /** ชื่อกล้องตามรูปแบบของต้นทาง เช่น "A1-คลองท่าทราย Cam1" — ใช้ตรวจค่าที่ส่งมาที่ /api/nont/image */
 export const NONT_CAMERA_NAME = /^[A-Z]\d{1,2}-[^/\\?#&%<>"]{1,80}$/u;
 
-export function nontImageUrl(apiBase: string, cameraName: string): string {
-  return `${apiBase}/MilestoneImageService/ImageService.svc/ImageService/GetImage?width=800&height=450&cameraname=${encodeURIComponent(cameraName)}`;
+export function nontImagePath(cameraName: string): string {
+  return `/MilestoneImageService/ImageService.svc/ImageService/GetImage?width=800&height=450&cameraname=${encodeURIComponent(cameraName)}`;
 }
 
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
@@ -92,7 +95,7 @@ export function parseNonthaburiStations(body: unknown, now = Date.now()): Camera
       road: `จุด ${code ?? id}${cams.length > 1 ? ` · กล้อง ${cams.length} ตัว (แสดงตัวแรก)` : ''}`,
       location: { lat, lng, province: '12', provinceName: 'นนทบุรี' },
       owner: NONT_OWNER,
-      url: `${NONT_BASE}/?page=station&id=${encodeURIComponent(id)}`,
+      url: NONT_CCTV_PAGE,
       imageUrl: `/api/nont/image?cam=${encodeURIComponent(cams[0])}`,
       imageCredit: NONT_OWNER,
       kind: 'water',

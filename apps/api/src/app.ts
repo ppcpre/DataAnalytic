@@ -10,7 +10,8 @@ import { geocodeUrl, parsePhoton } from './adapters/geocode.js';
 import { CAMERAS } from './data/cameras.js';
 import { parseLongdoCameras } from './adapters/longdo.js';
 import { PAKKRET_EON_URL, parsePakkretEon } from './adapters/pakkret.js';
-import { NONT_CAMERA_NAME, nontImageUrl, nontStationsUrl, parseNonthaburiStations } from './adapters/nonthaburi.js';
+import { NONT_CAMERA_NAME, NONT_STATIONS_PATH, nontImagePath, parseNonthaburiStations } from './adapters/nonthaburi.js';
+import type { RawResponse } from './raw-http.js';
 import { NONT_STATIC } from './data/nonthaburi.js';
 import { HOUR, MemoryHistoryStore, recordAndAttachTrends, type HistoryStore } from './history.js';
 import {
@@ -43,6 +44,8 @@ export interface AppDeps {
   history?: HistoryStore;
   /** ดึงหน้าเว็บแบบข้อความ (แทนได้ในการทดสอบ) */
   getText?: (url: string) => Promise<string>;
+  /** GET ไปที่เซิร์ฟเวอร์ของเทศบาลนครนนทบุรี (path เช่น /json.php?…) — ไม่มี = ใช้รายชื่อจุดที่บันทึกไว้ */
+  nontGet?: (path: string) => Promise<RawResponse>;
 }
 
 export function createApp(
@@ -192,11 +195,15 @@ export function createApp(
    * จุดเฝ้าระวังของเทศบาลนครนนทบุรี — ค่าระดับน้ำเปลี่ยนทุก 15 นาที จึงใช้ cache เดียวกับข้อมูลน้ำ
    * ดึงสดไม่ได้/ไม่ได้ตั้งค่า ใช้รายชื่อจุดที่บันทึกไว้ (ลิงก์ไปดูภาพในเว็บเทศบาล)
    */
-  const nontApi = config.cameras.nontApiBase;
+  const nontGet = config.cameras.nontLive ? deps.nontGet : undefined;
   const nontStations = async () => {
-    if (!nontApi) return NONT_STATIC;
+    if (!nontGet) return NONT_STATIC;
     try {
-      const r = await cache.get('nont-stations', async () => parseNonthaburiStations(await getJson(nontStationsUrl(nontApi))));
+      const r = await cache.get('nont-stations', async () => {
+        const res = await nontGet(NONT_STATIONS_PATH);
+        if (res.status !== 200) throw new UpstreamError(`ต้นทางตอบกลับ HTTP ${res.status}`, 'nonthaburi');
+        return parseNonthaburiStations(JSON.parse(new TextDecoder().decode(res.body)));
+      });
       return r.value.length ? r.value : NONT_STATIC;
     } catch (err) {
       console.error('[cameras] nonthaburi', err);
@@ -211,16 +218,13 @@ export function createApp(
   app.get('/api/nont/image', async (c) => {
     const cam = c.req.query('cam') ?? '';
     if (!NONT_CAMERA_NAME.test(cam)) return c.json({ error: 'ชื่อกล้องไม่ถูกต้อง' }, 400);
-    if (!nontApi) return c.json({ error: 'ยังไม่ได้ตั้งค่าแหล่งภาพ' }, 404);
+    if (!nontGet) return c.json({ error: 'ยังไม่ได้ตั้งค่าแหล่งภาพ' }, 404);
     try {
-      const res = await fetch(nontImageUrl(nontApi, cam), {
-        headers: { 'user-agent': 'Mozilla/5.0 PreMonitoring' },
-        signal: AbortSignal.timeout(15000),
-      });
-      const type = res.headers.get('content-type') ?? '';
-      const body = await res.arrayBuffer();
+      const res = await nontGet(nontImagePath(cam));
+      const type = res.headers['content-type'] ?? '';
+      const body = new Uint8Array(res.body); // สำเนาแบบ ArrayBuffer ธรรมดา
       // ต้นทางตอบ 200 แต่ไม่มีภาพเมื่อกล้องออฟไลน์
-      if (!res.ok || !type.startsWith('image/') || body.byteLength === 0) {
+      if (res.status !== 200 || !type.startsWith('image/') || body.byteLength === 0) {
         return c.json({ error: 'กล้องนี้ไม่มีภาพขณะนี้' }, 502);
       }
       return c.body(body, 200, { 'content-type': type, 'cache-control': 'public, max-age=10' });

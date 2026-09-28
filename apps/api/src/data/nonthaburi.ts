@@ -1,9 +1,9 @@
 import type { Camera } from '@flood-watch/shared';
-import { NONT_BASE, NONT_OWNER } from '../adapters/nonthaburi.js';
+import { NONT_CCTV_PAGE, NONT_OWNER } from '../adapters/nonthaburi.js';
 
 /**
  * จุดเฝ้าระวังที่มีกล้องของเทศบาลนครนนทบุรี (คัดจาก json.php?app=station เมื่อ ก.ย. 2569)
- * ใช้ปักหมุดเมื่อดึงข้อมูลสดไม่ได้ — Cloudflare Workers เรียกเซิร์ฟเวอร์ที่ระบุด้วย IP ไม่ได้ (error 1003)
+ * ใช้ปักหมุดเมื่อดึงข้อมูลสดจากเซิร์ฟเวอร์ของเทศบาลไม่ได้
  * [รหัสสถานี, รหัสจุด, ชื่อ, lat, lng, จำนวนกล้อง]
  */
 const STATIONS: Array<[string, string, string, number, number, number]> = [
@@ -38,9 +38,9 @@ const STATIONS: Array<[string, string, string, number, number, number]> = [
 export const NONT_STATIC: Camera[] = STATIONS.map(([id, code, name, lat, lng, cams]) => ({
   id: `nont-${id}`,
   name,
-  road: `จุด ${code} · กล้อง ${cams} ตัว · ดูภาพและระดับน้ำในเว็บเทศบาล`,
+  road: `จุด ${code} · กล้อง ${cams} ตัว`,
   location: { lat, lng, province: '12', provinceName: 'นนทบุรี' },
   owner: NONT_OWNER,
-  url: `${NONT_BASE}/?page=station&id=${id}`,
+  url: NONT_CCTV_PAGE,
   kind: 'water',
 }));

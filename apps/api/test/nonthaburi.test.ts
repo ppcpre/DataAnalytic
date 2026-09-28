@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NONT_CAMERA_NAME, nontImageUrl, parseNonthaburiStations } from '../src/adapters/nonthaburi.js';
+import { NONT_CAMERA_NAME, nontImagePath, parseNonthaburiStations } from '../src/adapters/nonthaburi.js';
 import { parsePakkretEon } from '../src/adapters/pakkret.js';
 import { NONT_BODY, PAKKRET_HTML } from './fixtures.js';
 
@@ -14,7 +14,7 @@ describe('nonthaburi stations', () => {
       name: 'วัดตำหนักใต้',
       road: 'จุด A2 · กล้อง 2 ตัว (แสดงตัวแรก)',
       location: { lat: 13.886683, lng: 100.488564, province: '12' },
-      url: 'http://182.52.224.70/?page=station&id=STN2',
+      url: 'http://182.52.224.70/?page=cctv',
       imageUrl: `/api/nont/image?cam=${encodeURIComponent('A2-วัดตำหนักใต้ Cam1')}`,
       kind: 'water',
       observedAt: '2026-09-28T07:30:00.000Z',
@@ -35,8 +35,8 @@ describe('nonthaburi stations', () => {
     expect(NONT_CAMERA_NAME.test('A1-คลองท่าทราย Cam1')).toBe(true);
     expect(NONT_CAMERA_NAME.test('B12-คลองขุด ข้าง กสท.')).toBe(true);
     for (const bad of ['http://x', 'A1-x&width=1', 'A1-../x', 'x', 'A1-%2F']) expect(NONT_CAMERA_NAME.test(bad)).toBe(false);
-    expect(nontImageUrl('http://182.52.224.70', 'A1-ก Cam1')).toBe(
-      'http://182.52.224.70/MilestoneImageService/ImageService.svc/ImageService/GetImage?width=800&height=450&cameraname=A1-%E0%B8%81%20Cam1',
+    expect(nontImagePath('A1-ก Cam1')).toBe(
+      '/MilestoneImageService/ImageService.svc/ImageService/GetImage?width=800&height=450&cameraname=A1-%E0%B8%81%20Cam1',
     );
   });
 });
@@ -71,7 +71,7 @@ describe('nonthaburi saved stations', () => {
     for (const c of NONT_STATIC) {
       expect(c.location.lat).toBeGreaterThan(13.8);
       expect(c.location.lat).toBeLessThan(13.9);
-      expect(c.url).toMatch(/^http:\/\/182\.52\.224\.70\/\?page=station&id=STN\d+$/);
+      expect(c.url).toBe('http://182.52.224.70/?page=cctv');
       expect(c.kind).toBe('water');
     }
   });

@@ -2,7 +2,10 @@
  * Entry สำหรับ Cloudflare Workers — ใช้ Hono app ตัวเดียวกับ Node.js
  * ไฟล์หน้าเว็บ (apps/web/dist) ถูกเสิร์ฟโดย Workers Static Assets ส่วน /api/* มาที่นี่
  */
+import { connect } from 'cloudflare:sockets';
 import { createApp } from './app.js';
+import { NONT_HOST } from './adapters/nonthaburi.js';
+import { rawGet } from './raw-http.js';
 import { loadConfig, type Env } from './config.js';
 import { D1HistoryStore, MemoryHistoryStore, RETENTION_MS, type D1Like, type HistoryStore } from './history.js';
 
@@ -22,7 +25,11 @@ let history: HistoryStore | null = null;
 function init(env: WorkerEnv) {
   // สร้างครั้งเดียวต่อ isolate เพื่อให้ cache ในหน่วยความจำใช้ร่วมกันระหว่างคำขอ
   history ??= env.DB ? new D1HistoryStore(env.DB) : new MemoryHistoryStore();
-  app ??= createApp(loadConfig(env as Env), undefined, undefined, { history });
+  app ??= createApp(loadConfig(env as Env), undefined, undefined, {
+    history,
+    // เซิร์ฟเวอร์ของเทศบาลนครนนทบุรีมีแต่ IP ซึ่ง fetch() บน Workers เรียกไม่ได้ จึงต่อผ่าน TCP socket (เฉพาะเครื่องนี้)
+    nontGet: (path) => rawGet(connect, NONT_HOST, path),
+  });
   return { app, history };
 }
 

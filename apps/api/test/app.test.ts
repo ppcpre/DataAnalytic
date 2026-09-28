@@ -5,6 +5,11 @@ import { createApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import { NONT_BODY, PAKKRET_HTML } from './fixtures.js';
 
+const nontJson = (path: string) => {
+  if (path !== '/json.php?app=station') throw new Error(`unexpected ${path}`);
+  return { status: 200, headers: { 'content-type': 'application/json' }, body: new TextEncoder().encode(` ${JSON.stringify(NONT_BODY)}`) };
+};
+
 describe('api', () => {
   it('serves sample data flagged as sample', async () => {
     const app = createApp(loadConfig({ DATA_MODE: 'sample' }));
@@ -99,10 +104,9 @@ describe('cameras and geocode', () => {
   it('serves cameras from every source and sample cameras in sample mode', async () => {
     const urls: string[] = [];
     const app = createApp(
-      loadConfig({ NONT_API_BASE: 'http://nont.example' }),
+      loadConfig({}),
       async (url) => {
         urls.push(url);
-        if (url.startsWith('http://nont.example/')) return NONT_BODY;
         return {
           item: [
             { camid: 'ITICM_BMAMI0123', title: '(กรุงเทพมหานคร) แยกตัวอย่าง', latitude: '13.75', longitude: '100.5', geocode: '103605', organization: 'กทม.' },
@@ -111,10 +115,10 @@ describe('cameras and geocode', () => {
         };
       },
       undefined,
-      { getText: async () => PAKKRET_HTML },
+      { getText: async () => PAKKRET_HTML, nontGet: async (path) => nontJson(path) },
     );
     const live = await (await app.request('/api/cameras')).json();
-    expect(urls.sort()).toEqual(['http://nont.example/json.php?app=station', 'https://traffic.longdo.com/camera.json']);
+    expect(urls).toEqual(['https://traffic.longdo.com/camera.json']);
     const fromList = live.data.filter((c: { id: string }) => c.id.startsWith('longdo-'));
     expect(fromList.map((c: { name: string; url: string }) => [c.name, c.url])).toEqual([
       ['แยกตัวอย่าง', 'https://traffic.longdo.com/camera?vdo=i123'],
@@ -128,22 +132,45 @@ describe('cameras and geocode', () => {
     const down = async () => {
       throw new Error('down');
     };
-    for (const env of [{}, { NONT_API_BASE: 'http://nont.example' }]) {
-      const off = await (
-        await createApp(loadConfig({ CAMERA_LIST_URL: '', ...env }), down, undefined, { getText: down }).request('/api/cameras')
-      ).json();
+    for (const deps of [{ getText: down }, { getText: down, nontGet: down }]) {
+      const off = await (await createApp(loadConfig({ CAMERA_LIST_URL: '' }), down, undefined, deps).request('/api/cameras')).json();
       expect(off.data).toEqual([...CAMERAS, ...NONT_STATIC]);
     }
+    // ปิดการดึงสดด้วย NONT_LIVE=false
+    const noLive = createApp(loadConfig({ CAMERA_LIST_URL: '', NONT_LIVE: 'false' }), down, undefined, {
+      getText: down,
+      nontGet: async (path) => nontJson(path),
+    });
+    expect((await (await noLive.request('/api/cameras')).json()).data).toEqual([...CAMERAS, ...NONT_STATIC]);
     const sample = await (await createApp(loadConfig({ DATA_MODE: 'sample' })).request('/api/cameras')).json();
     expect(sample.data.length).toBeGreaterThan(0);
   });
 
-  it('rejects camera names that are not in the Nonthaburi format', async () => {
-    const app = createApp(loadConfig({ NONT_API_BASE: 'http://nont.example' }));
+  it('passes Nonthaburi camera images through, only for names in the source format', async () => {
+    const paths: string[] = [];
+    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+    const app = createApp(loadConfig({}), undefined, undefined, {
+      nontGet: async (path) => {
+        paths.push(path);
+        return path.includes('Cam1')
+          ? { status: 200, headers: { 'content-type': 'image/jpeg' }, body: jpeg }
+          : { status: 200, headers: {} as Record<string, string>, body: new Uint8Array() };
+      },
+    });
+    const ok = await app.request('/api/nont/image?cam=A1-%E0%B8%81%20Cam1');
+    expect(ok.status).toBe(200);
+    expect(ok.headers.get('content-type')).toBe('image/jpeg');
+    expect(new Uint8Array(await ok.arrayBuffer())).toEqual(jpeg);
+    expect(paths[0]).toBe(
+      '/MilestoneImageService/ImageService.svc/ImageService/GetImage?width=800&height=450&cameraname=A1-%E0%B8%81%20Cam1',
+    );
+    // กล้องออฟไลน์ (ตอบ 200 แต่ไม่มีภาพ)
+    expect((await app.request('/api/nont/image?cam=A1-x%20Cam2')).status).toBe(502);
     expect((await app.request('/api/nont/image?cam=http://evil.example/x')).status).toBe(400);
     expect((await app.request('/api/nont/image?cam=A1-x%26width=9')).status).toBe(400);
     expect((await app.request('/api/nont/image')).status).toBe(400);
-    // ไม่ได้ตั้งแหล่งภาพ
+    expect(paths).toHaveLength(2);
+    // ไม่มีช่องทางดึงภาพ
     expect((await createApp(loadConfig({})).request('/api/nont/image?cam=A1-x%20Cam1')).status).toBe(404);
   });
 
