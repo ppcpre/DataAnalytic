@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# ตรวจว่าภาพกล้องแต่ละแบบ (MJPEG / ภาพนิ่ง / HLS) ใช้ได้จริงหรือไม่ (รันเองจากแท็บ Actions)
+# สำรวจหน้าสถานีของสำนักการระบายน้ำ กทม. (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
 
@@ -9,23 +9,14 @@ jobs:
     runs-on: ubuntu-latest
     env:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
-      ORIGIN: https://dataanalytic.precare.workers.dev
     steps:
-      - name: Per-camera media check
+      - name: BMA drainage station pages
         run: |
-          curl -sS -m 30 -A "$UA" -o cam.json https://traffic.longdo.com/camera.json
-          jq -c '.item[] | select((.geocode|tostring|.[0:2]) as $p | ["10","11","12","13","73","74"] | index($p))' cam.json > area.jsonl
-          wc -l < area.jsonl
-          echo "camid | jpeg_size | mjpeg_5s_bytes | hls | hls_status | acao | first_segment"
-          while read -r row; do
-            id=$(jq -r .camid <<<"$row"); img=$(jq -r '.imgurl // ""' <<<"$row"); link=$(jq -r '.link // ""' <<<"$row"); hls=$(jq -r '.hls_url // ""' <<<"$row")
-            js=$( [ -n "$img" ] && curl -sS -m 10 -A "$UA" "$img" 2>/dev/null | wc -c || echo -)
-            mj=$( [ -n "$link" ] && curl -sS -m 5 -A "$UA" "$link" 2>/dev/null | wc -c || echo -)
-            hs=-; ac=-; seg=-
-            if [[ "$hls" == https://* ]]; then
-              hs=$(curl -sS -m 10 -A "$UA" -H "Origin: $ORIGIN" -D h.txt -o pl.m3u8 -w '%{http_code}' "$hls" 2>/dev/null || echo err)
-              ac=$(grep -i '^access-control-allow-origin' h.txt | tr -d '\r' | cut -d' ' -f2- || true)
-              seg=$(grep -v '^#' pl.m3u8 | head -1)
-            fi
-            echo "$id | $js | $mj | ${hls:0:70} | $hs | ${ac:-none} | ${seg:0:60}"
-          done < area.jsonl
+          for u in "https://weather.bangkok.go.th/water/StationDetail?id=73" "https://weather.bangkok.go.th/water" "https://weather.bangkok.go.th/" "http://weather.bangkok.go.th/water/StationDetail?id=73"; do
+            for opt in "" "--http1.1" "--tlsv1.2 --tls-max 1.2"; do
+              echo "===== $u [$opt]"
+              curl -sS -L -m 20 $opt -A "$UA" -H "Accept-Language: th-TH,th;q=0.9" -o p.html -w "HTTP %{http_code} ip=%{remote_ip} size=%{size_download}\n" "$u" 2>&1 | tail -2 || true
+              if [ -s p.html ]; then grep -oiE '<title>[^<]*</title>' p.html | head -1; grep -oiE '(src|href|url)\s*[=:]\s*["'"'"'][^"'"'"']*(api|json|image|img|jpg|png|cctv|station|ashx)[^"'"'"']*["'"'"']' p.html | sort -u | head -40; break; fi
+            done
+          done
+          echo "-- DNS"; getent hosts weather.bangkok.go.th || true
