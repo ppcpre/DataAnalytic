@@ -245,6 +245,7 @@ export function createApp(
       'https://weather.bangkok.go.th/water/StationDetail?id=73',
       'https://weather.bangkok.go.th/water',
     ];
+    c.header('content-type', 'application/json; charset=utf-8');
     const results = [];
     for (const url of targets) {
       try {
@@ -254,14 +255,21 @@ export function createApp(
         });
         const html = await res.text();
         const title = /<title>([^<]*)<\/title>/i.exec(html)?.[1]?.trim();
-        const links = [
-          ...new Set(
-            [...html.matchAll(/(?:src|href|url)\s*[=:]\s*["']([^"']+)["']/gi)]
-              .map((m) => m[1])
-              .filter((u) => /api|json|image|img|jpe?g|png|cctv|station|ashx|camera|snapshot/i.test(u)),
-          ),
-        ].slice(0, 60);
-        results.push({ url, status: res.status, size: html.length, title, links });
+        const uniq = (xs: string[], n: number) => [...new Set(xs)].slice(0, n);
+        // ภาพทั้งหมด, ไฟล์ script และ URL ที่น่าจะเป็น API ในโค้ดของหน้า (ใช้หาที่มาของภาพระดับน้ำ)
+        const imgs = uniq([...html.matchAll(/<img[^>]+src\s*=\s*["']([^"']+)["']/gi)].map((m) => m[1]), 25);
+        const scripts = uniq([...html.matchAll(/<script[^>]+src\s*=\s*["']([^"']+)["']/gi)].map((m) => m[1]), 15);
+        const apiHints = uniq(
+          [...html.matchAll(/["'`]((?:https?:)?\/[^"'`\s]*(?:api|json|ashx|Get[A-Z]|Station|Cctv|CCTV|Image|image|snap|cam)[^"'`\s]*)["'`]/g)].map((m) => m[1]),
+          30,
+        );
+        const text = html
+          .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, 500);
+        results.push({ url, status: res.status, size: html.length, title, imgs, scripts, apiHints, text });
       } catch (err) {
         results.push({ url, error: String(err) });
       }
