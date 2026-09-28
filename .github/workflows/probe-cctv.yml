@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# หาแหล่งกล้องเพิ่มเติมที่มีพิกัดและภาพแบบ https (รันเองจากแท็บ Actions)
+# สำรวจรายชื่อกล้อง CCTV ของ ThaiWater (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
 
@@ -10,35 +10,21 @@ jobs:
     env:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
     steps:
-      - name: ThaiWater CCTV endpoints
+      - name: ThaiWater analyst/cctv
         run: |
-          base=https://api-v3.thaiwater.net/api/v1/thaiwater30
-          for ep in public/cctv public/cctv_load public/cctv_list public/thailand_main public/waterlevel_cctv analyst/cctv provinces/cctv; do
-            curl -sS -m 25 -A "$UA" -o t.json -w "$ep HTTP %{http_code} size=%{size_download}\n" "$base/$ep" || continue
-            head -c 400 t.json; echo
-          done
-          echo "== new4all bundle hints"
-          curl -sS -L -m 30 -A "$UA" -o n.html https://www.thaiwater.net/new4all || true
-          for s in $(grep -oE 'src="[^"]+\.js"' n.html | sed -E 's/src="([^"]+)"/\1/' | head -8); do
-            case "$s" in http*) u="$s";; /*) u="https://www.thaiwater.net$s";; *) u="https://www.thaiwater.net/$s";; esac
-            curl -sS -L -m 30 -A "$UA" -o s.js "$u" || continue
-            grep -oiE '"[^"]{0,80}cctv[^"]{0,80}"' s.js | sort -u | head -20
-          done
+          curl -sS -m 30 -A "$UA" -o c.json https://api-v3.thaiwater.net/api/v1/thaiwater30/analyst/cctv
+          jq -c '{n: (.data | length), keys: ([.data[] | keys] | add | unique)}' c.json
+          echo "-- in BKK bbox (13.4-14.3, 99.8-100.95):"
+          jq -c '[.data[] | select((.lat|tonumber? // 0) > 13.4 and (.lat|tonumber? // 0) < 14.3 and (.long|tonumber? // 0) > 99.8 and (.long|tonumber? // 0) < 100.95)] | length' c.json
+          jq -c '.data[] | select((.lat|tonumber? // 0) > 13.4 and (.lat|tonumber? // 0) < 14.3 and (.long|tonumber? // 0) > 99.8 and (.long|tonumber? // 0) < 100.95)' c.json | head -c 6000; echo
+          echo "-- url schemes / hosts (all):"
+          jq -r '.data[] | [(.cctv_url // "" | tostring | capture("^(?<s>[a-z]+)://(?<h>[^/]+)")? | "\(.s)://\(.h)") // "none", ((.cctv_flash // "") | tostring | length > 0 | tostring)] | @tsv' c.json | sort | uniq -c | sort -rn | head -20
+          echo "-- media types:"; jq -r '.data[] | (.media_type // .cctv_type // .type // "?") | tostring' c.json | sort | uniq -c | head
 
-      - name: Longdo main map camera layer
+      - name: Sample image headers (BKK area)
         run: |
-          curl -sS -L -m 30 -A "$UA" -o m.html https://traffic.longdo.com/main/ || true
-          for s in $(grep -oE 'src="[^"]+\.js[^"]*"' m.html | sed -E 's/src="([^"]+)"/\1/' | grep -v 'google\|jquery\|map3' | head -12); do
-            case "$s" in http*) u="$s";; //*) u="https:$s";; /*) u="https://traffic.longdo.com$s";; *) u="https://traffic.longdo.com/main/$s";; esac
-            echo "== $u"
-            curl -sS -L -m 30 -A "$UA" -o s.js "$u" || continue
-            grep -oiE "[\"'\`][^\"'\`]{0,100}(camera|cctv)[^\"'\`]{0,100}[\"'\`]" s.js | sort -u | head -15
-          done
-
-      - name: EXAT and iTIC
-        run: |
-          for u in https://www.exat.co.th/ https://www.exat.co.th/cctv https://camera1.iticfoundation.org/ https://www.iticfoundation.org/ https://iticfoundation.org/camera; do
+          for u in $(jq -r '.data[] | select((.lat|tonumber? // 0) > 13.4 and (.lat|tonumber? // 0) < 14.3 and (.long|tonumber? // 0) > 99.8 and (.long|tonumber? // 0) < 100.95) | .cctv_url // empty' c.json | head -6); do
             echo "===== $u"
-            curl -sS -L -m 20 -A "$UA" -o e.html -w "HTTP %{http_code} final=%{url_effective} size=%{size_download}\n" "$u" || continue
-            grep -oiE '[a-zA-Z0-9_/.:?=&-]*(cctv|camera|cam\.|json)[a-zA-Z0-9_/.?=&:-]*' e.html | sort -u | head -20
+            curl -sS -L -m 15 -A "$UA" -D - -o b.out "$u" | grep -iE '^(HTTP/|content-type|x-frame-options|content-security-policy)' || true
+            echo "size=$(wc -c < b.out)"
           done
