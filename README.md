@@ -87,7 +87,13 @@ npx wrangler d1 create flood-watch
 หน้าเว็บและ API อยู่ใน Cloudflare Worker ตัวเดียว (`wrangler.jsonc`): ไฟล์ใน `apps/web/dist` เสิร์ฟเป็น
 Static Assets ส่วน `/api/*` รันโค้ดใน `apps/api/src/worker.ts` — อยู่ใน free plan ของ Workers (100,000 คำขอ/วัน)
 
-### Deploy อัตโนมัติจาก GitHub (แนะนำ)
+### Deploy ผ่าน Cloudflare Workers Builds (ที่ใช้อยู่)
+
+Worker ชื่อ `dataanalytic` เชื่อมกับ repo นี้จากหน้า Cloudflare (Import a repository)
+ทุกครั้งที่ push Cloudflare จะติดตั้ง dependencies แล้วรัน `npx wrangler deploy`
+ซึ่งจะ build หน้าเว็บให้เองตาม `build.command` ใน `wrangler.jsonc` — ชื่อใน `wrangler.jsonc` ต้องตรงกับชื่อ Worker
+
+### Deploy อัตโนมัติจาก GitHub Actions (ทางเลือก)
 
 ทุกครั้งที่ push ไปยัง default branch, GitHub Actions (`.github/workflows/deploy.yml`) จะเทสต์แล้ว deploy ให้
 ต้องตั้งค่าครั้งเดียว:
@@ -98,7 +104,7 @@ Static Assets ส่วน `/api/*` รันโค้ดใน `apps/api/src/wo
    - `CLOUDFLARE_API_TOKEN`
    - `CLOUDFLARE_ACCOUNT_ID`
 4. ไปที่แท็บ **Actions → Deploy to Cloudflare → Run workflow** (หรือ push commit ใหม่)
-5. เว็บจะอยู่ที่ `https://flood-watch.<subdomain>.workers.dev`
+5. เว็บจะอยู่ที่ `https://dataanalytic.<subdomain>.workers.dev`
 
 ถ้ายังไม่ได้ตั้ง secret ขั้น deploy จะถูกข้าม (มีคำเตือนใน Actions) แต่เทสต์ยังรันตามปกติ
 

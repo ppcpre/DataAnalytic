@@ -12,8 +12,8 @@
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "deploy": "npm run build --workspace @flood-watch/web && wrangler deploy",
-    "cf:dev": "npm run build --workspace @flood-watch/web && wrangler dev"
+    "deploy": "wrangler deploy",
+    "cf:dev": "wrangler dev"
   },
   "engines": {
     "node": ">=20"

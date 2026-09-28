@@ -1,7 +1,9 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "flood-watch",
+  "name": "dataanalytic",
   "main": "apps/api/src/worker.ts",
+  // build หน้าเว็บก่อน deploy ทุกครั้ง (ใช้ได้ทั้ง Cloudflare Workers Builds และ wrangler บนเครื่อง)
+  "build": { "command": "npm run build --workspace @flood-watch/web" },
   "compatibility_date": "2026-09-01",
   "assets": {
     "directory": "apps/web/dist",
