@@ -46,6 +46,11 @@ export function createApp(
   deps: AppDeps = {},
 ) {
   const history = deps.history ?? new MemoryHistoryStore();
+  /** ตัดค่าวัดที่เก่าเกิน (เช่น สถานีที่หยุดส่งข้อมูลไปหลายวัน) */
+  const fresh = <T extends { observedAt: string }>(list: T[]): T[] => {
+    const cutoff = Date.now() - config.maxReadingAgeHours * 3600_000;
+    return list.filter((x) => new Date(x.observedAt).getTime() >= cutoff);
+  };
   const cache = new TtlCache(config.cacheTtlMs, config.staleMaxMs);
   const geocodeCache = new TtlCache(config.geocode.cacheTtlMs, config.geocode.cacheTtlMs);
   const app = new Hono();
@@ -120,7 +125,7 @@ export function createApp(
       key: 'water-level',
       source: THAIWATER,
       enabled: () => !!config.thaiwater.waterLevelUrl,
-      load: async () => recordAndAttachTrends(history, parseWaterLevel(await waterLevelRaw())),
+      load: async () => recordAndAttachTrends(history, fresh(parseWaterLevel(await waterLevelRaw()))),
       sample: sampleWaterLevel,
     }),
   );
@@ -132,7 +137,7 @@ export function createApp(
       source: THAIWATER,
       enabled: () => !!config.thaiwater.waterLevelUrl && config.thaiwater.keyStationCodes.length > 0,
       load: async () =>
-        recordAndAttachTrends(history, parseKeyStations(await waterLevelRaw(), config.thaiwater.keyStationCodes)),
+        recordAndAttachTrends(history, fresh(parseKeyStations(await waterLevelRaw(), config.thaiwater.keyStationCodes))),
       sample: sampleKeyStations,
     }),
   );
@@ -143,7 +148,7 @@ export function createApp(
       key: 'rain',
       source: THAIWATER,
       enabled: () => !!config.thaiwater.rainUrl,
-      load: async () => parseRain(await getJson(config.thaiwater.rainUrl)),
+      load: async () => fresh(parseRain(await getJson(config.thaiwater.rainUrl))),
       sample: sampleRain,
     }),
   );

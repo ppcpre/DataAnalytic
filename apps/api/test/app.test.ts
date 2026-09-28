@@ -13,7 +13,7 @@ describe('api', () => {
   });
 
   it('proxies and normalises live data', async () => {
-    const app = createApp(loadConfig({}), async () => ({
+    const app = createApp(loadConfig({ MAX_READING_AGE_HOURS: '1000000' }), async () => ({
       data: [
         {
           rain_24h: 12,
@@ -26,6 +26,20 @@ describe('api', () => {
     const body = await (await app.request('/api/rain')).json();
     expect(body).toMatchObject({ sample: false, stale: false });
     expect(body.data[0]).toMatchObject({ name: 'ก', rain24h: 12, status: 'watch' });
+  });
+
+  it('drops readings older than MAX_READING_AGE_HOURS', async () => {
+    const thai = (hoursAgo: number) =>
+      new Date(Date.now() - hoursAgo * 3600_000 + 7 * 3600_000).toISOString().slice(0, 16).replace('T', ' ');
+    const rec = (id: number, hoursAgo: number) => ({
+      rain_24h: 20,
+      rainfall_datetime: thai(hoursAgo),
+      station: { id, tele_station_name: 'x', tele_station_lat: 13.7, tele_station_long: 100.5 },
+      geocode: { province_code: '10' },
+    });
+    const app = createApp(loadConfig({}), async () => ({ data: [rec(1, 1), rec(2, 96)] }));
+    const body = await (await app.request('/api/rain')).json();
+    expect(body.data.map((d: { id: string }) => d.id)).toEqual(['tw-rain-1']);
   });
 
   it('returns 502 when upstream fails and nothing is cached', async () => {

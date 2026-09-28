@@ -7,6 +7,8 @@ export interface Config {
   cacheTtlMs: number;
   /** ระยะเวลาสูงสุดที่ยอมส่งข้อมูลเก่าเมื่อดึงข้อมูลใหม่ไม่สำเร็จ */
   staleMaxMs: number;
+  /** ไม่แสดงค่าวัดที่เก่ากว่านี้ (ชั่วโมง) — สถานีที่ส่งข้อมูลไม่ต่อเนื่องจะไม่ถูกแสดงเป็นสถานะปัจจุบัน */
+  maxReadingAgeHours: number;
   /** origin ของหน้าเว็บที่อนุญาตให้เรียก API (คั่นด้วย ,) หรือ * */
   corsOrigin: string;
   thaiwater: {
@@ -49,6 +51,7 @@ export function loadConfig(env: Env = process.env): Config {
     cacheTtlMs: Number(env.CACHE_TTL_SECONDS ?? 300) * 1000,
     staleMaxMs: Number(env.STALE_MAX_SECONDS ?? 6 * 3600) * 1000,
     corsOrigin: env.CORS_ORIGIN ?? '*',
+    maxReadingAgeHours: Number(env.MAX_READING_AGE_HOURS ?? 12),
     thaiwater: {
       waterLevelUrl: env.THAIWATER_WATERLEVEL_URL ?? `${base}/waterlevel_load`,
       rainUrl: env.THAIWATER_RAIN_URL ?? `${base}/rain_24h`,
