@@ -78,17 +78,17 @@ const layers: Record<LayerKey, L.LayerGroup> = {
 };
 const LETTER: Record<Exclude<LayerKey, 'camera' | 'place'>, string> = { water: 'น', rain: 'ฝ', gate: 'ป', forecast: 'ส' };
 
-function pinHtml(kind: LayerKey, status: Status, selected = false): string {
-  const cls = `pin pin-${kind} pin-${status} ${kind === 'camera' ? '' : `st-${status}`}${selected ? ' is-selected' : ''}`;
+function pinHtml(kind: LayerKey, status: Status, selected = false, extra = ''): string {
+  const cls = `pin pin-${kind} pin-${status} ${kind === 'camera' ? '' : `st-${status}`}${selected ? ' is-selected' : ''}${extra ? ` ${extra}` : ''}`;
   const inner = kind === 'camera' ? icons.camera(16, 2.2) : kind === 'place' ? icons.star(15) : LETTER[kind];
   return `<span class="${cls}" aria-hidden="true">${inner}</span>`;
 }
 
-function pinIcon(kind: LayerKey, status: Status, selected = false): L.DivIcon {
+function pinIcon(kind: LayerKey, status: Status, selected = false, extra = ''): L.DivIcon {
   const size = kind === 'gate' ? 28 : 30;
   return L.divIcon({
     className: '',
-    html: pinHtml(kind, status, selected),
+    html: pinHtml(kind, status, selected, extra),
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
   });
@@ -168,7 +168,7 @@ function findEntity(kind: LayerKey, id: string): Entity | null {
   return item ? ({ kind, item } as Entity) : null;
 }
 
-const markers = new Map<string, { marker: L.Marker; kind: LayerKey; status: Status }>();
+const markers = new Map<string, { marker: L.Marker; kind: LayerKey; status: Status; extra: string }>();
 
 // ---------- มุมมอง (responsive) ----------
 type View = 'map' | 'watch' | 'cctv' | 'info';
@@ -530,7 +530,7 @@ function setSelectedMarker(sel: State['selected']) {
   for (const key of [prev, sel]) {
     if (!key) continue;
     const m = markers.get(`${key.kind}:${key.id}`);
-    if (m) m.marker.setIcon(pinIcon(m.kind, m.status, sel?.kind === key.kind && sel.id === key.id));
+    if (m) m.marker.setIcon(pinIcon(m.kind, m.status, sel?.kind === key.kind && sel.id === key.id, m.extra));
   }
 }
 
@@ -641,12 +641,19 @@ document.addEventListener('keydown', (ev) => {
 });
 
 // ---------- แผนที่: วาดหมุด ----------
-function addMarker(kind: LayerKey, id: string, loc: { lat: number; lng: number }, status: Status, title: string) {
+function addMarker(
+  kind: LayerKey,
+  id: string,
+  loc: { lat: number; lng: number },
+  status: Status,
+  title: string,
+  extra = '',
+) {
   const selected = state.selected?.kind === kind && state.selected.id === id;
-  const marker = L.marker([loc.lat, loc.lng], { icon: pinIcon(kind, status, selected), title, keyboard: true })
+  const marker = L.marker([loc.lat, loc.lng], { icon: pinIcon(kind, status, selected, extra), title, keyboard: true })
     .on('click', () => openEntity(kind, id, false))
     .addTo(layers[kind]);
-  markers.set(`${kind}:${id}`, { marker, kind, status });
+  markers.set(`${kind}:${id}`, { marker, kind, status, extra });
 }
 
 function renderMap() {
@@ -656,7 +663,9 @@ function renderMap() {
   for (const s of state.rain?.data ?? []) addMarker('rain', s.id, s.location, s.status, s.name);
   for (const g of state.gates?.data ?? []) addMarker('gate', g.id, g.location, 'unknown', g.name);
   for (const f of state.forecast?.data ?? []) addMarker('forecast', f.id, f.location, f.status, 'พยากรณ์ Google');
-  for (const c of state.cameras?.data ?? []) addMarker('camera', c.id, c.location, 'unknown', c.name);
+  // กล้องที่ดูภาพสดในแอปได้ ใช้หมุดสีน้ำเงินเข้ม
+  for (const c of state.cameras?.data ?? [])
+    addMarker('camera', c.id, c.location, 'unknown', c.streamUrl ? `${c.name} (ภาพสด)` : c.name, c.streamUrl ? 'pin-live' : '');
 
   // ปุ่มชั้นข้อมูลที่ไม่มีข้อมูลจะซ่อนไว้
   const has: Record<LayerKey, boolean> = {
@@ -684,7 +693,11 @@ function renderLegend(has: Record<LayerKey, boolean>) {
   const items = (['normal', 'watch', 'warning', 'critical'] as Status[]).map(
     (s) => `<span><i class="st-${s}"></i>${STATUS_LABEL_TH[s]}</span>`,
   );
-  if (has.camera) items.push('<span><i class="sq"></i>กล้อง</span>');
+  if (has.camera) {
+    const cams = state.cameras?.data ?? [];
+    if (cams.some((c) => c.streamUrl)) items.push('<span><i class="sq sq-live"></i>กล้องภาพสด</span>');
+    if (cams.some((c) => !c.streamUrl)) items.push('<span><i class="sq"></i>กล้อง</span>');
+  }
   document.getElementById('legend')!.innerHTML = items.join('');
 }
 
