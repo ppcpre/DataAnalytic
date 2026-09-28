@@ -133,6 +133,12 @@ export interface Camera {
   url: string;
   /** เว็บที่ลิงก์พาไป ถ้าไม่ใช่เว็บของเจ้าของกล้อง เช่น "Longdo Traffic" */
   via?: string;
+  /** ภาพเคลื่อนไหวแบบ MJPEG (https) สำหรับแสดงในแอป */
+  streamUrl?: string;
+  /** ภาพนิ่งล่าสุด (https) ใช้เมื่อเปิดภาพเคลื่อนไหวไม่ได้ */
+  imageUrl?: string;
+  /** ผู้ให้บริการภาพ เช่น "มูลนิธิ iTIC" */
+  imageCredit?: string;
 }
 
 /** ผลการค้นหาสถานที่ */

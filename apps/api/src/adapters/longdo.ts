@@ -10,6 +10,11 @@ type Rec = Record<string, unknown>;
 export const LONGDO_CAMERA_PAGE = 'https://traffic.longdo.com/camera';
 
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+/** ใช้เฉพาะ https เพราะหน้าเว็บเป็น https (browser ไม่แสดงภาพ http ในหน้า https) */
+const https = (v: unknown) => {
+  const s = str(v);
+  return s?.startsWith('https://') ? s : undefined;
+};
 
 /** ลิงก์เปิดกล้องตัวเดียว — หน้าเว็บ Longdo ย่อรหัส ITICM_BMAMI0xxx เป็น ixxx */
 export function longdoCameraUrl(camid: string): string {
@@ -44,6 +49,9 @@ export function parseLongdoCameras(body: unknown): Camera[] {
       owner: str(it.organization) ?? str(it.sponsertext) ?? 'ไม่ระบุหน่วยงาน',
       url: longdoCameraUrl(camid),
       via: 'Longdo Traffic',
+      streamUrl: https(it.link) ?? https(it.vdourl),
+      imageUrl: https(it.imgurl),
+      imageCredit: 'มูลนิธิ iTIC',
     });
   }
   return out;

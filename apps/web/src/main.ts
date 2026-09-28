@@ -326,6 +326,60 @@ function forecastSheet(f: FloodForecast): string {
     <a class="btn-primary" href="https://sites.research.google/floods" target="_blank" rel="noopener noreferrer">ดูใน Google Flood Hub ${icons.external()}</a>`;
 }
 
+// ---------- ภาพจากกล้องในแอป ----------
+/** ถ้าภาพเคลื่อนไหวไม่ขึ้นภายในเวลานี้ ให้สลับไปใช้ภาพนิ่ง */
+const CAM_STREAM_TIMEOUT_MS = 8000;
+const CAM_SNAPSHOT_REFRESH_MS = 10000;
+
+function cameraView(c: Camera): string {
+  const src = c.streamUrl ?? c.imageUrl;
+  if (!src) return '';
+  const mode = c.streamUrl ? 'live' : 'still';
+  return `
+    <figure class="cam-view" data-cam-view data-mode="${mode}">
+      <div class="cam-frame">
+        <img src="${escapeHtml(src)}" alt="ภาพจากกล้อง ${escapeHtml(c.name)}" referrerpolicy="no-referrer"
+          data-snapshot="${escapeHtml(c.imageUrl ?? '')}" />
+        <div class="cam-msg">กำลังโหลดภาพ…</div>
+      </div>
+      <figcaption>
+        <span class="cam-badge"><i></i><span data-cam-label>${mode === 'live' ? 'ภาพสด' : 'ภาพนิ่ง'}</span></span>
+        <span>ภาพ: ${escapeHtml(c.imageCredit ?? c.owner)} · กล้องของ ${escapeHtml(c.owner)}</span>
+      </figcaption>
+    </figure>`;
+}
+
+/** เปลี่ยนเป็นภาพนิ่งที่รีเฟรชเอง หรือแจ้งว่าภาพใช้ไม่ได้ */
+function degradeCameraView(view: HTMLElement) {
+  const img = view.querySelector('img')!;
+  const snapshot = img.dataset.snapshot;
+  if (view.dataset.mode === 'live' && snapshot) {
+    view.dataset.mode = 'still';
+    view.querySelector('[data-cam-label]')!.textContent = 'ภาพนิ่ง · อัปเดตทุก 10 วินาที';
+    img.src = snapshot;
+    const timer = window.setInterval(() => {
+      if (!img.isConnected || view.dataset.mode !== 'still') return window.clearInterval(timer);
+      img.src = `${snapshot}${snapshot.includes('?') ? '&' : '?'}t=${Date.now()}`;
+    }, CAM_SNAPSHOT_REFRESH_MS);
+    return;
+  }
+  view.dataset.mode = 'off';
+  img.removeAttribute('src');
+  view.querySelector('.cam-msg')!.textContent = 'ภาพจากกล้องนี้ใช้ไม่ได้ขณะนี้ — ลองเปิดดูในเว็บต้นทาง';
+}
+
+function startCameraView() {
+  const view = sheetEl.querySelector<HTMLElement>('[data-cam-view]');
+  if (!view) return;
+  const img = view.querySelector('img')!;
+  img.addEventListener('load', () => view.classList.add('is-loaded'));
+  img.addEventListener('error', () => degradeCameraView(view));
+  // กล้องที่ออฟไลน์บางตัวตอบกลับแต่ไม่มีภาพ จึงตั้งเวลาตรวจเอง
+  window.setTimeout(() => {
+    if (img.isConnected && view.dataset.mode === 'live' && !img.naturalWidth) degradeCameraView(view);
+  }, CAM_STREAM_TIMEOUT_MS);
+}
+
 function cameraSheet(c: Camera): string {
   const around = [
     ...(state.water?.data ?? []).map((s) => ({
@@ -366,11 +420,14 @@ function cameraSheet(c: Camera): string {
       escapeHtml(c.road ?? '') + distanceText(c.location),
       `<span class="cam-icon">${icons.camera(24)}</span>`,
     )}
+    ${cameraView(c)}
     <div class="nearby">
       <span class="nearby-title">รอบกล้องนี้ (รัศมี ${NEARBY_KM} กม.)</span>
       ${nearby}
     </div>
-    <a class="btn-primary" href="${escapeHtml(c.url)}" target="_blank" rel="noopener noreferrer">ดูภาพกล้องนี้ ${icons.external()}</a>
+    <a class="btn-primary" href="${escapeHtml(c.url)}" target="_blank" rel="noopener noreferrer">${
+      c.streamUrl || c.imageUrl ? 'เปิดดูในเว็บต้นทาง' : 'ดูภาพกล้องนี้'
+    } ${icons.external()}</a>
     <span class="btn-caption">${c.via ? `เปิดใน ${escapeHtml(c.via)} · กล้องของ ${escapeHtml(c.owner)}` : `เปิดในเว็บของ ${escapeHtml(c.owner)}`}</span>`;
 }
 
@@ -484,6 +541,7 @@ export function openEntity(kind: LayerKey, id: string, pan = true) {
   sheetEl.innerHTML = renderSheet(e);
   sheetEl.hidden = false;
   void loadHistoryChart();
+  startCameraView();
   document.body.classList.add('sheet-open');
   setSelectedMarker({ kind, id });
   // จัดให้จุดที่เลือกอยู่กลางพื้นที่แผนที่ที่ไม่ถูกแผ่นรายละเอียดบัง
@@ -544,6 +602,8 @@ function closeSheet() {
     renderPlaces();
   }
   sheetEl.hidden = true;
+  // ล้างเนื้อหาเพื่อหยุดดึงภาพจากกล้อง (ภาพเคลื่อนไหวจะโหลดต่อเนื่องถ้ายังอยู่ในหน้า)
+  sheetEl.innerHTML = '';
   document.body.classList.remove('sheet-open');
   setSelectedMarker(null);
   renderRiskList();
