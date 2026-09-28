@@ -30,7 +30,7 @@ jobs:
           const n = await p.locator('.pin-camera').count();
           console.log('camera pins', n, 'live pins', await p.locator('.pin-live').count());
           await p.waitForTimeout(20000);
-          console.log('DATA', JSON.stringify(await p.evaluate(() => ({ water: document.querySelectorAll('.pin-water').length, rain: document.querySelectorAll('.pin-rain').length, cams: document.querySelectorAll('.pin-camera').length, banners: [...document.querySelectorAll('#banners *')].map((e) => e.textContent.trim()).filter(Boolean), keys: document.getElementById('key-list')?.textContent?.replace(/\s+/g, ' ').slice(0, 200) }))));
+          console.log('DATA', JSON.stringify(await p.evaluate(() => ({ watercams: [...document.querySelectorAll('.pin-watercam')].length, waterList: [...document.querySelectorAll('#water-cams .link-name')].map((e) => e.textContent), water: document.querySelectorAll('.pin-water').length, rain: document.querySelectorAll('.pin-rain').length, cams: document.querySelectorAll('.pin-camera').length, banners: [...document.querySelectorAll('#banners *')].map((e) => e.textContent.trim()).filter(Boolean), keys: document.getElementById('key-list')?.textContent?.replace(/\s+/g, ' ').slice(0, 200) }))));
           await b.close();
           JS
           BASE="$BASE" node t.mjs

@@ -34,6 +34,7 @@
   --st-unknown-bg: #eef0f2;
   --st-unknown-ink: #3d4550;
   --camera-live: #0f3f7a;
+  --watercam: #0e7490;
   --xs-sky: #f3f7fb;
   --xs-land: #d8c9a8;
   --xs-water: #8fbde3;
@@ -74,6 +75,7 @@
     --st-unknown-bg: #2a3038;
     --st-unknown-ink: #c4cbd3;
     --camera-live: #2f6fc0;
+    --watercam: #22a3c4;
     --xs-sky: #1b2530;
     --xs-land: #5a4d36;
     --xs-water: #2f6a99;
@@ -276,6 +278,10 @@ body.loading #refresh svg { animation: spin 1s linear infinite; }
 /* กล้องทั่วไป: หมุดขาวขอบน้ำเงินเข้ม, กล้องภาพสด: หมุดน้ำเงินเข้มทึบ */
 .pin-camera { border-radius: 9px; border-width: 2px; background: var(--surface); color: var(--camera-live); border-color: var(--camera-live); }
 .pin.is-selected { transform: scale(1.35); box-shadow: 0 0 0 8px rgba(47, 94, 134, 0.22), 0 2px 8px rgba(0, 0, 0, 0.35); }
+.pin-camera.pin-watercam { background: var(--watercam); color: #fff; border-color: #fff; width: 34px; height: 34px; border-radius: 50%; border-width: 3px; }
+.legend i.sq-water { background: var(--watercam); box-shadow: none; border-radius: 50%; }
+.link-icon-water { background: var(--watercam) !important; color: #fff !important; }
+button.link-card { width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
 .pin-camera.pin-live { background: var(--camera-live); color: #fff; border-color: #fff; position: relative; }
 /* จุดแดงบอกว่าเป็นภาพสด */
 .pin-live::after {

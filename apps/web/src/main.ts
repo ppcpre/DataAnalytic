@@ -92,7 +92,14 @@ const LETTER: Record<Exclude<LayerKey, 'camera' | 'place'>, string> = { water: '
 
 function pinHtml(kind: LayerKey, status: Status, selected = false, extra = ''): string {
   const cls = `pin pin-${kind} pin-${status} ${kind === 'camera' ? '' : `st-${status}`}${selected ? ' is-selected' : ''}${extra ? ` ${extra}` : ''}`;
-  const inner = kind === 'camera' ? icons.camera(16, 2.2) : kind === 'place' ? icons.star(15) : LETTER[kind];
+  const inner =
+    kind === 'camera'
+      ? extra.includes('pin-watercam')
+        ? icons.drop(16)
+        : icons.camera(16, 2.2)
+      : kind === 'place'
+        ? icons.star(15)
+        : LETTER[kind];
   return `<span class="${cls}" aria-hidden="true">${inner}</span>`;
 }
 
@@ -636,7 +643,13 @@ function addMarker(
   extra = '',
 ) {
   const selected = state.selected?.kind === kind && state.selected.id === id;
-  const marker = L.marker([loc.lat, loc.lng], { icon: pinIcon(kind, status, selected, extra), title, keyboard: true })
+  const marker = L.marker([loc.lat, loc.lng], {
+    icon: pinIcon(kind, status, selected, extra),
+    title,
+    keyboard: true,
+    // จุดวัดระดับน้ำที่เพิ่มเองอยู่บนสุด ไม่ให้ถูกหมุดสถานีที่ตำแหน่งเดียวกันบัง
+    zIndexOffset: extra.includes('pin-watercam') ? 1000 : 0,
+  })
     .on('click', () => openEntity(kind, id, false))
     .addTo(layers[kind]);
   markers.set(`${kind}:${id}`, { marker, kind, status, extra });
@@ -651,6 +664,10 @@ function renderMap() {
   for (const f of state.forecast?.data ?? []) addMarker('forecast', f.id, f.location, f.status, 'พยากรณ์ Google');
   // กล้องที่ดูภาพสดในแอปได้ ใช้หมุดสีน้ำเงินเข้ม
   for (const c of state.cameras?.data ?? []) {
+    if (c.kind === 'water') {
+      addMarker('camera', c.id, c.location, 'unknown', `${c.name} (จุดวัดระดับน้ำ)`, 'pin-watercam');
+      continue;
+    }
     const live = isLiveCamera(c);
     addMarker('camera', c.id, c.location, 'unknown', live ? `${c.name} (ภาพสด)` : c.name, live ? 'pin-live' : '');
   }
@@ -683,8 +700,10 @@ function renderLegend(has: Record<LayerKey, boolean>) {
   );
   if (has.camera) {
     const cams = state.cameras?.data ?? [];
-    if (cams.some(isLiveCamera)) items.push('<span><i class="sq sq-live"></i>กล้องภาพสด</span>');
-    if (cams.some((c) => !isLiveCamera(c))) items.push('<span><i class="sq"></i>กล้อง</span>');
+    const traffic = cams.filter((c) => c.kind !== 'water');
+    if (cams.some((c) => c.kind === 'water')) items.push('<span><i class="sq sq-water"></i>จุดวัดระดับน้ำ</span>');
+    if (traffic.some(isLiveCamera)) items.push('<span><i class="sq sq-live"></i>กล้องภาพสด</span>');
+    if (traffic.some((c) => !isLiveCamera(c))) items.push('<span><i class="sq"></i>กล้อง</span>');
   }
   document.getElementById('legend')!.innerHTML = items.join('');
 }
@@ -829,6 +848,13 @@ document.getElementById('risk-list')!.addEventListener('click', (ev) => {
   const [kind, ...rest] = b.dataset.open!.split(':');
   openEntity(kind as LayerKey, rest.join(':'));
 });
+document.getElementById('water-cams')!.addEventListener('click', (ev) => {
+  const b = (ev.target as HTMLElement).closest<HTMLElement>('[data-open]');
+  if (!b) return;
+  const [kind, ...rest] = b.dataset.open!.split(':');
+  // เปิดหมุดบนแผนที่ (สลับไปหน้าแผนที่ให้เองบนมือถือ) และซูมเข้าไปที่จุด
+  openEntity(kind as LayerKey, rest.join(':'));
+});
 document.getElementById('risk-more')!.addEventListener('click', () => {
   state.showAllRisks = !state.showAllRisks;
   renderRiskList();
@@ -927,6 +953,29 @@ function linkCard(l: CameraLink, icon: string): string {
     </li>`;
 }
 
+/** รายการจุดวัดระดับน้ำ/กล้องน้ำในแท็บกล้อง — แตะแล้วไปที่หมุดบนแผนที่ */
+function renderWaterCams() {
+  const host = document.getElementById('water-cams');
+  if (!host) return;
+  const list = (state.cameras?.data ?? []).filter((c) => c.kind === 'water');
+  host.hidden = list.length === 0;
+  host.querySelector('ul')!.innerHTML = list
+    .map(
+      (c) => `
+    <li>
+      <button type="button" class="link-card" data-open="camera:${escapeHtml(c.id)}">
+        <span class="link-icon link-icon-water">${icons.drop(20)}</span>
+        <span class="link-text">
+          <span class="link-name">${escapeHtml(c.name)}</span>
+          <span class="link-desc">${escapeHtml([c.road, c.owner].filter(Boolean).join(' · '))}${state.userPos ? ` · ห่าง ${formatDistance(distanceKm(state.userPos, c.location))}` : ''}</span>
+        </span>
+        ${icons.pin(18)}
+      </button>
+    </li>`,
+    )
+    .join('');
+}
+
 function renderLinks(cameras: CameraLink[], official: CameraLink[]) {
   const [hero, ...rest] = cameras;
   document.getElementById('cctv-hero')!.innerHTML = hero
@@ -1020,6 +1069,7 @@ async function loadAll() {
   renderKeyStations();
   renderPlaces();
   renderBanners();
+  renderWaterCams();
   document.body.classList.remove('loading');
   loading = false;
 }
