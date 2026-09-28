@@ -35,7 +35,7 @@ describe('nonthaburi stations', () => {
     expect(NONT_CAMERA_NAME.test('A1-คลองท่าทราย Cam1')).toBe(true);
     expect(NONT_CAMERA_NAME.test('B12-คลองขุด ข้าง กสท.')).toBe(true);
     for (const bad of ['http://x', 'A1-x&width=1', 'A1-../x', 'x', 'A1-%2F']) expect(NONT_CAMERA_NAME.test(bad)).toBe(false);
-    expect(nontImageUrl('A1-ก Cam1')).toBe(
+    expect(nontImageUrl('http://182.52.224.70', 'A1-ก Cam1')).toBe(
       'http://182.52.224.70/MilestoneImageService/ImageService.svc/ImageService/GetImage?width=800&height=450&cameraname=A1-%E0%B8%81%20Cam1',
     );
   });
@@ -60,5 +60,19 @@ describe('pak kret water sensor', () => {
       },
     ]);
     expect(parsePakkretEon('<html></html>')).toEqual([]);
+  });
+});
+
+describe('nonthaburi saved stations', () => {
+  it('has unique ids inside Nonthaburi and links to the municipality page', async () => {
+    const { NONT_STATIC } = await import('../src/data/nonthaburi.js');
+    expect(NONT_STATIC).toHaveLength(26);
+    expect(new Set(NONT_STATIC.map((c) => c.id)).size).toBe(26);
+    for (const c of NONT_STATIC) {
+      expect(c.location.lat).toBeGreaterThan(13.8);
+      expect(c.location.lat).toBeLessThan(13.9);
+      expect(c.url).toMatch(/^http:\/\/182\.52\.224\.70\/\?page=station&id=STN\d+$/);
+      expect(c.kind).toBe('water');
+    }
   });
 });

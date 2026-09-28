@@ -10,7 +10,8 @@ import { geocodeUrl, parsePhoton } from './adapters/geocode.js';
 import { CAMERAS } from './data/cameras.js';
 import { parseLongdoCameras } from './adapters/longdo.js';
 import { PAKKRET_EON_URL, parsePakkretEon } from './adapters/pakkret.js';
-import { NONT_CAMERA_NAME, NONT_STATIONS_URL, nontImageUrl, parseNonthaburiStations } from './adapters/nonthaburi.js';
+import { NONT_CAMERA_NAME, nontImageUrl, nontStationsUrl, parseNonthaburiStations } from './adapters/nonthaburi.js';
+import { NONT_STATIC } from './data/nonthaburi.js';
 import { HOUR, MemoryHistoryStore, recordAndAttachTrends, type HistoryStore } from './history.js';
 import {
   sampleCameras,
@@ -187,10 +188,20 @@ export function createApp(
     }),
   );
 
-  /** จุดเฝ้าระวังของเทศบาลนครนนทบุรี — ค่าระดับน้ำเปลี่ยนทุก 15 นาที จึงใช้ cache เดียวกับข้อมูลน้ำ */
+  /**
+   * จุดเฝ้าระวังของเทศบาลนครนนทบุรี — ค่าระดับน้ำเปลี่ยนทุก 15 นาที จึงใช้ cache เดียวกับข้อมูลน้ำ
+   * ดึงสดไม่ได้/ไม่ได้ตั้งค่า ใช้รายชื่อจุดที่บันทึกไว้ (ลิงก์ไปดูภาพในเว็บเทศบาล)
+   */
+  const nontApi = config.cameras.nontApiBase;
   const nontStations = async () => {
-    const r = await cache.get('nont-stations', async () => parseNonthaburiStations(await getJson(NONT_STATIONS_URL)));
-    return r.value;
+    if (!nontApi) return NONT_STATIC;
+    try {
+      const r = await cache.get('nont-stations', async () => parseNonthaburiStations(await getJson(nontStationsUrl(nontApi))));
+      return r.value.length ? r.value : NONT_STATIC;
+    } catch (err) {
+      console.error('[cameras] nonthaburi', err);
+      return NONT_STATIC;
+    }
   };
 
   /**
@@ -200,8 +211,9 @@ export function createApp(
   app.get('/api/nont/image', async (c) => {
     const cam = c.req.query('cam') ?? '';
     if (!NONT_CAMERA_NAME.test(cam)) return c.json({ error: 'ชื่อกล้องไม่ถูกต้อง' }, 400);
+    if (!nontApi) return c.json({ error: 'ยังไม่ได้ตั้งค่าแหล่งภาพ' }, 404);
     try {
-      const res = await fetch(nontImageUrl(cam), {
+      const res = await fetch(nontImageUrl(nontApi, cam), {
         headers: { 'user-agent': 'Mozilla/5.0 PreMonitoring' },
         signal: AbortSignal.timeout(15000),
       });
@@ -234,10 +246,7 @@ export function createApp(
               console.error('[cameras] longdo', err);
               return [] as Camera[];
             }),
-          nontStations().catch((err: unknown) => {
-            console.error('[cameras] nonthaburi', err);
-            return [] as Camera[];
-          }),
+          nontStations(),
           cache
             // เก็บเฉพาะผลที่แยกแล้ว หน้าเว็บต้นทางใหญ่ (~400 KB เพราะฝังภาพไว้ในหน้า)
             .get('pakkret-eon', async () => parsePakkretEon(await getText(PAKKRET_EON_URL)))
@@ -298,7 +307,6 @@ export function createApp(
     const targets = [
       'https://weather.bangkok.go.th/water/StationDetail?id=73',
       'https://weather.bangkok.go.th/water',
-      NONT_STATIONS_URL,
     ];
     c.header('content-type', 'application/json; charset=utf-8');
     const results = [];

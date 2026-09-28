@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CAMERAS } from '../src/data/cameras.js';
+import { NONT_STATIC } from '../src/data/nonthaburi.js';
 import { createApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import { NONT_BODY, PAKKRET_HTML } from './fixtures.js';
@@ -98,10 +99,10 @@ describe('cameras and geocode', () => {
   it('serves cameras from every source and sample cameras in sample mode', async () => {
     const urls: string[] = [];
     const app = createApp(
-      loadConfig({}),
+      loadConfig({ NONT_API_BASE: 'http://nont.example' }),
       async (url) => {
         urls.push(url);
-        if (url.includes('182.52.224.70')) return NONT_BODY;
+        if (url.startsWith('http://nont.example/')) return NONT_BODY;
         return {
           item: [
             { camid: 'ITICM_BMAMI0123', title: '(กรุงเทพมหานคร) แยกตัวอย่าง', latitude: '13.75', longitude: '100.5', geocode: '103605', organization: 'กทม.' },
@@ -113,7 +114,7 @@ describe('cameras and geocode', () => {
       { getText: async () => PAKKRET_HTML },
     );
     const live = await (await app.request('/api/cameras')).json();
-    expect(urls.sort()).toEqual(['http://182.52.224.70/json.php?app=station', 'https://traffic.longdo.com/camera.json']);
+    expect(urls.sort()).toEqual(['http://nont.example/json.php?app=station', 'https://traffic.longdo.com/camera.json']);
     const fromList = live.data.filter((c: { id: string }) => c.id.startsWith('longdo-'));
     expect(fromList.map((c: { name: string; url: string }) => [c.name, c.url])).toEqual([
       ['แยกตัวอย่าง', 'https://traffic.longdo.com/camera?vdo=i123'],
@@ -123,23 +124,27 @@ describe('cameras and geocode', () => {
     expect(ids).toEqual(expect.arrayContaining([...CAMERAS.map((c) => c.id), 'nont-STN2', 'pakkret-eon-001']));
     expect(live.data.length).toBe(CAMERAS.length + 4); // Longdo 1 + นนทบุรี 2 + ปากเกร็ด 1
 
-    // แหล่งใดล่ม ยังแสดงแหล่งที่เหลือ
+    // แหล่งใดล่ม ยังแสดงแหล่งที่เหลือ และจุดของนนทบุรีใช้รายชื่อที่บันทึกไว้
     const down = async () => {
       throw new Error('down');
     };
-    const off = await (
-      await createApp(loadConfig({ CAMERA_LIST_URL: '' }), down, undefined, { getText: down }).request('/api/cameras')
-    ).json();
-    expect(off.data).toEqual(CAMERAS);
+    for (const env of [{}, { NONT_API_BASE: 'http://nont.example' }]) {
+      const off = await (
+        await createApp(loadConfig({ CAMERA_LIST_URL: '', ...env }), down, undefined, { getText: down }).request('/api/cameras')
+      ).json();
+      expect(off.data).toEqual([...CAMERAS, ...NONT_STATIC]);
+    }
     const sample = await (await createApp(loadConfig({ DATA_MODE: 'sample' })).request('/api/cameras')).json();
     expect(sample.data.length).toBeGreaterThan(0);
   });
 
   it('rejects camera names that are not in the Nonthaburi format', async () => {
-    const app = createApp(loadConfig({}));
+    const app = createApp(loadConfig({ NONT_API_BASE: 'http://nont.example' }));
     expect((await app.request('/api/nont/image?cam=http://evil.example/x')).status).toBe(400);
     expect((await app.request('/api/nont/image?cam=A1-x%26width=9')).status).toBe(400);
     expect((await app.request('/api/nont/image')).status).toBe(400);
+    // ไม่ได้ตั้งแหล่งภาพ
+    expect((await createApp(loadConfig({})).request('/api/nont/image?cam=A1-x%20Cam1')).status).toBe(404);
   });
 
   it('proxies place search, restricted to the service area, and caches it', async () => {

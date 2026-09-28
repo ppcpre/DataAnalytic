@@ -30,6 +30,8 @@ export interface Config {
     /** รายชื่อกล้องพร้อมพิกัดแบบ Longdo Traffic (camera.json) — ว่าง = ใช้เฉพาะรายการใน data/cameras.ts */
     listUrl: string;
     cacheTtlMs: number;
+    /** เซิร์ฟเวอร์ข้อมูลสดของเทศบาลนครนนทบุรี (ต้องเป็นชื่อโดเมนบน Workers) — ว่าง = ใช้รายชื่อจุดที่บันทึกไว้ */
+    nontApiBase: string;
   };
   floodhub: {
     /** API key ของ Google Flood Forecasting API — ว่าง = ปิดชั้นข้อมูลนี้ */
@@ -76,6 +78,7 @@ export function loadConfig(env: Env = process.env): Config {
     cameras: {
       listUrl: env.CAMERA_LIST_URL ?? 'https://traffic.longdo.com/camera.json',
       cacheTtlMs: Number(env.CAMERA_CACHE_SECONDS ?? 3600) * 1000,
+      nontApiBase: (env.NONT_API_BASE ?? '').replace(/\/$/, ''),
     },
     floodhub: {
       apiKey: env.GOOGLE_FLOOD_API_KEY ?? '',
