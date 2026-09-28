@@ -15,7 +15,8 @@ jobs:
       BASE: ${{ inputs.url }}
     steps:
       - name: Health
-        run: curl -sS -m 30 "$BASE/api/health"; echo
+        run: |
+          curl -sS -m 30 "$BASE/api/health"; echo
 
       - name: Water level
         run: |
@@ -35,7 +36,8 @@ jobs:
           curl -sS -m 30 "$BASE/api/cameras" | jq -c '{error, count: (.data | length? // 0)}'
 
       - name: Place search
-        run: curl -sS -m 30 -G "$BASE/api/geocode" --data-urlencode "q=ลาดพร้าว" | jq -c '{error, count: (.data | length? // 0), first: .data[0]}'
+        run: |
+          curl -sS -m 30 -G "$BASE/api/geocode" --data-urlencode "q=ลาดพร้าว" | jq -c '{error, count: (.data | length? // 0), first: .data[0]}'
 
       - name: Web app
         run: |
