@@ -346,6 +346,7 @@ body.loading #refresh svg { animation: spin 1s linear infinite; }
 .nearby-row .mini-pin { width: 28px; height: 28px; border-radius: 50%; color: #fff; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex: none; }
 .nearby-row strong { display: block; font-size: 0.88rem; }
 .nearby-row small { font-size: 0.75rem; }
+.near-cam { display: flex; flex-direction: column; gap: 8px; }
 .cam-view { margin: 0; display: flex; flex-direction: column; gap: 6px; }
 .cam-frame {
   position: relative; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden;

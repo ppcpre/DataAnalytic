@@ -50,7 +50,7 @@ export function isLiveCamera(c: Camera): boolean {
 export function cameraViewHtml(c: Camera): string {
   if (!hasCameraMedia(c)) return '';
   return `
-    <figure class="cam-view" data-cam-view data-mode="loading">
+    <figure class="cam-view" data-cam-view data-cam-id="${escapeHtml(c.id)}" data-mode="loading">
       <div class="cam-frame">
         <div class="cam-media"></div>
         <div class="cam-msg" role="status">กำลังโหลดภาพ…</div>
@@ -140,6 +140,12 @@ export function startCameraView(root: HTMLElement, c: Camera, fresh = false) {
       video.addEventListener('playing', ok, { once: true });
       video.addEventListener('error', next, { once: true });
       media.appendChild(video);
+      // Safari บน iPhone/iPad/Mac เล่น HLS ได้เอง ไม่ต้องโหลด hls.js
+      if (video.canPlayType('application/vnd.apple.mpegurl') && /Apple/.test(navigator.vendor)) {
+        video.src = src.url;
+        void video.play().catch(() => {});
+        return;
+      }
       void import('hls.js/light')
         .then(({ default: Hls }) => {
           if (stopped || done) return;

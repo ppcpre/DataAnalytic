@@ -252,14 +252,28 @@ function nearestCamera(loc: { lat: number; lng: number }, maxKm = 2): Camera | n
   return best;
 }
 
+/** แสดงภาพจากกล้องที่ใกล้ที่สุดในหน้ารายละเอียดของสถานี/ประตูน้ำ/สถานที่ เมื่ออยู่ในรัศมีนี้ */
+const NEAR_CAMERA_KM = 5;
+
 function cameraButton(loc: { lat: number; lng: number }): string {
-  const cam = nearestCamera(loc);
+  const cam = nearestCamera(loc, NEAR_CAMERA_KM);
   if (cam) {
-    return `<button type="button" class="btn-primary" data-open="camera:${escapeHtml(cam.id)}">${icons.camera(18)}ดูกล้อง CCTV ใกล้จุดนี้ (${formatDistance(
-      distanceKm(loc, cam.location),
-    )})</button>`;
+    return `
+    <div class="near-cam">
+      <span class="nearby-title">กล้อง CCTV ใกล้จุดนี้ · ห่าง ${formatDistance(distanceKm(loc, cam.location))}</span>
+      ${cameraViewHtml(cam)}
+      <button type="button" class="btn-primary" data-open="camera:${escapeHtml(cam.id)}">${icons.camera(18)}${escapeHtml(cam.name)}</button>
+    </div>`;
   }
-  return `<button type="button" class="btn-primary" data-goto="cctv">${icons.camera(18)}ดูกล้อง CCTV</button>`;
+  const any = nearestCamera(loc, Infinity);
+  const far = any ? ` (กล้องที่ใกล้ที่สุดห่าง ${formatDistance(distanceKm(loc, any.location))})` : '';
+  return `
+    <span class="btn-caption">ไม่มีกล้อง CCTV ในรัศมี ${NEAR_CAMERA_KM} กม.${far}</span>
+    ${
+      any
+        ? `<button type="button" class="btn-primary" data-open="camera:${escapeHtml(any.id)}">${icons.camera(18)}ดูกล้องที่ใกล้ที่สุด</button>`
+        : `<button type="button" class="btn-primary" data-goto="cctv">${icons.camera(18)}ดูกล้อง CCTV</button>`
+    }`;
 }
 
 function waterSheet(s: WaterLevelStation): string {
@@ -321,7 +335,8 @@ function gateSheet(g: Floodgate): string {
       ['ท้ายประตู', `${formatNum(g.downstreamMsl)} ม.รทก.`],
       ['ผลต่าง', diff],
     ])}
-    <div class="sheet-sub">${escapeHtml(g.agency)} · ${formatTime(g.observedAt)}</div>`;
+    <div class="sheet-sub">${escapeHtml(g.agency)} · ${formatTime(g.observedAt)}</div>
+    ${cameraButton(g.location)}`;
 }
 
 function forecastSheet(f: FloodForecast): string {
@@ -490,15 +505,22 @@ function setSelectedMarker(sel: State['selected']) {
   }
 }
 
-export function openEntity(kind: LayerKey, id: string, pan = true) {
+export /** เริ่มแสดงภาพกล้อง (ตัวที่เลือก หรือกล้องใกล้จุดที่เปิดอยู่) ในหน้ารายละเอียด */
+function startSheetCamera(fresh = false) {
+  const id = sheetEl.querySelector<HTMLElement>('[data-cam-view]')?.dataset.camId;
+  const cam = id ? state.cameras?.data.find((c) => c.id === id) : undefined;
+  if (cam) startCameraView(sheetEl, cam, fresh);
+  else stopCameraView();
+}
+
+function openEntity(kind: LayerKey, id: string, pan = true) {
   const e = findEntity(kind, id);
   if (!e) return;
   ensureMapVisible();
   sheetEl.innerHTML = renderSheet(e);
   sheetEl.hidden = false;
   void loadHistoryChart();
-  if (e.kind === 'camera') startCameraView(sheetEl, e.item);
-  else stopCameraView();
+  startSheetCamera();
   document.body.classList.add('sheet-open');
   setSelectedMarker({ kind, id });
   // จัดให้จุดที่เลือกอยู่กลางพื้นที่แผนที่ที่ไม่ถูกแผ่นรายละเอียดบัง
@@ -588,12 +610,7 @@ sheetEl.addEventListener('click', (ev) => {
     storePlaces(state.places);
     closeSheet();
     renderPlaces();
-  } else if (t.dataset.camRefresh !== undefined) {
-    if (state.selected?.kind === 'camera') {
-      const cam = findEntity('camera', state.selected.id);
-      if (cam?.kind === 'camera') startCameraView(sheetEl, cam.item, true);
-    }
-  } else if (t.dataset.close !== undefined) closeSheet();
+  } else if (t.dataset.camRefresh !== undefined) startSheetCamera(true); else if (t.dataset.close !== undefined) closeSheet();
   else if (t.dataset.open) {
     const [kind, ...rest] = t.dataset.open.split(':');
     openEntity(kind as LayerKey, rest.join(':'));
