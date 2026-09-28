@@ -1,23 +1,40 @@
 name: Probe CCTV sources
 
-# ตรวจ ThaiWater: CORS, ขนาดข้อมูล และการจำกัดความถี่ (รันเองจากแท็บ Actions)
+# หา endpoint กราฟระดับน้ำย้อนหลังรายสถานีของ ThaiWater (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
 
 jobs:
   probe:
     runs-on: ubuntu-latest
+    env:
+      UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
     steps:
-      - name: ThaiWater CORS and rate limit
+      - name: Graph endpoints in new4all bundle
         run: |
-          for ep in waterlevel_load rain_24h; do
-            u="https://api-v3.thaiwater.net/api/v1/thaiwater30/public/$ep"
-            echo "===== $ep"
-            curl -sS -m 60 -H "Origin: https://dataanalytic.precare.workers.dev" -D h.txt -o b.json -w "HTTP %{http_code} size=%{size_download} time=%{time_total}\n" "$u"
-            grep -iE '^(access-control|content-encoding|content-type|retry-after|x-ratelimit|ratelimit|cache-control|server|cf-)' h.txt | tr -d '\r'
-            echo "-- preflight"
-            curl -sS -m 20 -X OPTIONS -H "Origin: https://dataanalytic.precare.workers.dev" -H "Access-Control-Request-Method: GET" -D - -o /dev/null "$u" | grep -iE '^(HTTP/|access-control)' | tr -d '\r'
-            echo "-- gzip size"; curl -sS -m 60 --compressed -H 'Accept-Encoding: gzip' -o /dev/null -w "%{size_download}\n" "$u"
+          curl -sS -L -m 30 -A "$UA" -o n.html https://www.thaiwater.net/new4all
+          for s in $(grep -oE 'src="[^"]+\.js"' n.html | sed -E 's/src="([^"]+)"/\1/' | head -10); do
+            case "$s" in http*) u="$s";; /*) u="https://www.thaiwater.net$s";; *) u="https://www.thaiwater.net/$s";; esac
+            curl -sS -L -m 30 -A "$UA" -o s.js "$u" || continue
+            grep -oE '"[^"]{0,60}(graph|Graph|history|History)[^"]{0,80}"' s.js | grep -iE 'water|level|thaiwater30|api|/' | sort -u | head -40
           done
-          echo "-- burst 6 requests"
-          for i in 1 2 3 4 5 6; do curl -sS -m 30 -o /dev/null -w "%{http_code} " "https://api-v3.thaiwater.net/api/v1/thaiwater30/public/rain_24h"; done; echo
+
+      - name: Try candidate endpoints
+        run: |
+          B=https://api-v3.thaiwater.net/api/v1/thaiwater30
+          # สถานีคลองมหาสวัสดิ์ บางกรวย-สวนผัก — หา id จาก waterlevel_load
+          curl -sS -m 60 -o wl.json "$B/public/waterlevel_load"
+          id=$(jq -r '[.waterlevel_data.data[] | select(.station.tele_station_name.th | test("มหาสวัสดิ์"))][0].station.id' wl.json)
+          jq -c '[.waterlevel_data.data[] | select(.station.tele_station_name.th | test("มหาสวัสดิ์"))][0] | {station: .station, msl: .waterlevel_msl, prev: .waterlevel_msl_previous, pct: .storage_percent, t: .waterlevel_datetime}' wl.json
+          echo "station id=$id"
+          end=$(date -u +%Y-%m-%d); start=$(date -u -d '-2 day' +%Y-%m-%d)
+          for path in \
+            "public/waterlevel_graph?station_type=tele_waterlevel&station_id=$id&start_date=$start&end_date=$end" \
+            "public/waterlevel_graph?station_id=$id" \
+            "analyst/waterlevel_graph?station_type=tele_waterlevel&station_id=$id&start_date=$start&end_date=$end" \
+            "analyst/waterlevel_graph?station_id=$id&start_date=$start&end_date=$end" \
+            "public/tele_waterlevel_graph?station_id=$id" \
+            "analyst/waterlevel_yearly_graph?station_id=$id&year=2026" ; do
+            curl -sS -m 30 -A "$UA" -o g.json -w "$path -> HTTP %{http_code} size=%{size_download}\n" "$B/$path" || true
+            head -c 400 g.json; echo
+          done
