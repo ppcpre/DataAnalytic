@@ -1,0 +1,44 @@
+name: Probe CCTV sources
+
+# สำรวจเว็บกล้อง CCTV ว่ามีรายชื่อกล้องพร้อมพิกัด/ลิงก์รายตัวที่ใช้ได้หรือไม่ (รันเองจากแท็บ Actions)
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    env:
+      UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
+    steps:
+      - name: BMA Traffic pages
+        run: |
+          for u in https://cpudapp.bangkok.go.th/bmatraffic https://cpudapp.bangkok.go.th/bmatraffic/ http://www.bmatraffic.com/ http://www.bmatraffic.com/index.aspx; do
+            echo "===== $u"
+            curl -sS -L -m 30 -A "$UA" -o page.html -w "HTTP %{http_code} final=%{url_effective} type=%{content_type} size=%{size_download}\n" "$u" || continue
+            grep -o '<title>[^<]*</title>' page.html | head -2
+            echo "-- scripts/links:"
+            grep -oiE '(src|href)="[^"]+"' page.html | grep -viE '\.(css|png|jpg|svg|ico|woff2?)"' | sort -u | head -40
+            echo "-- api/camera hints:"
+            grep -oiE '[a-zA-Z0-9_/.:-]*(api|camera|cctv|cam|json|ashx|asmx|PlayVideo|show\.aspx)[a-zA-Z0-9_/.?=&:-]*' page.html | sort -u | head -40
+          done
+
+      - name: BMA Traffic scripts
+        run: |
+          curl -sS -L -m 30 -A "$UA" -o page.html https://cpudapp.bangkok.go.th/bmatraffic/ || true
+          base=https://cpudapp.bangkok.go.th
+          for s in $(grep -oiE 'src="[^"]+\.js[^"]*"' page.html | sed -E 's/src="([^"]+)"/\1/' | head -15); do
+            case "$s" in http*) url="$s";; /*) url="$base$s";; *) url="$base/bmatraffic/$s";; esac
+            echo "===== $url"
+            curl -sS -L -m 30 -A "$UA" -o s.js "$url" || continue
+            grep -oiE '["'"'"'`][^"'"'"'`]*(api|camera|cctv|/cam|\.json|ashx|asmx|snapshot|image)[^"'"'"'`]*["'"'"'`]' s.js | sort -u | head -30
+          done
+
+      - name: Longdo Traffic
+        run: |
+          curl -sS -L -m 30 -A "$UA" -o lt.html -w "HTTP %{http_code} final=%{url_effective}\n" https://traffic.longdo.com/ || true
+          grep -oiE '[a-zA-Z0-9_/.:?=&-]*(camera|cctv)[a-zA-Z0-9_/.?=&:-]*' lt.html | sort -u | head -30
+          for u in https://traffic.longdo.com/api/json/traffic/camera https://traffic.longdo.com/api/json/camera/list https://traffic.longdo.com/camera; do
+            echo "===== $u"
+            curl -sS -L -m 30 -A "$UA" -o r.out -w "HTTP %{http_code} type=%{content_type} size=%{size_download}\n" "$u" || true
+            head -c 600 r.out; echo
+          done
