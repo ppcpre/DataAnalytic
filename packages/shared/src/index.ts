@@ -56,6 +56,8 @@ export interface WaterLevelStation {
   levelMsl: number | null;
   /** ระดับตลิ่ง (ม.รทก.) ถ้ามี */
   bankMsl: number | null;
+  /** ระดับท้องน้ำ/ศูนย์เสาระดับ (ม.รทก.) ถ้ามี — ใช้วาดภาพตัดขวางลำน้ำ */
+  groundMsl?: number | null;
   /** ร้อยละของความจุลำน้ำ (เทียบระดับตลิ่ง) */
   percent: number | null;
   status: Status;
@@ -141,6 +143,10 @@ export interface Camera {
   imageUrl?: string;
   /** ผู้ให้บริการภาพ เช่น "มูลนิธิ iTIC" */
   imageCredit?: string;
+  /** หน้าเว็บของกล้อง/จุดวัดที่ฝังในหน้าต่างรายละเอียดได้ (https เท่านั้น) */
+  embedUrl?: string;
+  /** ประเภท: กล้องจราจร (ค่าเริ่มต้น) หรือกล้อง/จุดวัดระดับน้ำ */
+  kind?: 'traffic' | 'water';
 }
 
 /** ผลการค้นหาสถานที่ */

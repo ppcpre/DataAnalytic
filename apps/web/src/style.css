@@ -34,6 +34,9 @@
   --st-unknown-bg: #eef0f2;
   --st-unknown-ink: #3d4550;
   --camera-live: #0f3f7a;
+  --xs-sky: #f3f7fb;
+  --xs-land: #d8c9a8;
+  --xs-water: #8fbde3;
 
   --font-display: 'Mitr', 'Noto Sans Thai', system-ui, sans-serif;
   --font-body: 'Mitr', 'Noto Sans Thai', system-ui, sans-serif;
@@ -71,6 +74,9 @@
     --st-unknown-bg: #2a3038;
     --st-unknown-ink: #c4cbd3;
     --camera-live: #2f6fc0;
+    --xs-sky: #1b2530;
+    --xs-land: #5a4d36;
+    --xs-water: #2f6a99;
     color-scheme: dark;
   }
 }
@@ -346,6 +352,22 @@ body.loading #refresh svg { animation: spin 1s linear infinite; }
 .nearby-row .mini-pin { width: 28px; height: 28px; border-radius: 50%; color: #fff; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex: none; }
 .nearby-row strong { display: block; font-size: 0.88rem; }
 .nearby-row small { font-size: 0.75rem; }
+.xs { margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.xs svg { width: 100%; height: auto; display: block; border-radius: 14px; background: var(--xs-sky); }
+.xs-land { fill: var(--xs-land); }
+.xs-water { fill: var(--xs-water); }
+.xs-surface { stroke-width: 2.5; }
+.xs-bank { stroke: var(--ink); stroke-width: 1.2; stroke-dasharray: 5 4; opacity: 0.7; }
+.xs-diff { font-size: 15px; font-weight: 600; fill: currentColor; }
+.xs-label { font-size: 11px; font-weight: 600; fill: var(--ink); paint-order: stroke; stroke: var(--xs-sky); stroke-width: 3px; }
+.xs-label-water { fill: var(--brand-ink); }
+.xs-note { font-size: 10px; fill: var(--brand-ink); opacity: 0.8; }
+.xs figcaption { font-size: 0.72rem; color: var(--muted); }
+.st-stroke-normal { stroke: var(--st-normal); }
+.st-stroke-watch { stroke: var(--st-watch); }
+.st-stroke-warning { stroke: var(--st-warning); }
+.st-stroke-critical { stroke: var(--st-critical); }
+.st-stroke-unknown { stroke: var(--st-unknown); }
 .near-cam { display: flex; flex-direction: column; gap: 8px; }
 .cam-view { margin: 0; display: flex; flex-direction: column; gap: 6px; }
 .cam-frame {
@@ -354,6 +376,10 @@ body.loading #refresh svg { animation: spin 1s linear infinite; }
 }
 .cam-media, .cam-media img, .cam-media video { position: absolute; inset: 0; width: 100%; height: 100%; }
 .cam-media img, .cam-media video { object-fit: cover; display: block; }
+.cam-media iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
+/* หน้าเว็บต้นทางต้องการพื้นที่สูงกว่าภาพกล้อง */
+.cam-view.is-page .cam-frame { aspect-ratio: 4 / 5; max-height: 70vh; }
+.cam-view.is-page .cam-refresh { top: auto; bottom: 8px; }
 /* ซ่อนภาพจนกว่าจะโหลดได้ เพื่อไม่ให้เห็นไอคอนภาพเสียหรือข้อความ alt */
 .cam-view:not(.is-loaded) .cam-media { visibility: hidden; }
 .cam-msg {

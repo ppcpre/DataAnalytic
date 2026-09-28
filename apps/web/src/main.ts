@@ -30,7 +30,8 @@ import {
   formatTime,
 } from './format';
 import { initSearch } from './search';
-import { directThaiWater } from './direct';
+import { directThaiWater, thaiWaterHistory } from './direct';
+import { waterDiagram } from './water-diagram';
 import { renderHistoryChart, trendText } from './chart';
 import {
   MAX_PLACES,
@@ -292,6 +293,7 @@ function waterSheet(s: WaterLevelStation): string {
       <div class="meter-scale"><span>0%</span><span>70% เฝ้าระวัง</span><span>ตลิ่ง 100%</span></div>
     </div>
     ${s.trend ? `<div class="trend">${escapeHtml(trendText(s.trend))}</div>` : ''}
+    ${waterDiagram(s)}
     <div class="chart-block">
       <div class="chart-title"><span>ระดับน้ำเทียบตลิ่ง 24 ชม.</span></div>
       <div class="chart-host" data-history="${escapeHtml(s.id)}"><p class="chart-loading">กำลังโหลดข้อมูลย้อนหลัง…</p></div>
@@ -387,7 +389,7 @@ function cameraSheet(c: Camera): string {
 
   return `
     ${sheetHead(
-      `<span style="color:var(--brand);font-weight:600">กล้อง CCTV · ${escapeHtml(c.owner)}</span>`,
+      `<span style="color:var(--brand);font-weight:600">${c.kind === 'water' ? 'กล้อง/จุดวัดระดับน้ำ' : 'กล้อง CCTV'} · ${escapeHtml(c.owner)}</span>`,
       c.name,
       escapeHtml(c.road ?? '') + distanceText(c.location),
       `<span class="cam-icon">${icons.camera(24)}</span>`,
@@ -539,7 +541,10 @@ async function loadHistoryChart() {
   try {
     let entry = historyCache.get(id);
     if (!entry || Date.now() - entry.at > 2 * 60_000) {
-      entry = { at: Date.now(), data: (await api.history(id, 24)).data };
+      let data = await api.history(id, 24).then((r) => r.data, () => []);
+      // API ยังเก็บประวัติไม่พอ (หรือดึงไม่ได้) → ใช้กราฟย้อนหลังของ ThaiWater โดยตรง
+      if (data.filter((p) => p.percent !== null).length < 2) data = await thaiWaterHistory(id, 24).catch(() => data);
+      entry = { at: Date.now(), data };
       historyCache.set(id, entry);
     }
     // ผู้ใช้อาจเปิดจุดอื่นระหว่างรอ

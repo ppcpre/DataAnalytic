@@ -9,7 +9,7 @@ import { icons } from './icons';
  * (กล้องกรมทางหลวงผ่าน iTIC ส่งภาพ MJPEG/ภาพนิ่งว่างเปล่า มีเฉพาะ HLS)
  */
 
-type SourceKind = 'hls' | 'mjpeg' | 'still';
+type SourceKind = 'hls' | 'mjpeg' | 'still' | 'page';
 interface Source {
   kind: SourceKind;
   url: string;
@@ -23,6 +23,7 @@ const LABEL: Record<SourceKind | 'loading' | 'off', string> = {
   hls: 'ภาพสด',
   mjpeg: 'ภาพสด',
   still: 'ภาพนิ่ง · อัปเดตทุก 10 วินาที',
+  page: 'หน้าเว็บต้นทาง',
   loading: 'กำลังโหลด',
   off: 'ไม่มีภาพ',
 };
@@ -32,6 +33,8 @@ function sourcesOf(c: Camera): Source[] {
   if (c.hlsUrl) list.push({ kind: 'hls', url: c.hlsUrl });
   if (c.streamUrl) list.push({ kind: 'mjpeg', url: c.streamUrl });
   if (c.imageUrl) list.push({ kind: 'still', url: c.imageUrl });
+  // หน้าเว็บของผู้ให้บริการ (ฝังได้เฉพาะ https)
+  if (c.embedUrl?.startsWith('https://')) list.push({ kind: 'page', url: c.embedUrl });
   return list;
 }
 
@@ -44,7 +47,7 @@ export function hasCameraMedia(c: Camera): boolean {
  * เพราะกล้องที่มีแต่ MJPEG/ภาพนิ่งส่วนใหญ่ออฟไลน์ที่ต้นทาง (ตรวจ ก.ย. 2569)
  */
 export function isLiveCamera(c: Camera): boolean {
-  return !!c.hlsUrl;
+  return !!(c.hlsUrl || c.embedUrl);
 }
 
 export function cameraViewHtml(c: Camera): string {
@@ -129,7 +132,21 @@ export function startCameraView(root: HTMLElement, c: Camera, fresh = false) {
       done = true;
       setMode(src.kind);
     };
-    timers.push(window.setTimeout(() => !done && next(), SOURCE_TIMEOUT_MS));
+    // หน้าเว็บอาจโหลดช้า ไม่ตัดทิ้งตามเวลา
+    if (src.kind !== 'page') timers.push(window.setTimeout(() => !done && next(), SOURCE_TIMEOUT_MS));
+
+    if (src.kind === 'page') {
+      // เบราว์เซอร์ไม่บอกว่าหน้าถูกบล็อกการฝังหรือไม่ จึงถือว่าสำเร็จเมื่อโหลดเสร็จ และมีปุ่มเปิดในเว็บต้นทางเสมอ
+      const frame = document.createElement('iframe');
+      frame.src = src.url;
+      frame.title = `หน้าเว็บกล้อง ${c.name}`;
+      frame.referrerPolicy = 'no-referrer';
+      frame.setAttribute('allow', 'autoplay; fullscreen');
+      frame.addEventListener('load', ok, { once: true });
+      view.classList.add('is-page');
+      media.appendChild(frame);
+      return;
+    }
 
     if (src.kind === 'hls') {
       const video = document.createElement('video');

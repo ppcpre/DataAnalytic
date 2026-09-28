@@ -112,6 +112,7 @@ function parseWaterLevelRecords(body: unknown, anyArea: boolean): WaterLevelStat
     if (!loc || !observedAt) continue;
     const levelMsl = num(first(r, ['waterlevel_msl', 'value']));
     const bankMsl = num(first(r, ['station.min_bank', 'station.left_bank', 'min_bank']));
+    const groundMsl = num(first(r, ['station.ground_level', 'ground_level']));
     let percent = num(first(r, ['storage_percent', 'percent']));
     if (percent === null && levelMsl !== null && bankMsl) percent = (levelMsl / bankMsl) * 100;
     const code = text(first(r, ['station.tele_station_oldcode', 'station.station_oldcode', 'station.code']));
@@ -123,6 +124,7 @@ function parseWaterLevelRecords(body: unknown, anyArea: boolean): WaterLevelStat
       observedAt,
       levelMsl,
       bankMsl,
+      groundMsl,
       percent: percent === null ? null : Math.round(percent * 10) / 10,
       status: waterLevelStatus(percent),
       agency: agency(r),

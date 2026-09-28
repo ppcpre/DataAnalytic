@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { CAMERAS } from '../src/data/cameras.js';
 import { createApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 
@@ -106,11 +107,14 @@ describe('cameras and geocode', () => {
     });
     const live = await (await app.request('/api/cameras')).json();
     expect(urls).toEqual(['https://traffic.longdo.com/camera.json']);
-    expect(live.data.map((c: { name: string; url: string }) => [c.name, c.url])).toEqual([
+    const fromList = live.data.filter((c: { id: string }) => c.id.startsWith('longdo-'));
+    expect(fromList.map((c: { name: string; url: string }) => [c.name, c.url])).toEqual([
       ['แยกตัวอย่าง', 'https://traffic.longdo.com/camera?vdo=i123'],
     ]);
+    // กล้อง/จุดวัดที่เพิ่มเองใน data/cameras.ts แสดงร่วมด้วยเสมอ
+    expect(live.data.length).toBe(CAMERAS.length + 1);
     const off = await (await createApp(loadConfig({ CAMERA_LIST_URL: '' })).request('/api/cameras')).json();
-    expect(off.data).toEqual([]);
+    expect(off.data).toEqual(CAMERAS);
     const sample = await (await createApp(loadConfig({ DATA_MODE: 'sample' })).request('/api/cameras')).json();
     expect(sample.data.length).toBeGreaterThan(0);
   });
