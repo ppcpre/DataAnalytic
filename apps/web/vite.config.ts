@@ -40,8 +40,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'ติดตามน้ำท่วม กทม. และปริมณฑล',
-        short_name: 'น้ำท่วม กทม.',
+        name: 'Pre-Monitoring · ติดตามน้ำท่วม กทม. และปริมณฑล',
+        short_name: 'Pre-Monitoring',
         description: 'ดูระดับน้ำ ฝน ประตูระบายน้ำ และลิงก์กล้อง CCTV ในกรุงเทพฯ และปริมณฑล',
         lang: 'th',
         theme_color: '#F4F1EA',
