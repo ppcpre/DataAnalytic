@@ -33,7 +33,9 @@ jobs:
       - name: Key stations and cameras
         run: |
           curl -sS -m 60 "$BASE/api/key-stations" | jq -c '{error, count: (.data | length? // 0), data: [.data[]? | {code, name, percent, trend}]}'
-          curl -sS -m 60 "$BASE/api/cameras" | jq -c '{error, source, count: (.data | length? // 0), byProvince: ([.data[]?.location.province] | group_by(.) | map({(.[0]): length}) | add), first: [.data[:3][]? | {name, owner, url}]}'
+          curl -sS -m 60 -D cam-h.txt "$BASE/api/cameras" -o cams.json -w "cameras HTTP %{http_code}\n"
+          grep -iE '^(cache-control|age|cf-cache-status)' cam-h.txt | tr -d '\r' || true
+          jq -c '{error, source, fetchedAt, stale, count: (.data | length? // 0), water: [.data[]? | select(.kind == "water") | {id, name, embedUrl}], byProvince: ([.data[]?.location.province] | group_by(.) | map({(.[0]): length}) | add)}' cams.json || head -c 500 cams.json
 
       - name: Place search
         run: |
