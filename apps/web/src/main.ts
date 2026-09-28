@@ -30,6 +30,7 @@ import {
   formatTime,
 } from './format';
 import { initSearch } from './search';
+import { directThaiWater } from './direct';
 import { renderHistoryChart, trendText } from './chart';
 import {
   MAX_PLACES,
@@ -985,16 +986,28 @@ async function loadAll() {
     api.floodForecast(),
     api.cameras(),
   ]);
+  // API ถูก ThaiWater จำกัดความถี่ (HTTP 429) → ดึงตรงจากเครื่องผู้ใช้แทน
+  const direct = directThaiWater();
+  const orDirect = async <T>(r: PromiseSettledResult<T>, load: () => Promise<T>): Promise<PromiseSettledResult<T>> => {
+    if (r.status === 'fulfilled') return r;
+    const [again] = await Promise.allSettled([load()]);
+    return again.status === 'fulfilled' ? again : r;
+  };
+  const [water2, rain2, keyStations2] = await Promise.all([
+    orDirect(water, direct.waterLevel),
+    orDirect(rain, direct.rain),
+    orDirect(keyStations, direct.keyStations),
+  ]);
   state.errors = [];
   const take = <T>(r: PromiseSettledResult<T>, label: string, prev: T | null): T | null => {
     if (r.status === 'fulfilled') return r.value;
     state.errors.push(`โหลดข้อมูล${label}ไม่สำเร็จ: ${(r.reason as Error).message}`);
     return prev;
   };
-  state.water = take(water, 'ระดับน้ำ', state.water);
-  state.rain = take(rain, 'ฝน', state.rain);
+  state.water = take(water2, 'ระดับน้ำ', state.water);
+  state.rain = take(rain2, 'ฝน', state.rain);
   state.gates = take(gates, 'ประตูระบายน้ำ', state.gates);
-  state.keyStations = take(keyStations, 'สถานีต้นน้ำ', state.keyStations);
+  state.keyStations = take(keyStations2, 'สถานีต้นน้ำ', state.keyStations);
   state.forecast = take(forecast, 'พยากรณ์ Google', state.forecast);
   state.cameras = take(cameras, 'กล้อง CCTV', state.cameras);
   renderMap();

@@ -193,3 +193,5 @@ export function rainStatus(mm: number | null): Status {
 export function isServiceProvince(code: string | undefined | null): boolean {
   return !!code && code in PROVINCES;
 }
+
+export * from './thaiwater.js';
