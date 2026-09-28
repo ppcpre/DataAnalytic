@@ -55,3 +55,18 @@ jobs:
             jq -c 'paths(type == "array") | map(tostring) | join(".")' up.json 2>/dev/null | head -5 || head -c 500 up.json
             jq -c '[.. | arrays | select(length > 0 and (.[0] | type) == "object")][0][0]' up.json 2>/dev/null | head -c 3000; echo
           done
+
+      # ตรวจลิงก์ภายนอก (กล้อง CCTV และแหล่งข้อมูล) ว่าเปิดได้หรือไม่
+      - name: External links
+        run: |
+          curl -sS -m 30 "$BASE/api/links" | jq -r '(.cameras + .official)[] | "\(.id) \(.url)"' | while read -r id url; do
+            out=$(curl -sS -L -m 30 -A "Mozilla/5.0" -o /dev/null -w "%{http_code} final=%{url_effective}" "$url" 2>&1 || true)
+            echo "$id | $url | $out"
+          done
+
+      - name: Key station codes upstream
+        run: |
+          curl -sS -m 60 -o up.json "https://api-v3.thaiwater.net/api/v1/thaiwater30/public/waterlevel_load"
+          jq -c '.waterlevel_data.data[] | select((.station.tele_station_oldcode // "") | test("^C\\.?(2|13|29|29A|22A|35|7A)$"; "i")) | {code: .station.tele_station_oldcode, name: .station.tele_station_name.th, prov: .geocode.province_name.th, t: .waterlevel_datetime, pct: .storage_percent}' up.json
+          echo "stations with name containing บางไทร:"
+          jq -c '.waterlevel_data.data[] | select(.station.tele_station_name.th | test("บางไทร")) | {code: .station.tele_station_oldcode, name: .station.tele_station_name.th, t: .waterlevel_datetime}' up.json
