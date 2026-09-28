@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# ตรวจกราฟระดับน้ำ ThaiWater และหน้ากล้องระดับน้ำที่ผู้ใช้ส่งมา (รันเองจากแท็บ Actions)
+# สำรวจเว็บกล้อง/ระดับน้ำ นนทบุรี-ปากเกร็ด ที่ผู้ใช้ส่งมา (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
 
@@ -10,30 +10,47 @@ jobs:
     env:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
     steps:
-      - name: ThaiWater waterlevel_graph
+      - name: Pages
         run: |
-          B=https://api-v3.thaiwater.net/api/v1/thaiwater30
-          curl -sS -m 60 -o wl.json "$B/public/waterlevel_load"
-          jq -c '[.waterlevel_data.data[] | select(.geocode.province_code == "10" or .geocode.province_code == "12")][0:3][] | {id: .station.id, name: .station.tele_station_name.th, lat: .station.tele_station_lat, lng: .station.tele_station_long, bank: .station.min_bank, ground: .station.ground_level, msl: .waterlevel_msl, prev: .waterlevel_msl_previous}' wl.json
-          echo "-- names containing มหาสวัสดิ์ / นนทบุรี / ปากเกร็ด"
-          jq -c '.waterlevel_data.data[] | select(.station.tele_station_name.th | test("มหาสวัสดิ|นนทบุรี|ปากเกร็ด")) | {id: .station.id, name: .station.tele_station_name.th, lat: .station.tele_station_lat, lng: .station.tele_station_long}' wl.json
-          id=$(jq -r '[.waterlevel_data.data[] | select(.geocode.province_code == "10")][0].station.id' wl.json)
-          end=$(date -u +%Y-%m-%d); start=$(date -u -d '-1 day' +%Y-%m-%d)
-          for q in "station_type=tele_waterlevel&station_id=$id&start_date=$start&end_date=$end" "station_id=$id"; do
-            curl -sS -m 30 -H "Origin: https://dataanalytic.precare.workers.dev" -D h.txt -o g.json -w "[$q] HTTP %{http_code} size=%{size_download}\n" "$B/public/waterlevel_graph?$q"
-            grep -i '^access-control-allow-origin' h.txt | tr -d '\r'
-            jq -c '{result, keys: (.data | if type=="object" then keys else type end)}' g.json 2>/dev/null
-            jq -c '.data | if type=="object" then (to_entries | map({k: .key, v: (.value | if type=="array" then {len: length, first: .[0], last: .[-1]} else . end)})) else . end' g.json 2>/dev/null | head -c 2500; echo
-          done
-
-      - name: Water camera pages
-        run: |
-          for u in "https://cctv-nont.firsttech.co.th/" "http://www.thaiclouderp.com/video/pakkret_water_report.html" "https://www.thaiclouderp.com/video/pakkret_water_report.html"; do
-            echo "===== $u"
-            curl -sS -L -m 20 -A "$UA" -D h.txt -o p.html -w "HTTP %{http_code} final=%{url_effective} type=%{content_type} size=%{size_download}\n" "$u" || { echo fail; continue; }
-            grep -iE '^(x-frame-options|content-security-policy|access-control)' h.txt | tr -d '\r'
+          show() {
+            u="$1"; echo; echo "=================== $u"
+            curl -sS -L -m 25 -A "$UA" -D h.txt -o p.html -w "HTTP %{http_code} final=%{url_effective} type=%{content_type} size=%{size_download}\n" "$u" || { echo FAIL; return; }
+            grep -iE '^(x-frame-options|content-security-policy|access-control-allow-origin|server)' h.txt | tr -d '\r'
             grep -oiE '<title>[^<]*</title>' p.html | head -1
-            echo "-- media/src:"; grep -oiE '(src|href|data-src|url)\s*[=:(]\s*["'"'"']?[^"'"'"' )>]*(m3u8|mjpe?g|jpe?g|png|mp4|rtsp|stream|video|cam|cgi|php|snapshot|hls|iframe|live)[^"'"'"' )>]*' p.html | sort -u | head -40
+            echo "-- scripts:"; grep -oiE '<script[^>]+src="[^"]+"' p.html | sed -E 's/.*src="([^"]+)"/\1/' | head -15
+            echo "-- media/api hints:"; grep -oiE '["'"'"'(=]\s*[^"'"'"' ()<>]*(m3u8|mjpe?g|\.jpe?g|\.png|snapshot|cgi|api|json|php|stream|rtsp|cctv|camera|lat|lng)[^"'"'"' ()<>]*' p.html | sort -u | head -50
             echo "-- iframes:"; grep -oiE '<iframe[^>]*>' p.html | head -10
-            echo "-- text:"; sed -e 's/<[^>]*>/ /g' p.html | tr -s ' \n' ' ' | head -c 600; echo
+            echo "-- text:"; sed -e 's/<script[^>]*>.*<\/script>//g; s/<[^>]*>/ /g' p.html | tr -s ' \n\t' ' ' | head -c 1200; echo
+          }
+          show "https://www.pakkretconnect.com/liffwater/eon"
+          show "https://www.thaiclouderp.com/CCTV_MONITOR/web/pakkred"
+          show "http://182.52.224.70/?page=cctv"
+          show "http://182.52.224.70/?page=cctv&view=milestone"
+
+      - name: Scripts of Nonthaburi CCTV app
+        run: |
+          base=http://182.52.224.70
+          curl -sS -L -m 25 -A "$UA" -o n.html "$base/?page=cctv" || exit 0
+          for s in $(grep -oiE '<script[^>]+src="[^"]+"' n.html | sed -E 's/.*src="([^"]+)"/\1/' | grep -v jquery | grep -v bootstrap | grep -v angular.min); do
+            case "$s" in http*) u="$s";; ./*) u="$base/${s#./}";; /*) u="$base$s";; *) u="$base/$s";; esac
+            echo "===== $u"
+            curl -sS -L -m 25 -A "$UA" -o s.js "$u" || continue
+            grep -oiE '["'"'"'][^"'"'"']*(api|json|php|cctv|camera|snapshot|image|jpg|lat|lng|\?page=|ajax|get)[^"'"'"']*["'"'"']' s.js | sort -u | head -60
+          done
+          echo "-- inline scripts in page:"
+          sed -n '/<script>/,/<\/script>/p' n.html | head -120
+
+      - name: Scripts of Pak Kret pages
+        run: |
+          for page in "https://www.thaiclouderp.com/CCTV_MONITOR/web/pakkred" "https://www.pakkretconnect.com/liffwater/eon"; do
+            curl -sS -L -m 25 -A "$UA" -o q.html "$page" || continue
+            base=$(echo "$page" | sed -E 's#(https?://[^/]+).*#\1#')
+            dir=$(echo "$page" | sed -E 's#/[^/]*$##')
+            for s in $(grep -oiE '<script[^>]+src="[^"]+"' q.html | sed -E 's/.*src="([^"]+)"/\1/' | grep -viE 'jquery|bootstrap|gtag|googletag|facebook|liff' | head -8); do
+              case "$s" in http*) u="$s";; //*) u="https:$s";; /*) u="$base$s";; *) u="$dir/$s";; esac
+              echo "===== $u"
+              curl -sS -L -m 25 -A "$UA" -o s.js "$u" || continue
+              grep -oiE '["'"'"'`][^"'"'"'`]*(api|json|php|cctv|camera|snapshot|m3u8|jpg|stream|lat|lng|firebase|supabase)[^"'"'"'`]*["'"'"'`]' s.js | sort -u | head -50
+            done
+            echo "-- inline script of $page:"; sed -n '/<script>/,/<\/script>/p;/<script type/,/<\/script>/p' q.html | head -80
           done
