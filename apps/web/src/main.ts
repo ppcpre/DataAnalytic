@@ -277,7 +277,7 @@ function nearWaterDiagram(c: Camera): string {
   if (!near) return '';
   return `
     <div class="near-cam">
-      <span class="nearby-title">ระดับน้ำเทียบตลิ่ง · ${escapeHtml(near.s.name)} (ห่าง ${formatDistance(near.d)})</span>
+      <span class="nearby-title">ระดับน้ำเทียบตลิ่ง · ${escapeHtml(near.s.name)} (${near.d < 0.05 ? 'ตำแหน่งเดียวกัน' : `ห่าง ${formatDistance(near.d)}`})</span>
       ${waterDiagram(near.s)}
       <button type="button" class="nearby-row soft-${near.s.status}" data-open="water:${escapeHtml(near.s.id)}">
         <span class="mini-pin st-${near.s.status}">${LETTER.water}</span>
