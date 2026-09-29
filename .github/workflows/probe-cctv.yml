@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# ตรวจกล้อง/จุดวัดนนทบุรี-ปากเกร็ดบนเว็บจริง (รันเองจากแท็บ Actions)
+# สำรวจสถานีวัดน้ำใกล้กล้อง/จุดวัดระดับน้ำ (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
 
@@ -9,23 +9,25 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:
-      - name: Live site
+      - name: ThaiWater stations near water cameras
         run: |
-          site=https://dataanalytic.precare.workers.dev
-          curl -sS -m 60 "$site/api/debug/bma-water" | python3 -c "import json,sys; d=json.load(sys.stdin); [print(r.get('url'), r.get('status'), r.get('size'), r.get('error'), (r.get('text') or '')[:200]) for r in d['results']]" || true
-          curl -sS -m 40 "$site/api/cameras" -o c.json
+          curl -sS -m 60 -H 'Origin: https://dataanalytic.precare.workers.dev' "https://api-v3.thaiwater.net/api/v1/thaiwater30/public/waterlevel_load" -o w.json
           python3 - <<'PY'
-          import json, collections
-          d = json.load(open('c.json'))
-          print('source', d.get('source'), 'stale', d.get('stale'), 'total', len(d['data']))
-          print(collections.Counter(c['id'].split('-')[0] for c in d['data']))
-          for c in d['data']:
-              if c['id'].startswith(('nont-STN2', 'nont-STN41', 'pakkret', 'water-')):
-                  print(json.dumps(c, ensure_ascii=False)[:500])
-          img = next((c.get('imageUrl') for c in d['data'] if c['id'].startswith('nont-') and c.get('imageUrl')), None)
-          print('nont with image', sum(1 for c in d['data'] if c['id'].startswith('nont-') and c.get('imageUrl')), 'with readings', sum(1 for c in d['data'] if c['id'].startswith('nont-') and c.get('readings')))
-          open('img.txt', 'w').write(img or '/api/nont/image?cam=A2-%E0%B8%A7%E0%B8%B1%E0%B8%94%E0%B8%95%E0%B8%B3%E0%B8%AB%E0%B8%99%E0%B8%B1%E0%B8%81%E0%B9%83%E0%B8%95%E0%B9%89%20Cam1')
+          import json, math
+          d = json.load(open('w.json'))
+          rows = d.get('waterlevel_data', {}).get('data') or d.get('data') or []
+          print('rows', len(rows))
+          pts = {'mahasawat': (13.79965, 100.43863), 'nont-pier': (13.8617, 100.4959), 'pakkret': (13.9153, 100.4947)}
+          def km(a, b):
+              return math.hypot((a[0]-b[0])*111, (a[1]-b[1])*108)
+          for name, p in pts.items():
+              near = []
+              for r in rows:
+                  st = r.get('station', {})
+                  try: q = (float(st['tele_station_lat']), float(st['tele_station_long']))
+                  except Exception: continue
+                  k = km(p, q)
+                  if k < 4: near.append((k, st.get('id'), (st.get('tele_station_name') or {}).get('th'), (r.get('agency') or {}).get('agency_shortname', {}), r.get('waterlevel_msl'), st.get('min_bank') or r.get('min_bank'), r.get('waterlevel_datetime')))
+              print('==', name)
+              for n in sorted(near)[:6]: print(' ', round(n[0], 2), n[1:])
           PY
-          curl -sS -m 30 -o i.bin -w "image: %{http_code} %{content_type} %{size_download} %{time_total}s\n" "$site$(cat img.txt)"
-          head -c 200 i.bin | grep -a error || true
-          curl -sS -m 10 -o /dev/null -w "bad name: %{http_code}\n" "$site/api/nont/image?cam=x"
