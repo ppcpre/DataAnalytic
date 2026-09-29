@@ -266,6 +266,26 @@ function cameraReadings(c: Camera): string {
     .join('')}</div>${c.observedAt ? `<span class="btn-caption">ค่าวัดเมื่อ ${escapeHtml(formatAgo(c.observedAt) || formatTime(c.observedAt))}</span>` : ''}`;
 }
 
+/** สถานีวัดระดับน้ำที่ใกล้จุดวัด/กล้องน้ำ ในระยะนี้ ใช้วาดภาพเทียบตลิ่งกับระดับน้ำในหน้าต่างกล้อง */
+const NEAR_STATION_KM = 1.5;
+
+function nearWaterDiagram(c: Camera): string {
+  const near = (state.water?.data ?? [])
+    .map((s) => ({ s, d: distanceKm(c.location, s.location) }))
+    .filter((x) => x.d <= NEAR_STATION_KM && x.s.levelMsl !== null && x.s.bankMsl !== null)
+    .sort((a, b) => a.d - b.d)[0];
+  if (!near) return '';
+  return `
+    <div class="near-cam">
+      <span class="nearby-title">ระดับน้ำเทียบตลิ่ง · ${escapeHtml(near.s.name)} (ห่าง ${formatDistance(near.d)})</span>
+      ${waterDiagram(near.s)}
+      <button type="button" class="nearby-row soft-${near.s.status}" data-open="water:${escapeHtml(near.s.id)}">
+        <span class="mini-pin st-${near.s.status}">${LETTER.water}</span>
+        <span><strong>${escapeHtml(near.s.name)} ${formatNum(near.s.percent, 0)}% · ${STATUS_LABEL_TH[near.s.status]}</strong><small>แตะเพื่อดูกราฟย้อนหลัง</small></span>
+      </button>
+    </div>`;
+}
+
 function nearestCamera(loc: { lat: number; lng: number }, maxKm = 2): Camera | null {
   let best: Camera | null = null;
   let bestD = maxKm;
@@ -421,6 +441,7 @@ function cameraSheet(c: Camera): string {
     )}
     ${cameraViewHtml(c)}
     ${cameraReadings(c)}
+    ${c.kind === 'water' ? nearWaterDiagram(c) : ''}
     <div class="nearby">
       <span class="nearby-title">รอบกล้องนี้ (รัศมี ${NEARBY_KM} กม.)</span>
       ${nearby}

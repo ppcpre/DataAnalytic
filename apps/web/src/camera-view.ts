@@ -144,6 +144,12 @@ export function startCameraView(root: HTMLElement, c: Camera, fresh = false) {
       frame.referrerPolicy = 'no-referrer';
       frame.setAttribute('allow', 'autoplay; fullscreen');
       frame.addEventListener('load', ok, { once: true });
+      // เลื่อนหน้าเว็บขึ้นเพื่อข้ามเมนูของต้นทาง (ฝังข้ามโดเมนสั่งเลื่อนในกรอบไม่ได้) ผู้ใช้ยังเลื่อนดูต่อในกรอบได้
+      const crop = Math.max(0, Math.min(2000, c.embedCropTop ?? 0));
+      if (crop) {
+        frame.style.top = `-${crop}px`;
+        frame.style.height = `calc(100% + ${crop}px)`;
+      }
       view.classList.add('is-page');
       media.appendChild(frame);
       return;

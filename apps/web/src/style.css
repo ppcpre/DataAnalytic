@@ -388,7 +388,7 @@ button.link-card { width: 100%; text-align: left; font: inherit; color: inherit;
 }
 .cam-media, .cam-media img, .cam-media video { position: absolute; inset: 0; width: 100%; height: 100%; }
 .cam-media img, .cam-media video { object-fit: cover; display: block; }
-.cam-media iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
+.cam-media iframe { position: absolute; left: 0; top: 0; width: 100%; height: 100%; border: 0; background: #fff; }
 /* หน้าเว็บต้นทางต้องการพื้นที่สูงกว่าภาพกล้อง */
 .cam-view.is-page .cam-frame { aspect-ratio: 4 / 5; max-height: 70vh; }
 .cam-view.is-page .cam-refresh { top: auto; bottom: 8px; }

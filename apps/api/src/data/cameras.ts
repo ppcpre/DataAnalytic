@@ -36,6 +36,8 @@ export const CAMERAS: Camera[] = [
     // เว็บ กทม. เปิดได้เฉพาะจากในประเทศไทย
     url: 'https://weather.bangkok.go.th/water/StationDetail?id=73',
     embedUrl: 'https://weather.bangkok.go.th/water/StationDetail?id=73',
+    // ข้ามเมนู ชื่อสถานี และลิงก์สถานีก่อน/ถัดไป ให้กรอบเริ่มที่ภาพระดับน้ำ (วัดจากจอมือถือ)
+    embedCropTop: 330,
     kind: 'water',
   },
 ];
