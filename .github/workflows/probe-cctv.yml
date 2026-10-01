@@ -7,48 +7,53 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     env:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
+      ORIGIN: 'https://dataanalytic.precare.workers.dev'
     steps:
-      - name: Endpoints
+      - name: ThaiWater CCTV in service area
         continue-on-error: true
         timeout-minutes: 4
         run: |
-          show() {
-            echo; echo "=================== $1"
-            curl -sS -L -m 20 -A "$UA" -H 'Origin: https://dataanalytic.precare.workers.dev' -D h.txt -o b.bin -w "HTTP %{http_code} type=%{content_type} size=%{size_download}\n" "$1" 2>&1 | tail -1
-            tr -d '\r' < h.txt | grep -iE '^(access-control-allow-origin|x-frame-options)' | head -2
-            head -c 700 b.bin | tr -d '\0' | tr '\n' ' '; echo
-          }
-          show "https://publicapi.traffy.in.th/share/teamchadchart/search?limit=3&type=%E0%B8%99%E0%B9%89%E0%B8%B3%E0%B8%97%E0%B9%88%E0%B8%A7%E0%B8%A1"
-          show "https://publicapi.traffy.in.th/share/teamchadchart/search?limit=2"
-          show "https://api-v3.thaiwater.net/api/v1/thaiwater30/public/cctv"
-          show "https://api-v3.thaiwater.net/api/v1/thaiwater30/analyst/cctv"
-          show "https://api-v3.thaiwater.net/api/v1/thaiwater30/public/thailand_main"
-          show "https://api-v3.thaiwater.net/api/v1/thaiwater30/public/waterquality_load"
-          show "https://api-v3.thaiwater.net/api/v1/thaiwater30/public/dam_daily"
-          show "https://data.bangkok.go.th/api/3/action/package_search?q=%E0%B8%99%E0%B9%89%E0%B8%B3&rows=5"
-          show "https://data.go.th/api/3/action/package_search?q=cctv&rows=5"
-          show "https://data.go.th/api/3/action/package_show?id=fms2_flood"
-          show "https://weather.bangkok.go.th/Flood"
-          show "https://hyd-app-db.rid.go.th/hydro1d.html"
-          show "https://exat.co.th/cctv"
-          show "https://www.thaiwater.net/"
+          curl -sS -m 30 -H "Origin: $ORIGIN" -o c.json https://api-v3.thaiwater.net/api/v1/thaiwater30/analyst/cctv
+          python3 - <<'PY'
+          import json, subprocess
+          d = json.load(open('c.json'))['data']
+          print('total', len(d), 'keys', list(d[0].keys()))
+          area = [x for x in d if (x.get('geocode') or {}).get('province_code') in ('10','11','12','13','73','74')]
+          print('in area', len(area))
+          for x in area:
+              u = x.get('cctv_url') or ''
+              r = subprocess.run(['curl','-sS','-m','8','-o','/dev/null','-w','%{http_code} %{content_type} %{size_download}', u], capture_output=True, text=True) if u.startswith('http') else None
+              print(x['id'], (x.get('geocode') or {}).get('province_code'), x.get('title'), x.get('lat'), x.get('long'), x.get('media_type'), x.get('is_active'), u[:110], '->', r.stdout if r else '-', (r.stderr[:60] if r else ''))
+          PY
 
-      - name: RID open data dictionary
+      - name: ThaiWater thailand_main datasets
         continue-on-error: true
         timeout-minutes: 2
         run: |
-          curl -sS -L -m 30 -A "$UA" -o r.pdf "https://bigdata-api.rid.go.th/swoc_opendatadict.pdf" && (sudo apt-get install -y -qq poppler-utils >/dev/null 2>&1; pdftotext r.pdf - | grep -iE 'http|api|station|wl|water' | head -60) || echo FAIL
+          curl -sS -m 60 -H "Origin: $ORIGIN" -o m.json https://api-v3.thaiwater.net/api/v1/thaiwater30/public/thailand_main
+          python3 - <<'PY'
+          import json
+          d = json.load(open('m.json'))
+          for k, v in d.items():
+              rows = (v.get('data') or {}).get('data') if isinstance(v, dict) and isinstance(v.get('data'), dict) else v.get('data') if isinstance(v, dict) else None
+              n = len(rows) if isinstance(rows, list) else '-'
+              first = rows[0] if isinstance(rows, list) and rows else None
+              print(k, n, list(first.keys())[:14] if isinstance(first, dict) else str(v)[:150])
+          PY
 
-      - name: ThaiWater frontend endpoints
+      - name: RID SWOC API
         continue-on-error: true
-        timeout-minutes: 2
+        timeout-minutes: 3
         run: |
-          curl -sS -L -m 20 -A "$UA" -o t.html https://www.thaiwater.net/ || exit 0
-          for s in $(grep -oE 'src="[^"]+\.js"' t.html | sed 's/src="//;s/"$//' | head -8); do
-            case "$s" in http*) u="$s";; /*) u="https://www.thaiwater.net$s";; *) u="https://www.thaiwater.net/$s";; esac
-            curl -sS -L -m 20 -o s.js "$u" || continue
-            grep -oE '"(public|analyst|provinces|dataservice)/[a-z_/0-9]+' s.js | sort -u | tr '\n' ' '
-          done; echo
+          curl -sS -L -m 30 -A "$UA" -o r.pdf "https://bigdata-api.rid.go.th/swoc_opendatadict.pdf"
+          sudo apt-get install -y -qq poppler-utils >/dev/null 2>&1
+          pdftotext r.pdf r.txt
+          grep -oE 'API Name : [A-Za-z0-9_-]+' r.txt | sort -u | tr '\n' ' '; echo
+          grep -oE 'https?://[^ ]+' r.txt | sort -u
+          for n in pier-hii-data waterlevel-rid-data rainfall-hii-24hr; do
+            echo "== $n"; curl -sS -m 20 -A "$UA" -D h.txt -o s.json -w "HTTP %{http_code} %{content_type} %{size_download}\n" "https://swoc-api-service.rid.go.th/api/$n"
+            tr -d '\r' < h.txt | grep -i access-control; head -c 600 s.json; echo
+          done
