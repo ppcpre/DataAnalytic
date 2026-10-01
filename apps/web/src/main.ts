@@ -32,6 +32,7 @@ import {
 import { initSearch } from './search';
 import { directThaiWater, thaiWaterHistory } from './direct';
 import { waterDiagram } from './water-diagram';
+import { loadRadar, radarHtml } from './radar';
 import { renderHistoryChart, trendText } from './chart';
 import {
   MAX_PLACES,
@@ -1123,8 +1124,22 @@ async function loadAll() {
   renderPlaces();
   renderBanners();
   renderWaterCams();
+  void renderRadar();
   document.body.classList.remove('loading');
   loading = false;
+}
+
+/** ภาพเรดาร์ฝนในแท็บกล้อง — ไม่สำเร็จก็ซ่อนส่วนนี้ไว้ ไม่กระทบข้อมูลอื่น */
+async function renderRadar() {
+  const host = document.getElementById('radar');
+  if (!host) return;
+  try {
+    const html = radarHtml(await loadRadar());
+    host.innerHTML = html;
+    host.hidden = !html;
+  } catch {
+    host.hidden = host.innerHTML === '';
+  }
 }
 
 async function loadLinks() {

@@ -98,58 +98,9 @@ API ดึงรายชื่อกล้องชั่วโมงละค�
   ดึงไม่ได้ → ปักหมุดจากรายชื่อที่บันทึกไว้ (`data/nonthaburi.ts`) และลิงก์ไปหน้ารวมกล้องของเทศบาล; ค่าวัดที่เก่ากว่า 12 ชม. ไม่แสดง
 - **เทศบาลนครปากเกร็ด** — เซนเซอร์ระดับน้ำ `https://www.pakkretconnect.com/liffwater/eon` (อ่านจากตัวแปร `sensorData` ในหน้าเว็บ)
 - กล้องจราจรปากเกร็ด (`thaiclouderp.com/CCTV_MONITOR`) เปิดได้เฉพาะจากในประเทศไทย จึงเป็นลิงก์ในแท็บกล้องแทนหมุด
+- **ภาพเรดาร์ฝน** (แท็บกล้อง) — ThaiWater `analyst/radar_img` เลือกเรดาร์หนองแขม/หนองจอก (กทม.) และสุวรรณภูมิ (กรมอุตุฯ)
+  ภาพผ่าน `shared/image?image=<media_path>`; หน้าเว็บดึงตรงจาก ThaiWater (อนุญาต CORS ให้โดเมนแอป)
 
-## ตัวแปรสภาพแวดล้อม (หน้าเว็บ, ตอน build)
-
-| ตัวแปร | คำอธิบาย |
-|---|---|
-| `VITE_API_BASE` | URL ของ API เช่น `https://flood-api.onrender.com` (ว่าง = origin เดียวกัน) |
-| `BASE_PATH` | path ย่อยเมื่อโฮสต์บน GitHub Pages เช่น `/DataAnalytic/` |
-
-## เผยแพร่บน Cloudflare (ฟรี)
-
-หน้าเว็บและ API อยู่ใน Cloudflare Worker ตัวเดียว (`wrangler.jsonc`): ไฟล์ใน `apps/web/dist` เสิร์ฟเป็น
-Static Assets ส่วน `/api/*` รันโค้ดใน `apps/api/src/worker.ts` — อยู่ใน free plan ของ Workers (100,000 คำขอ/วัน)
-
-### Deploy ผ่าน Cloudflare Workers Builds (ที่ใช้อยู่)
-
-Worker ชื่อ `dataanalytic` เชื่อมกับ repo นี้จากหน้า Cloudflare (Import a repository)
-ทุกครั้งที่ push Cloudflare จะติดตั้ง dependencies แล้วรัน `npx wrangler deploy`
-ซึ่งจะ build หน้าเว็บให้เองตาม `build.command` ใน `wrangler.jsonc` — ชื่อใน `wrangler.jsonc` ต้องตรงกับชื่อ Worker
-
-### Deploy อัตโนมัติจาก GitHub Actions (ทางเลือก)
-
-ทุกครั้งที่ push ไปยัง default branch, GitHub Actions (`.github/workflows/deploy.yml`) จะเทสต์แล้ว deploy ให้
-ต้องตั้งค่าครั้งเดียว:
-
-1. Cloudflare Dashboard → **My Profile → API Tokens → Create Token** → ใช้ template **Edit Cloudflare Workers**
-2. คัดลอก **Account ID** จากหน้า Workers & Pages (แถบด้านขวา)
-3. GitHub repo → **Settings → Secrets and variables → Actions → New repository secret** เพิ่ม
-   - `CLOUDFLARE_API_TOKEN`
-   - `CLOUDFLARE_ACCOUNT_ID`
-4. ไปที่แท็บ **Actions → Deploy to Cloudflare → Run workflow** (หรือ push commit ใหม่)
-5. เว็บจะอยู่ที่ `https://dataanalytic.<subdomain>.workers.dev`
-
-ถ้ายังไม่ได้ตั้ง secret ขั้น deploy จะถูกข้าม (มีคำเตือนใน Actions) แต่เทสต์ยังรันตามปกติ
-
-### Deploy จากเครื่องตัวเอง
-
-```bash
-npx wrangler login
-npm run deploy
-```
-
-### ตั้งค่าเพิ่มเติม
-
-- ค่าทั่วไป (เช่น `DATA_MODE`, `KEY_STATION_CODES`) แก้ใน `vars` ของ `wrangler.jsonc`
-- ความลับ (เช่น Google Flood API key): `npx wrangler secret put GOOGLE_FLOOD_API_KEY`
-- ทดสอบแบบ Cloudflare บนเครื่อง: `npm run cf:dev` (เพิ่ม `-- --var DATA_MODE:sample` เพื่อใช้ข้อมูลตัวอย่าง)
-
-### ทางเลือก: รัน API ด้วย Node.js
-
-API ยังรันแบบ Node.js ได้ (`npm run build && npm start --workspace @flood-watch/api`) เช่นบน Render
-แล้ว build หน้าเว็บด้วย `VITE_API_BASE=<url ของ API>`
-
-## ข้อจำกัดความรับผิดชอบ
-
-ข้อมูลมาจากแหล่งข้อมูลสาธารณะ ใช้ประกอบการตัดสินใจเท่านั้น ไม่ใช่ประกาศเตือนภัยอย่างเป็นทางการ
+แหล่งที่ตรวจแล้วแต่ยังใช้ไม่ได้ (ต.ค. 2569):
+Traffy Fondue public API และ data.bangkok.go.th ต่อไม่ได้จากต่างประเทศ, data.go.th / EXAT / RID hydro / weather.bangkok.go.th มีระบบกันบอท,
+RID `swoc-api-service` ต้องล็อกอิน, ThaiWater `analyst/cctv` ในพื้นที่มี 9 จุดแต่ลิงก์เป็น dyndns ที่ไม่มีแล้วหรือไม่มีลิงก์
