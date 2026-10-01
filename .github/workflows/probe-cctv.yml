@@ -7,26 +7,23 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 4
     env:
       ORIGIN: 'https://dataanalytic.precare.workers.dev'
     steps:
-      - name: Radar endpoints
-        continue-on-error: true
+      - name: radar_img
         run: |
-          curl -sS -L -m 20 -o t.html https://www.thaiwater.net/
-          for s in $(grep -oE 'src="[^"]+\.js"' t.html | sed 's/src="//;s/"$//'); do
-            case "$s" in http*) u="$s";; /*) u="https://www.thaiwater.net$s";; *) u="https://www.thaiwater.net/$s";; esac
-            curl -sS -L -m 20 -o s.js "$u" || continue
-            grep -oE '.{80}(radar|Radar)[^"]{0,40}"' s.js | grep -iE 'api|thaiwater30|/public|/analyst|/frontend' | head -8
-          done
-          for p in public/radar public/radar_load analyst/radar frontend/shared/radar public/thailand_main_radar thaiwater30/public/radar_latest; do
-            curl -sS -m 20 -H "Origin: $ORIGIN" -o r.json -w "%{http_code} %{size_download} <- $p\n" "https://api-v3.thaiwater.net/api/v1/thaiwater30/$p" || true
-          done
-      - name: Token stability
-        run: |
-          get() { curl -sS -m 60 -H "Origin: $ORIGIN" https://api-v3.thaiwater.net/api/v1/thaiwater30/public/thailand_main | python3 -c "import json,sys; d=json.load(sys.stdin); r=d['radar']['data']; r=r['data'] if isinstance(r,dict) else r; [print(x['radar_type'], x['media_datetime'], x['media_path']) for x in r if x['radar_type'] in ('njk','nkm','svp120')]"; }
-          get > a.txt; cat a.txt
-          sleep 400
-          get > b.txt; cat b.txt
-          diff a.txt b.txt && echo SAME || echo CHANGED
+          curl -sS -m 30 -H "Origin: $ORIGIN" -D h.txt -o r.json -w "%{http_code} %{content_type} %{size_download}\n" "https://api-v3.thaiwater.net/api/v1/thaiwater30/analyst/radar_img"
+          tr -d '\r' < h.txt | grep -iE 'access-control|cache-control'
+          python3 - <<'PY'
+          import json
+          d = json.load(open('r.json'))
+          print(type(d).__name__, list(d.keys()) if isinstance(d, dict) else '')
+          rows = d.get('data') if isinstance(d, dict) else d
+          if isinstance(rows, dict): print('data keys', list(rows.keys())[:20]); rows = next((v for v in rows.values() if isinstance(v, list)), [])
+          print('rows', len(rows))
+          for r in rows:
+              s = json.dumps(r, ensure_ascii=False)
+              if any(k in s for k in ('njk', 'nkm', 'svp', 'หนองจอก', 'หนองแขม', 'สุวรรณภูมิ')): print(s[:700])
+          if rows: print('FIRST', json.dumps(rows[0], ensure_ascii=False)[:700])
+          PY
