@@ -1,7 +1,7 @@
 /**
  * จุดเฝ้าระวังน้ำท่วมของเทศบาลนครนนทบุรี (http://182.52.224.70/?page=cctv)
  * ต้นทางมี API รายชื่อสถานี พร้อมพิกัด ระดับน้ำ และภาพกล้องของแต่ละจุด
- * แอปปักหมุดเฉพาะจุดที่มีกล้อง ภาพกล้องต้องผ่าน /api/nont/image เพราะต้นทางเป็น http
+ * แอปปักหมุดจุดที่มีกล้อง และเซนเซอร์น้ำท่วมถนน (จุด C) ที่มีค่าวัดล่าสุด ภาพกล้องต้องผ่าน /api/nont/image เพราะต้นทางเป็น http
  * (browser ไม่แสดงภาพ http ในหน้า https)
  *
  * เซิร์ฟเวอร์มีแต่ IP — Cloudflare Workers ใช้ fetch() กับ IP ไม่ได้ (error 1003) จึงดึงผ่าน TCP socket (raw-http.ts)
@@ -75,12 +75,30 @@ export function parseNonthaburiStations(body: unknown, now = Date.now()): Camera
     const lat = num(loc?.lat);
     const lng = num(loc?.lng);
     const cams = Array.isArray(s.cctv) ? (s.cctv as unknown[]).map(cameraName).filter((x): x is string => !!x) : [];
-    if (!id || !name || lat === undefined || lng === undefined || !cams.length) continue;
+    if (!id || !name || lat === undefined || lng === undefined) continue;
     if (lat < 13.5 || lat > 14.2 || lng < 100.2 || lng > 100.8) continue;
 
     const observedAt = thaiTime(str(s.date));
     const recent = observedAt && now - new Date(observedAt).getTime() <= MAX_READING_AGE_MS;
     const data = (s.data ?? {}) as Rec;
+
+    if (!cams.length) {
+      // จุด C: เซนเซอร์วัดน้ำท่วมบนถนน (ไม่มีกล้อง) — ปักหมุดเฉพาะเมื่อมีค่าวัดล่าสุด
+      const depth = recent && code?.startsWith('C') ? reading('ความลึกน้ำบนถนน', data.wl_up, 'ม.') : undefined;
+      if (!depth) continue;
+      out.push({
+        id: `nont-${id}`,
+        name: name.replace(/\s+/g, ' '),
+        road: `เซนเซอร์น้ำท่วมถนน · จุด ${code}`,
+        location: { lat, lng, province: '12', provinceName: 'นนทบุรี' },
+        owner: NONT_OWNER,
+        url: `${NONT_BASE}/`,
+        kind: 'water',
+        readings: [depth],
+        observedAt,
+      });
+      continue;
+    }
     const readings = recent
       ? [
           reading('ระดับน้ำด้านเหนือประตู', data.wl_up, 'ม.'),

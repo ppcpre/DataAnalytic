@@ -30,6 +30,16 @@ export const NONT_BODY = {
       date: '2023-05-30 17:45',
     },
     { id: 'STN27', code: 'C1', name: 'ไม่มีกล้อง', cctv: [], location: { lat: 13.84, lng: 100.49 }, data: {}, date: '2026-09-28 14:40' },
+    {
+      id: 'STN30',
+      code: 'C4',
+      name: 'ถ.ติวานนท์ ฝั่งสถาบันโรคทรวงอก',
+      cctv: [],
+      location: { lat: 13.860908, lng: 100.521418 },
+      data: { wl_up: { enable: true, value: { now: 0.27, warning: 0.2, danger: 0.4 } }, wl_down: { enable: false, value: null } },
+      date: '2026-09-28 14:40',
+    },
+    { id: 'STN16', code: 'B1', name: 'ไม่มีกล้องและค่าเก่า', cctv: [], location: { lat: 13.87, lng: 100.52 }, data: {}, date: '2019-01-15 15:00' },
     { id: 'STN99', code: 'Z9', name: 'พิกัดผิด', cctv: [cam('Z9-x Cam1')], location: { lat: 0, lng: 0 }, data: {}, date: '' },
   ],
 };

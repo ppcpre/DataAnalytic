@@ -12,29 +12,6 @@ jobs:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
       ORIGIN: 'https://dataanalytic.precare.workers.dev'
     steps:
-      - name: RID SWOC API
-        continue-on-error: true
-        timeout-minutes: 3
-        run: |
-          for n in pier-hii-data rainfall-hii-24hr; do
-            echo "== $n"; curl -sS -L -m 30 -A "$UA" -H "Origin: $ORIGIN" -D h.txt -o s.json -w "HTTP %{http_code} %{content_type} %{size_download} final=%{url_effective}\n" "https://swoc-api-service.rid.go.th/api/$n" || true
-            tr -d '\r' < h.txt | grep -iE '^(access-control|location)'
-            python3 - <<'PY' || head -c 800 s.json
-          import json, math
-          d = json.load(open('s.json'))
-          rows = d if isinstance(d, list) else (d.get('data') or d.get('result') or [])
-          if isinstance(rows, dict): rows = rows.get('data') or list(rows.values())
-          print('rows', len(rows), 'keys', list(rows[0].keys()) if rows and isinstance(rows[0], dict) else str(d)[:300])
-          for r in rows:
-              s = json.dumps(r, ensure_ascii=False)
-              lat = r.get('tele_station_lat') or (r.get('station') or {}).get('tele_station_lat')
-              lng = r.get('tele_station_long') or (r.get('station') or {}).get('tele_station_long')
-              try:
-                  if 13.4 < float(lat) < 14.2 and 100.1 < float(lng) < 100.9: print(' ', s[:400])
-              except Exception: pass
-          PY
-          done
-
       - name: ThaiWater radar and media
         continue-on-error: true
         timeout-minutes: 3
@@ -44,7 +21,7 @@ jobs:
           import json
           d = json.load(open('m.json'))
           for r in d['radar']['data']['data'] if isinstance(d['radar'].get('data'), dict) else d['radar']['data']:
-              print('RADAR', r.get('radar_type'), r.get('radar_name'), (r.get('agency') or {}).get('agency_shortname'), r.get('media_datetime'), r.get('file_path'), r.get('filename'), str(r.get('media_path'))[:80])
+              print('RADAR', r.get('radar_type'), r.get('radar_name'), str(r.get('agency'))[:60], r.get('media_datetime'), r.get('file_path'), r.get('filename'), str(r.get('media_path'))[:80])
           pr = d['pre_rain']['data']['data'] if isinstance(d['pre_rain'].get('data'), dict) else d['pre_rain']['data']
           for r in pr: print('PRERAIN', json.dumps(r, ensure_ascii=False)[:300])
           r0 = (d['radar']['data']['data'] if isinstance(d['radar'].get('data'), dict) else d['radar']['data'])[0]

@@ -279,6 +279,9 @@ body.loading #refresh svg { animation: spin 1s linear infinite; }
 .pin-camera { border-radius: 9px; border-width: 2px; background: var(--surface); color: var(--camera-live); border-color: var(--camera-live); }
 .pin.is-selected { transform: scale(1.35); box-shadow: 0 0 0 8px rgba(47, 94, 134, 0.22), 0 2px 8px rgba(0, 0, 0, 0.35); }
 .pin-camera.pin-watercam { background: var(--watercam); color: #fff; border-color: #fff; width: 34px; height: 34px; border-radius: 50%; border-width: 3px; }
+/* จุดวัดที่ค่าวัดเกินระดับเฝ้าระวัง/วิกฤต */
+.pin-camera.pin-watercam.pin-alert-watch { background: var(--st-watch); }
+.pin-camera.pin-watercam.pin-alert-critical { background: var(--st-critical); box-shadow: 0 0 0 5px color-mix(in srgb, var(--st-critical) 35%, transparent), 0 2px 6px rgba(0, 0, 0, 0.3); }
 .legend i.sq-water { background: var(--watercam); box-shadow: none; border-radius: 50%; }
 .link-icon-water { background: var(--watercam) !important; color: #fff !important; }
 button.link-card { width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }

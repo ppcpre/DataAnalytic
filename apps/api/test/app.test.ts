@@ -126,7 +126,7 @@ describe('cameras and geocode', () => {
     // กล้อง/จุดวัดที่เพิ่มเองใน data/cameras.ts แสดงร่วมด้วยเสมอ
     const ids = live.data.map((c: { id: string }) => c.id);
     expect(ids).toEqual(expect.arrayContaining([...CAMERAS.map((c) => c.id), 'nont-STN2', 'pakkret-eon-001']));
-    expect(live.data.length).toBe(CAMERAS.length + 4); // Longdo 1 + นนทบุรี 2 + ปากเกร็ด 1
+    expect(live.data.length).toBe(CAMERAS.length + 4); // Longdo 1 + นนทบุรี 2 (เซนเซอร์ถนนค่าเก่าไม่แสดง) + ปากเกร็ด 1
 
     // แหล่งใดล่ม ยังแสดงแหล่งที่เหลือ และจุดของนนทบุรีใช้รายชื่อที่บันทึกไว้
     const down = async () => {

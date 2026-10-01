@@ -8,8 +8,20 @@ const NOW = new Date('2026-09-28T08:00:00Z').getTime(); // 15:00 เวลาไ
 describe('nonthaburi stations', () => {
   it('pins stations with cameras and keeps only recent readings', () => {
     const out = parseNonthaburiStations(NONT_BODY, NOW);
-    expect(out.map((c) => c.id)).toEqual(['nont-STN2', 'nont-STN1']);
-    const [a2, a1] = out;
+    expect(out.map((c) => c.id)).toEqual(['nont-STN2', 'nont-STN1', 'nont-STN30']);
+    const [a2, a1, c4] = out;
+    // เซนเซอร์น้ำท่วมถนน (ไม่มีกล้อง)
+    expect(c4).toEqual({
+      id: 'nont-STN30',
+      name: 'ถ.ติวานนท์ ฝั่งสถาบันโรคทรวงอก',
+      road: 'เซนเซอร์น้ำท่วมถนน · จุด C4',
+      location: { lat: 13.860908, lng: 100.521418, province: '12', provinceName: 'นนทบุรี' },
+      owner: 'เทศบาลนครนนทบุรี',
+      url: 'http://182.52.224.70/',
+      kind: 'water',
+      readings: [{ label: 'ความลึกน้ำบนถนน', value: 0.27, unit: 'ม.', warning: 0.2, danger: 0.4 }],
+      observedAt: '2026-09-28T07:40:00.000Z',
+    });
     expect(a2).toMatchObject({
       name: 'วัดตำหนักใต้',
       road: 'จุด A2 · กล้อง 2 ตัว (แสดงตัวแรก)',

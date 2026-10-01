@@ -249,11 +249,20 @@ function tiles(items: Array<[string, string]>): string {
 }
 
 /** ค่าวัดประกอบกล้อง (เช่น ระดับน้ำสองฝั่งประตูระบายน้ำ) เป็นช่องสีตามระดับเตือน */
+type Reading = NonNullable<Camera['readings']>[number];
+const readingLevel = (r: Reading): 'critical' | 'watch' | 'normal' =>
+  r.danger !== undefined && r.value >= r.danger ? 'critical' : r.warning !== undefined && r.value >= r.warning ? 'watch' : 'normal';
+
+/** ระดับเตือนสูงสุดของค่าวัดประกอบกล้อง (ใช้แต่งสีหมุด) */
+function cameraAlert(c: Camera): 'critical' | 'watch' | null {
+  const levels = (c.readings ?? []).filter((r) => r.unit === 'ม.').map(readingLevel);
+  return levels.includes('critical') ? 'critical' : levels.includes('watch') ? 'watch' : null;
+}
+
 function cameraReadings(c: Camera): string {
   if (!c.readings?.length) return '';
-  const level = (r: NonNullable<Camera['readings']>[number]) =>
-    r.danger !== undefined && r.value >= r.danger ? 'critical' : r.warning !== undefined && r.value >= r.warning ? 'watch' : 'normal';
-  const limits = (r: NonNullable<Camera['readings']>[number]) =>
+  const level = readingLevel;
+  const limits = (r: Reading) =>
     [r.warning !== undefined && `เฝ้าระวัง ${formatNum(r.warning)}`, r.danger !== undefined && `วิกฤต ${formatNum(r.danger)}`]
       .filter(Boolean)
       .join(' · ');
@@ -447,7 +456,7 @@ function cameraSheet(c: Camera): string {
       ${nearby}
     </div>
     <a class="btn-primary" href="${escapeHtml(c.url)}" target="_blank" rel="noopener noreferrer">${
-      hasCameraMedia(c) ? 'เปิดดูในเว็บต้นทาง' : 'ดูภาพกล้องนี้'
+      hasCameraMedia(c) || c.kind === 'water' ? 'เปิดดูในเว็บต้นทาง' : 'ดูภาพกล้องนี้'
     } ${icons.external()}</a>
     <span class="btn-caption">${c.via ? `เปิดใน ${escapeHtml(c.via)} · กล้องของ ${escapeHtml(c.owner)}` : `เปิดในเว็บของ ${escapeHtml(c.owner)}`}</span>`;
 }
@@ -705,7 +714,8 @@ function renderMap() {
   // กล้องที่ดูภาพสดในแอปได้ ใช้หมุดสีน้ำเงินเข้ม
   for (const c of state.cameras?.data ?? []) {
     if (c.kind === 'water') {
-      addMarker('camera', c.id, c.location, 'unknown', `${c.name} (จุดวัดระดับน้ำ)`, 'pin-watercam');
+      const alert = cameraAlert(c);
+      addMarker('camera', c.id, c.location, 'unknown', `${c.name} (จุดวัดระดับน้ำ)`, `pin-watercam${alert ? ` pin-alert-${alert}` : ''}`);
       continue;
     }
     const live = isLiveCamera(c);
