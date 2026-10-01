@@ -14,7 +14,7 @@ const row = (radar_type: string, extra: Record<string, unknown> = {}) => ({
 });
 
 describe('rain radar', () => {
-  it('keeps the Bangkok-area radars in order and converts the source time zone', () => {
+  it('keeps the Bangkok-area radars in order with UTC image times', () => {
     const out = parseRadar({
       data: [
         row('cri240', { agency: 'tmd' }),
@@ -26,7 +26,7 @@ describe('rain radar', () => {
     expect(out.map((r) => r.type)).toEqual(['njk', 'svp120']);
     expect(out[0]).toMatchObject({
       agency: 'กรุงเทพมหานคร',
-      takenAt: '2026-10-01T04:25:00.000Z',
+      takenAt: '2026-10-01T11:25:00.000Z',
       url: 'https://api-v3.thaiwater.net/api/v1/thaiwater30/shared/image?image=MP-njk',
       thumbUrl: 'https://api-v3.thaiwater.net/api/v1/thaiwater30/shared/image?image=TH-njk',
     });
@@ -36,7 +36,7 @@ describe('rain radar', () => {
 
   it('marks images that are many hours old', () => {
     const [r] = parseRadar({ data: [row('njk')] });
-    expect(radarHtml([r], new Date('2026-10-01T05:00:00Z').getTime())).not.toContain('ไม่มีภาพใหม่');
+    expect(radarHtml([r], new Date('2026-10-01T11:50:00Z').getTime())).not.toContain('ไม่มีภาพใหม่');
     expect(radarHtml([r], new Date('2026-10-01T15:00:00Z').getTime())).toContain('ไม่มีภาพใหม่');
     expect(radarHtml([])).toBe('');
   });

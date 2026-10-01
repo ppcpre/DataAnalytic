@@ -27,3 +27,5 @@ jobs:
               if any(k in s for k in ('njk', 'nkm', 'svp', 'หนองจอก', 'หนองแขม', 'สุวรรณภูมิ')): print(s[:700])
           if rows: print('FIRST', json.dumps(rows[0], ensure_ascii=False)[:700])
           PY
+          mp=$(python3 -c "import json; print(next(x['media_path_thumb'] for x in json.load(open('r.json'))['data'] if x['radar_type']=='njk'))")
+          curl -sS -m 20 -o i.bin -w "image without Origin: %{http_code} %{content_type} %{size_download}\n" "https://api-v3.thaiwater.net/api/v1/thaiwater30/shared/image?image=$mp"

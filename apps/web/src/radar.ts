@@ -10,8 +10,8 @@ const imageUrl = (mediaPath: string) => `${TW}/shared/image?image=${encodeURICom
 
 /** เรดาร์ที่ครอบคลุมพื้นที่ให้บริการ เรียงตามความสำคัญ */
 const WANTED = ['nkm', 'njk', 'svp120'];
-/** ภาพเก่ากว่านี้ถือว่าเรดาร์ไม่ได้ส่งภาพใหม่ */
-const MAX_AGE_MS = 6 * 3600_000;
+/** ภาพเก่ากว่านี้ถือว่าเรดาร์ไม่ได้ส่งภาพใหม่ (ปกติภาพใหม่ทุก 5-15 นาที) */
+const MAX_AGE_MS = 2 * 3600_000;
 
 export interface RadarImage {
   type: string;
@@ -25,11 +25,14 @@ export interface RadarImage {
 type Rec = Record<string, unknown>;
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
 
-/** "2026-10-01 11:25" + เขตเวลาของต้นทาง (UTC หรือ TST = เวลาไทย) → ISO */
-function toIso(s: string | undefined, tz: string | undefined): string | undefined {
+/**
+ * "2026-10-01 11:25" → ISO — เวลาของภาพเรดาร์เป็น UTC ทุกตัว
+ * (เรดาร์ กทม. ระบุ timezone "TST" แต่ชื่อไฟล์และเวลาที่ภาพเข้ามาตรงกับ UTC ตรวจเมื่อ ต.ค. 2569)
+ */
+function toIso(s: string | undefined): string | undefined {
   const m = s && /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})/.exec(s);
   if (!m) return undefined;
-  const d = new Date(`${m[1]}T${m[2]}:00${tz === 'UTC' ? 'Z' : '+07:00'}`);
+  const d = new Date(`${m[1]}T${m[2]}:00Z`);
   return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
 }
 
@@ -40,7 +43,7 @@ export function parseRadar(body: unknown): RadarImage[] {
   for (const type of WANTED) {
     const r = (rows as Rec[]).find((x) => x.radar_type === type);
     const media = str(r?.media_path);
-    const takenAt = toIso(str(r?.media_datetime), str(r?.timezone));
+    const takenAt = toIso(str(r?.media_datetime));
     if (!r || !media || !takenAt || /error/i.test(str(r.filename) ?? '')) continue;
     out.push({
       type,
