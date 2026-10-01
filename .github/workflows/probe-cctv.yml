@@ -1,33 +1,54 @@
 name: Probe CCTV sources
 
-# สำรวจสถานีวัดน้ำใกล้กล้อง/จุดวัดระดับน้ำ (รันเองจากแท็บ Actions)
+# สำรวจแหล่งข้อมูลกล้อง/ภาพถนน/ระดับน้ำเพิ่มเติม (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
 
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 8
+    env:
+      UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
     steps:
-      - name: ThaiWater stations near water cameras
+      - name: Endpoints
+        continue-on-error: true
+        timeout-minutes: 4
         run: |
-          curl -sS -m 60 -H 'Origin: https://dataanalytic.precare.workers.dev' "https://api-v3.thaiwater.net/api/v1/thaiwater30/public/waterlevel_load" -o w.json
-          python3 - <<'PY'
-          import json, math
-          d = json.load(open('w.json'))
-          rows = d.get('waterlevel_data', {}).get('data') or d.get('data') or []
-          print('rows', len(rows))
-          pts = {'mahasawat': (13.79965, 100.43863), 'nont-pier': (13.8617, 100.4959), 'pakkret': (13.9153, 100.4947)}
-          def km(a, b):
-              return math.hypot((a[0]-b[0])*111, (a[1]-b[1])*108)
-          for name, p in pts.items():
-              near = []
-              for r in rows:
-                  st = r.get('station', {})
-                  try: q = (float(st['tele_station_lat']), float(st['tele_station_long']))
-                  except Exception: continue
-                  k = km(p, q)
-                  if k < 4: near.append((k, st.get('id'), (st.get('tele_station_name') or {}).get('th'), (r.get('agency') or {}).get('agency_shortname', {}), r.get('waterlevel_msl'), st.get('min_bank') or r.get('min_bank'), r.get('waterlevel_datetime')))
-              print('==', name)
-              for n in sorted(near)[:6]: print(' ', round(n[0], 2), n[1:])
-          PY
+          show() {
+            echo; echo "=================== $1"
+            curl -sS -L -m 20 -A "$UA" -H 'Origin: https://dataanalytic.precare.workers.dev' -D h.txt -o b.bin -w "HTTP %{http_code} type=%{content_type} size=%{size_download}\n" "$1" 2>&1 | tail -1
+            tr -d '\r' < h.txt | grep -iE '^(access-control-allow-origin|x-frame-options)' | head -2
+            head -c 700 b.bin | tr -d '\0' | tr '\n' ' '; echo
+          }
+          show "https://publicapi.traffy.in.th/share/teamchadchart/search?limit=3&type=%E0%B8%99%E0%B9%89%E0%B8%B3%E0%B8%97%E0%B9%88%E0%B8%A7%E0%B8%A1"
+          show "https://publicapi.traffy.in.th/share/teamchadchart/search?limit=2"
+          show "https://api-v3.thaiwater.net/api/v1/thaiwater30/public/cctv"
+          show "https://api-v3.thaiwater.net/api/v1/thaiwater30/analyst/cctv"
+          show "https://api-v3.thaiwater.net/api/v1/thaiwater30/public/thailand_main"
+          show "https://api-v3.thaiwater.net/api/v1/thaiwater30/public/waterquality_load"
+          show "https://api-v3.thaiwater.net/api/v1/thaiwater30/public/dam_daily"
+          show "https://data.bangkok.go.th/api/3/action/package_search?q=%E0%B8%99%E0%B9%89%E0%B8%B3&rows=5"
+          show "https://data.go.th/api/3/action/package_search?q=cctv&rows=5"
+          show "https://data.go.th/api/3/action/package_show?id=fms2_flood"
+          show "https://weather.bangkok.go.th/Flood"
+          show "https://hyd-app-db.rid.go.th/hydro1d.html"
+          show "https://exat.co.th/cctv"
+          show "https://www.thaiwater.net/"
+
+      - name: RID open data dictionary
+        continue-on-error: true
+        timeout-minutes: 2
+        run: |
+          curl -sS -L -m 30 -A "$UA" -o r.pdf "https://bigdata-api.rid.go.th/swoc_opendatadict.pdf" && (sudo apt-get install -y -qq poppler-utils >/dev/null 2>&1; pdftotext r.pdf - | grep -iE 'http|api|station|wl|water' | head -60) || echo FAIL
+
+      - name: ThaiWater frontend endpoints
+        continue-on-error: true
+        timeout-minutes: 2
+        run: |
+          curl -sS -L -m 20 -A "$UA" -o t.html https://www.thaiwater.net/ || exit 0
+          for s in $(grep -oE 'src="[^"]+\.js"' t.html | sed 's/src="//;s/"$//' | head -8); do
+            case "$s" in http*) u="$s";; /*) u="https://www.thaiwater.net$s";; *) u="https://www.thaiwater.net/$s";; esac
+            curl -sS -L -m 20 -o s.js "$u" || continue
+            grep -oE '"(public|analyst|provinces|dataservice)/[a-z_/0-9]+' s.js | sort -u | tr '\n' ' '
+          done; echo
