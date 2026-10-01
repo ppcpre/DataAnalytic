@@ -1,34 +1,32 @@
 name: Probe CCTV sources
 
-# สำรวจแหล่งข้อมูลกล้อง/ภาพถนน/ระดับน้ำเพิ่มเติม (รันเองจากแท็บ Actions)
+# สำรวจแหล่งข้อมูลภาพเรดาร์ฝน (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
 
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 6
     env:
-      UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
       ORIGIN: 'https://dataanalytic.precare.workers.dev'
     steps:
-      - name: ThaiWater radar and media
+      - name: Radar endpoints
         continue-on-error: true
-        timeout-minutes: 3
         run: |
-          curl -sS -m 60 -H "Origin: $ORIGIN" -o m.json https://api-v3.thaiwater.net/api/v1/thaiwater30/public/thailand_main
-          python3 - <<'PY'
-          import json
-          d = json.load(open('m.json'))
-          for r in d['radar']['data']['data'] if isinstance(d['radar'].get('data'), dict) else d['radar']['data']:
-              print('RADAR', r.get('radar_type'), r.get('radar_name'), str(r.get('agency'))[:60], r.get('media_datetime'), r.get('file_path'), r.get('filename'), str(r.get('media_path'))[:80])
-          pr = d['pre_rain']['data']['data'] if isinstance(d['pre_rain'].get('data'), dict) else d['pre_rain']['data']
-          for r in pr: print('PRERAIN', json.dumps(r, ensure_ascii=False)[:300])
-          r0 = (d['radar']['data']['data'] if isinstance(d['radar'].get('data'), dict) else d['radar']['data'])[0]
-          open('mp.txt', 'w').write(r0.get('media_path') or '')
-          PY
-          mp=$(cat mp.txt)
-          for u in "https://api-v3.thaiwater.net/api/v1/thaiwater30/public/media/$mp" "https://api-v3.thaiwater.net/api/v1/thaiwater30/shared/image?image=$mp" "https://api-v3.thaiwater.net/api/v1/thaiwater30/$mp" "https://www.thaiwater.net/$mp"; do
-            curl -sS -m 20 -H "Origin: $ORIGIN" -o x.bin -w "%{http_code} %{content_type} %{size_download} <- ${u:0:90}\n" "$u" || true
+          curl -sS -L -m 20 -o t.html https://www.thaiwater.net/
+          for s in $(grep -oE 'src="[^"]+\.js"' t.html | sed 's/src="//;s/"$//'); do
+            case "$s" in http*) u="$s";; /*) u="https://www.thaiwater.net$s";; *) u="https://www.thaiwater.net/$s";; esac
+            curl -sS -L -m 20 -o s.js "$u" || continue
+            grep -oE '.{80}(radar|Radar)[^"]{0,40}"' s.js | grep -iE 'api|thaiwater30|/public|/analyst|/frontend' | head -8
           done
-          curl -sS -L -m 20 -o t.html https://www.thaiwater.net/ && for s in $(grep -oE 'src="[^"]+\.js"' t.html | sed 's/src="//;s/"$//' | head -8); do case "$s" in http*) u="$s";; /*) u="https://www.thaiwater.net$s";; *) u="https://www.thaiwater.net/$s";; esac; curl -sS -L -m 20 -o s.js "$u" || continue; grep -oE '.{60}media_path.{60}' s.js | head -5; done
+          for p in public/radar public/radar_load analyst/radar frontend/shared/radar public/thailand_main_radar thaiwater30/public/radar_latest; do
+            curl -sS -m 20 -H "Origin: $ORIGIN" -o r.json -w "%{http_code} %{size_download} <- $p\n" "https://api-v3.thaiwater.net/api/v1/thaiwater30/$p" || true
+          done
+      - name: Token stability
+        run: |
+          get() { curl -sS -m 60 -H "Origin: $ORIGIN" https://api-v3.thaiwater.net/api/v1/thaiwater30/public/thailand_main | python3 -c "import json,sys; d=json.load(sys.stdin); r=d['radar']['data']; r=r['data'] if isinstance(r,dict) else r; [print(x['radar_type'], x['media_datetime'], x['media_path']) for x in r if x['radar_type'] in ('njk','nkm','svp120')]"; }
+          get > a.txt; cat a.txt
+          sleep 400
+          get > b.txt; cat b.txt
+          diff a.txt b.txt && echo SAME || echo CHANGED
