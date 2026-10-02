@@ -1,6 +1,6 @@
 import type { Camera } from '@flood-watch/shared';
 import type HlsType from 'hls.js/light';
-import { escapeHtml } from './format';
+import { escapeHtml, formatAgo } from './format';
 import { icons } from './icons';
 import { apiUrl } from './api';
 
@@ -105,7 +105,9 @@ export function startCameraView(root: HTMLElement, c: Camera, fresh = false) {
 
   const setMode = (mode: SourceKind | 'loading' | 'off') => {
     view.dataset.mode = mode;
-    label.textContent = LABEL[mode];
+    // ภาพนิ่งที่ต้นทางไม่ได้อัปเดตตลอด บอกอายุของภาพแทน "อัปเดตทุก 10 วินาที"
+    label.textContent =
+      mode === 'still' && c.imageTakenAt ? `ภาพล่าสุดที่มี · ${formatAgo(c.imageTakenAt) || 'ไม่ทราบเวลา'}` : LABEL[mode];
     view.classList.toggle('is-loaded', mode !== 'loading' && mode !== 'off');
   };
 

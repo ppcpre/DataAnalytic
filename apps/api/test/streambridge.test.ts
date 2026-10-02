@@ -15,6 +15,7 @@ describe('streambridge cameras', () => {
       url: 'https://app.streambridge.online/p/bangkruai-city',
       via: 'StreamBridge',
       imageUrl: 'https://app.streambridge.online/snapshots/4aac4b3e-b18a-49a3-903b-e3ad9f960a44.jpg',
+      imageTakenAt: '2026-10-01T13:09:41.887Z',
       imageCredit: 'เทศบาลเมืองบางกรวย',
     });
     // ภาพจากโดเมนอื่นไม่นำมาแสดง

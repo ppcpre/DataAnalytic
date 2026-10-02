@@ -42,8 +42,10 @@ export function parseStreamBridge(body: unknown, slug: string): Camera[] {
     if (!id || !name || lat === undefined || lng === undefined) continue;
     if (lat < 13.4 || lat > 14.3 || lng < 100.1 || lng > 100.95) continue;
     if (str(c.status) && c.status !== 'online') continue;
-    // ภาพล่าสุดของกล้อง — ตัดพารามิเตอร์ ?v= ออก แล้วให้หน้าเว็บเติมเวลาเองตอนรีเฟรช
-    const snapshot = ownUrl(c.thumbnail)?.split('?')[0];
+    // ภาพล่าสุดของกล้อง (อัปเดตเมื่อมีคนเปิดดูภาพสดในเว็บต้นทาง) — ?v= คือเวลาที่ถ่าย (ms)
+    const thumb = ownUrl(c.thumbnail);
+    const snapshot = thumb?.split('?')[0];
+    const takenMs = Number(/[?&]v=(\d{12,14})/.exec(thumb ?? '')?.[1]);
     const hls = ownUrl(c.hlsUrl);
     out.push({
       id: `sb-${id}`,
@@ -55,6 +57,7 @@ export function parseStreamBridge(body: unknown, slug: string): Camera[] {
       via: 'StreamBridge',
       ...(hls ? { hlsUrl: hls } : {}),
       ...(snapshot ? { imageUrl: snapshot } : {}),
+      ...(snapshot && takenMs ? { imageTakenAt: new Date(takenMs).toISOString() } : {}),
       imageCredit: owner,
     });
   }
