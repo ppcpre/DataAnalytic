@@ -11,22 +11,20 @@ jobs:
     env:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
     steps:
-      - name: Page and scripts
+      - name: Public JSON
         continue-on-error: true
         run: |
           base=https://app.streambridge.online
-          curl -sS -L -m 20 -A "$UA" -D h.txt -o p.html -w "HTTP %{http_code} %{content_type} %{size_download}\n" "$base/p/bangkruai-city"
-          tr -d '\r' < h.txt | grep -iE '^(x-frame-options|content-security-policy|access-control|server)'
-          grep -oiE '<title>[^<]*</title>' p.html; head -c 1500 p.html; echo
-          for s in $(grep -oE '(src|href)="[^"]+\.js[^"]*"' p.html | sed -E 's/^(src|href)="//;s/"$//' | head -10); do
-            case "$s" in http*) u="$s";; /*) u="$base$s";; *) u="$base/$s";; esac
-            echo "===== $u"; curl -sS -L -m 20 -o s.js "$u" || continue
-            grep -oE '["'"'"'`][^"'"'"'`]{0,80}(api|/p/|public|m3u8|hls|snapshot|whep|webrtc|rtsp|stream|camera|cctv|supabase|firebase)[^"'"'"'`]{0,80}["'"'"'`]' s.js | sort -u | head -40
-          done
-      - name: Guess API
+          curl -sS -m 20 -A "$UA" -D h.txt -o j.json "$base/api/public/bangkruai-city"
+          tr -d '\r' < h.txt | grep -iE '^(access-control|cache-control)'
+          python3 -c "import json; print(json.dumps(json.load(open('j.json')), ensure_ascii=False, indent=1))" | head -250
+      - name: Page chunk API paths
         continue-on-error: true
         run: |
-          for p in api/p/bangkruai-city api/public/bangkruai-city api/pages/bangkruai-city api/portal/bangkruai-city p/bangkruai-city.json; do
-            curl -sS -m 15 -A "$UA" -o r.bin -w "%{http_code} %{content_type} %{size_download} <- $p\n" "https://app.streambridge.online/$p" || true
-            head -c 300 r.bin; echo
+          base=https://app.streambridge.online
+          curl -sS -L -m 20 -A "$UA" -o p.html "$base/p/bangkruai-city"
+          for s in $(grep -oE '/_next/static/chunks/[^"]+\.js' p.html | sort -u); do
+            curl -sS -m 20 -o s.js "$base$s" || continue
+            hits=$(grep -oE '.{0,60}(/api/|\.m3u8|whep|snapshot|thumbnail|/hls|/live|/stream)[^"'"'"'`]{0,80}' s.js | sort -u | head -30)
+            [ -n "$hits" ] && { echo "===== $s"; echo "$hits"; }
           done
