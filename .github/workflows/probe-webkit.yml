@@ -1,0 +1,51 @@
+name: WebKit video test (live site)
+
+# เปิดกล้องภาพสดใน WebKit (เอนจินเดียวกับ Safari บน iPhone/iPad) บน macOS (รันเองจากแท็บ Actions)
+on:
+  workflow_dispatch:
+
+jobs:
+  webkit:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - name: WebKit test
+        run: |
+          mkdir b && cd b && npm init -y >/dev/null && npm i playwright@1 >/dev/null 2>&1 && npx playwright install webkit >/dev/null 2>&1
+          cat > t.mjs <<'JS'
+          import { webkit, devices } from 'playwright';
+          const b = await webkit.launch();
+          const ctx = await b.newContext({ ...devices['iPhone 15'] });
+          const p = await ctx.newPage();
+          p.on('console', (m) => { if (m.type() !== 'log') console.log('CONSOLE', m.type(), m.text().slice(0, 200)); });
+          p.on('requestfailed', (r) => { if (/hls|session|m3u8|\.ts/.test(r.url())) console.log('FAIL', r.failure()?.errorText, r.url().slice(0, 90)); });
+          await p.goto('https://dataanalytic.precare.workers.dev/', { waitUntil: 'domcontentloaded' });
+          await p.waitForSelector('#water-cams ul', { state: 'attached', timeout: 60000 });
+          await p.waitForTimeout(12000);
+          console.log('support', JSON.stringify(await p.evaluate(() => ({ mse: 'MediaSource' in self, mms: 'ManagedMediaSource' in self, native: document.createElement('video').canPlayType('application/vnd.apple.mpegurl'), vendor: navigator.vendor }))));
+          for (const id of ['sb-4aac4b3e-b18a-49a3-903b-e3ad9f960a44', 'sb-c86fc921-71c0-4e0b-9be3-e7e87e928c84']) {
+            await p.evaluate((id) => {
+              let b = document.querySelector(`[data-open="camera:${id}"]`);
+              if (!b) { b = document.createElement('button'); b.dataset.open = `camera:${id}`; document.querySelector('#water-cams ul').appendChild(b); }
+              b.click();
+            }, id);
+            for (const t of [5, 10, 20, 30]) {
+              await p.waitForTimeout(t === 5 ? 5000 : (t === 10 ? 5000 : 10000));
+              console.log(id.slice(0, 11), `${t}s`, JSON.stringify(await p.evaluate(() => {
+                const s = document.getElementById('sheet');
+                const v = s.querySelector('.cam-media video');
+                return { mode: s.querySelector('.cam-view')?.dataset.mode, label: s.querySelector('[data-cam-label]')?.textContent, video: v ? { w: v.videoWidth, t: Math.round(v.currentTime * 10) / 10, paused: v.paused, ready: v.readyState, src: (v.currentSrc || '').slice(0, 30), err: v.error?.code } : null, msg: s.querySelector('.cam-msg')?.textContent };
+              })));
+            }
+            await p.screenshot({ path: `${id.slice(0, 11)}.png` });
+            await p.evaluate(() => document.querySelector('#sheet [data-close]')?.click());
+            await p.waitForTimeout(1000);
+          }
+          await b.close();
+          JS
+          node t.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: webkit-screenshots
+          path: b/*.png
