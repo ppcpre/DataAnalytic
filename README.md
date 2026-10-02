@@ -1,17 +1,32 @@
 # Pre-Monitoring — ติดตามน้ำท่วม กทม. และปริมณฑล (Flood Watch PWA)
 
-Progressive Web App สำหรับประชาชนทั่วไป ดูระดับน้ำ ฝนสะสม 24 ชม. สถานะประตูระบายน้ำ
-และลิงก์ไปยังกล้อง CCTV ของหน่วยงาน ในกรุงเทพฯ และ 5 จังหวัดปริมณฑล
+Progressive Web App สำหรับประชาชนทั่วไป ดูระดับน้ำ ฝนสะสม 24 ชม. ระดับน้ำประตูระบายน้ำ น้ำท่วมถนน ภาพเรดาร์ฝน
+และภาพสดจากกล้อง CCTV ของหน่วยงาน ในกรุงเทพฯ และ 5 จังหวัดปริมณฑล — https://dataanalytic.precare.workers.dev
 
 แผนโครงการ: [`docs/PLAN.md`](docs/PLAN.md)
 
 ## โครงสร้าง
 
 ```
-apps/api         Node.js + Hono — ดึงข้อมูลจาก ThaiWater, กรองพื้นที่, cache, ส่ง JSON
-apps/web         PWA (Vite + TypeScript + Leaflet + vite-plugin-pwa), แผนที่ฐาน OpenFreeMap
-packages/shared  type และเกณฑ์สถานะที่ใช้ร่วมกัน
+apps/api         Hono — ดึง/แปลงข้อมูลจากแหล่งต่าง ๆ, cache, ส่ง JSON (รันบน Cloudflare Workers หรือ Node.js)
+apps/web         PWA (Vite + TypeScript + Leaflet), แผนที่ฐาน OpenFreeMap
+packages/shared  type, เกณฑ์สถานะ และตัวแปลงข้อมูล ThaiWater ที่ใช้ร่วมกัน
 ```
+
+### Tech stack
+
+| ส่วน | ใช้ |
+|---|---|
+| หน้าเว็บ | TypeScript 5.9 (ไม่ใช้ framework), Vite 8, ฟอนต์ Mitr, รองรับโหมดมืด |
+| แผนที่ | Leaflet 1.9 + MapLibre GL 6 (maplibre-gl-leaflet) กับ OpenFreeMap; เครื่องเก่าใช้ OpenStreetMap แทนอัตโนมัติ |
+| วิดีโอกล้อง | hls.js 1.7 (รวม iOS 17.1+ ผ่าน ManagedMediaSource) และตัวเล่น HLS ของ Safari เป็นตัวสำรอง; MJPEG/ภาพนิ่ง/หน้าเว็บฝัง |
+| PWA / ออฟไลน์ | vite-plugin-pwa + Workbox (service worker) |
+| กราฟ | SVG วาดเอง (กราฟ 24 ชม., ภาพเทียบตลิ่งกับระดับน้ำ) |
+| API | Hono 4 — Cloudflare Workers (ใช้งานจริง) หรือ Node.js 20+ (@hono/node-server) |
+| เชื่อมเซิร์ฟเวอร์ที่มีแต่ IP | TCP socket ของ Workers (`cloudflare:sockets`, `src/raw-http.ts`) |
+| ข้อมูลย้อนหลัง | Cloudflare D1 (ถ้าผูกไว้) หรือหน่วยความจำ; Cron ทุก 15 นาที |
+| Hosting / deploy | Cloudflare Workers + Static Assets, Workers Builds deploy อัตโนมัติเมื่อ push; Wrangler 4 |
+| ทดสอบ | Vitest 5, TypeScript typecheck; ทดสอบเว็บจริงด้วย Playwright บน GitHub Actions (Chrome และ WebKit แบบ iPhone) |
 
 ## เริ่มพัฒนา
 

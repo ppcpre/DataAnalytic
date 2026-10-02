@@ -343,49 +343,6 @@ export function createApp(
     }
   });
 
-  /**
-   * ชั่วคราว: ตรวจว่าเซิร์ฟเวอร์เข้าถึงเว็บสำนักการระบายน้ำ กทม. ได้หรือไม่ (เว็บตัดการเชื่อมต่อจากต่างประเทศ)
-   * ดึงเฉพาะ URL ที่กำหนดไว้ ไม่รับ URL จากผู้ใช้ — ลบออกเมื่อได้ข้อมูลโครงสร้างหน้าแล้ว
-   */
-  app.get('/api/debug/bma-water', async (c) => {
-    c.header('cache-control', 'no-store');
-    const colo = (c.req.raw as Request & { cf?: { colo?: string; country?: string } }).cf;
-    const targets = [
-      'https://weather.bangkok.go.th/water/StationDetail?id=73',
-      'https://weather.bangkok.go.th/water',
-    ];
-    c.header('content-type', 'application/json; charset=utf-8');
-    const results = [];
-    for (const url of targets) {
-      try {
-        const res = await fetch(url, {
-          headers: { 'user-agent': 'Mozilla/5.0 PreMonitoring', 'accept-language': 'th' },
-          signal: AbortSignal.timeout(15000),
-        });
-        const html = await res.text();
-        const title = /<title>([^<]*)<\/title>/i.exec(html)?.[1]?.trim();
-        const uniq = (xs: string[], n: number) => [...new Set(xs)].slice(0, n);
-        // ภาพทั้งหมด, ไฟล์ script และ URL ที่น่าจะเป็น API ในโค้ดของหน้า (ใช้หาที่มาของภาพระดับน้ำ)
-        const imgs = uniq([...html.matchAll(/<img[^>]+src\s*=\s*["']([^"']+)["']/gi)].map((m) => m[1]), 25);
-        const scripts = uniq([...html.matchAll(/<script[^>]+src\s*=\s*["']([^"']+)["']/gi)].map((m) => m[1]), 15);
-        const apiHints = uniq(
-          [...html.matchAll(/["'`]((?:https?:)?\/[^"'`\s]*(?:api|json|ashx|Get[A-Z]|Station|Cctv|CCTV|Image|image|snap|cam)[^"'`\s]*)["'`]/g)].map((m) => m[1]),
-          30,
-        );
-        const text = html
-          .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ')
-          .replace(/<[^>]+>/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim()
-          .slice(0, 500);
-        results.push({ url, status: res.status, size: html.length, title, imgs, scripts, apiHints, text });
-      } catch (err) {
-        results.push({ url, error: String(err) });
-      }
-    }
-    return c.json({ colo: colo?.colo, country: colo?.country, results });
-  });
-
   app.get('/api/links', (c) => {
     c.header('cache-control', 'public, max-age=3600');
     return c.json({ cameras: CAMERA_LINKS, official: OFFICIAL_LINKS });
