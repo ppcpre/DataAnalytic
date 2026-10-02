@@ -11,20 +11,15 @@ jobs:
     env:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
     steps:
-      - name: Public JSON
+      - name: Snapshot freshness and stream API
         continue-on-error: true
         run: |
           base=https://app.streambridge.online
-          curl -sS -m 20 -A "$UA" -D h.txt -o j.json "$base/api/public/bangkruai-city"
-          tr -d '\r' < h.txt | grep -iE '^(access-control|cache-control)'
-          python3 -c "import json; print(json.dumps(json.load(open('j.json')), ensure_ascii=False, indent=1))" | head -250
-      - name: Page chunk API paths
-        continue-on-error: true
-        run: |
-          base=https://app.streambridge.online
-          curl -sS -L -m 20 -A "$UA" -o p.html "$base/p/bangkruai-city"
-          for s in $(grep -oE '/_next/static/chunks/[^"]+\.js' p.html | sort -u); do
-            curl -sS -m 20 -o s.js "$base$s" || continue
-            hits=$(grep -oE '.{0,60}(/api/|\.m3u8|whep|snapshot|thumbnail|/hls|/live|/stream)[^"'"'"'`]{0,80}' s.js | sort -u | head -30)
-            [ -n "$hits" ] && { echo "===== $s"; echo "$hits"; }
-          done
+          id=4aac4b3e-b18a-49a3-903b-e3ad9f960a44
+          for i in 1 2; do curl -sS -m 20 -D - -o s$i.jpg "$base/snapshots/$id.jpg" | tr -d '\r' | grep -iE '^(HTTP|content-type|content-length|last-modified|cache-control|cross-origin|access-control)'; date -u; sleep 60; done
+          cmp s1.jpg s2.jpg && echo SAME-IMAGE || echo IMAGE-CHANGED
+          curl -sS -m 20 -A "$UA" -o p.html "$base/p/bangkruai-city"
+          s=$(grep -oE '/_next/static/chunks/app/p/[^"]+\.js' p.html | head -1)
+          curl -sS -m 20 -o pg.js "$base$s"
+          grep -oE '.{0,120}/api/public/.{0,160}' pg.js | head -10
+          grep -oE '.{0,80}(hls|m3u8|whep|webrtc|token|stream)[^;]{0,100}' pg.js | sort -u | head -20
