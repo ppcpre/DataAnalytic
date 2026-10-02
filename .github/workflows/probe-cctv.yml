@@ -19,14 +19,15 @@ jobs:
           const seen = new Set();
           p.on('request', (r) => {
             const u = r.url();
-            if (/_next\/static|fonts|tile|\.png|\.webp|\.svg|\.css/.test(u)) return;
+            if (/_next\/static|fonts|tile|map-assets|\.png|\.webp|\.svg|\.css|pmtiles/.test(u)) return;
             const k = r.method() + ' ' + u.replace(/\?.*/, '');
             if (seen.has(k)) return; seen.add(k);
             console.log('REQ', r.method(), r.resourceType(), u.slice(0, 220), r.postData() ? 'BODY ' + r.postData().slice(0, 300) : '');
           });
           p.on('response', async (r) => {
             const u = r.url();
-            if (/api\/(?!public)|m3u8|whep|stream|live/i.test(u)) {
+            if (/map-assets|pmtiles|fonts|\.png/.test(u)) return;
+            if (/api\/(?!public)|m3u8|whep|stream|live|\.ts|\.mp4/i.test(u)) {
               let body = '';
               try { body = (await r.text()).slice(0, 400); } catch {}
               console.log('RESP', r.status(), r.headers()['content-type'], u.slice(0, 200), body.replace(/\s+/g, ' '));
@@ -37,16 +38,10 @@ jobs:
           await p.waitForTimeout(3000);
           const texts = await p.evaluate(() => [...document.querySelectorAll('button')].map((b) => b.textContent.trim()).filter(Boolean).slice(0, 40));
           console.log('BUTTONS', JSON.stringify(texts));
-          // เปิดรายการกล้องด้านล่าง แล้วเลือกกล้องแรก
-          for (const sel of ['text=CAMERAS', '[class*=marker]', '.maplibregl-marker', '.leaflet-marker-icon']) {
-            const el = p.locator(sel).first();
-            if (await el.count()) { try { await el.click({ timeout: 3000 }); console.log('CLICKED', sel); await p.waitForTimeout(1500); } catch (e) { console.log('NOCLICK', sel, e.message.slice(0, 80)); } }
+          for (const name of ['แยกเทิดพระเกียรติ กล้อง 1', 'Show selected']) {
+            try { await p.getByRole('button', { name }).first().click({ timeout: 5000 }); console.log('CLICKED', name); await p.waitForTimeout(name === 'Show selected' ? 15000 : 1500); } catch (e) { console.log('NOCLICK', name, e.message.slice(0, 80)); }
           }
-          for (const sel of ['text=Add to view', 'text=เพิ่ม', 'input[type=checkbox]']) {
-            const el = p.locator(sel).first();
-            if (await el.count()) { try { await el.click({ timeout: 3000 }); console.log('CLICKED', sel); await p.waitForTimeout(12000); break; } catch (e) { console.log('NOCLICK', sel, e.message.slice(0, 80)); } }
-          }
-          const vids = await p.evaluate(() => [...document.querySelectorAll('video, iframe, img[src*=mjpeg], canvas')].map((v) => `${v.tagName} src=${(v.currentSrc || v.src || '').slice(0, 150)} w=${v.videoWidth ?? v.width}`));
+          const vids = await p.evaluate(() => [...document.querySelectorAll('video, iframe, img, canvas')].filter((v) => !/map-assets|\.svg/.test(v.src || '')).map((v) => `${v.tagName} src=${(v.currentSrc || v.src || '').slice(0, 150)} w=${v.videoWidth ?? v.naturalWidth ?? v.width}`));
           console.log('MEDIA', JSON.stringify(vids));
           await b.close();
           JS
