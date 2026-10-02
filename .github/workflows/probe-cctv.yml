@@ -1,32 +1,32 @@
 name: Probe CCTV sources
 
-# นับกล้อง/จุดวัดบนเว็บจริงแยกตามแหล่ง (รันเองจากแท็บ Actions)
+# หาวิธีเล่นภาพสดของ StreamBridge (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
 
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 6
+    env:
+      UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
     steps:
-      - name: Live camera counts
+      - name: Player code
+        continue-on-error: true
         run: |
-          site=https://dataanalytic.precare.workers.dev
-          curl -sS -m 60 "$site/api/cameras" -o c.json
-          python3 - <<'PY'
-          import json, collections
-          d = json.load(open('c.json'))['data']
-          def src(c):
-              i = c['id']
-              if i.startswith('sb-'): return 'บางกรวย (StreamBridge)'
-              if i.startswith('nont-'): return 'นนทบุรี ' + ('ถนน' if 'ถนน' in (c.get('road') or '') else 'คลอง')
-              if i.startswith('pakkret'): return 'ปากเกร็ด EON'
-              if i.startswith('longdo-'): return 'Longdo/iTIC'
-              return 'เพิ่มเอง'
-          print('total', len(d))
-          for k, v in collections.Counter(src(c) for c in d).most_common(): print(' ', k, v)
-          sb = [c for c in d if c['id'].startswith('sb-')]
-          for c in sb: print('SB', c['name'], c['location']['lat'], c['location']['lng'], c.get('imageTakenAt'))
-          open('img.txt', 'w').write(sb[0]['imageUrl'] if sb else '')
-          PY
-          [ -s img.txt ] && curl -sS -m 20 -o /dev/null -w "sb image: %{http_code} %{content_type} %{size_download}\n" "$(cat img.txt)?t=1"
+          base=https://app.streambridge.online
+          curl -sS -m 20 -A "$UA" -o p.html "$base/p/bangkruai-city"
+          s=$(grep -oE '/_next/static/chunks/app/p/[^"]+\.js' p.html | head -1)
+          curl -sS -m 20 -o pg.js "$base$s"; wc -c pg.js
+          echo "--- fetch/concat calls"; grep -oE '.{0,40}fetch\([^)]{0,200}\)' pg.js | head -20
+          grep -oE '.{0,30}concat\(j,"[^"]+"\).{0,120}' pg.js | head -20
+          echo "--- strings with /"; grep -oE '"/[a-zA-Z0-9_/.-]{3,60}"' pg.js | sort -u | head -60
+          echo "--- media hints"; grep -oiE '.{0,100}(hls|m3u8|whep|webrtc|RTCPeer|mse|websocket|wss:|ws:|flv|mpegts|jsmpeg|token).{0,100}' pg.js | head -30
+          # chunks loaded by webpack runtime
+          w=$(grep -oE '/_next/static/chunks/webpack-[^"]+\.js' p.html | head -1); curl -sS -m 20 -o w.js "$base$w"
+          echo "--- other chunks with media"
+          for c in $(grep -oE '/_next/static/chunks/[^"]+\.js' p.html | sort -u); do
+            curl -sS -m 20 -o c.js "$base$c" || continue
+            n=$(grep -ciE 'm3u8|whep|RTCPeerConnection|hls\.js|Hls\.' c.js || true)
+            [ "$n" != "0" ] && { echo "== $c ($n)"; grep -oiE '.{0,100}(m3u8|whep|RTCPeerConnection|loadSource|/api/[a-z]).{0,120}' c.js | head -15; }
+          done
