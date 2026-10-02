@@ -1,31 +1,32 @@
 name: Probe CCTV sources
 
-# สำรวจแหล่งข้อมูลภาพเรดาร์ฝน (รันเองจากแท็บ Actions)
+# สำรวจหน้ากล้องเทศบาลบางกรวย (StreamBridge) (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
 
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 5
     env:
-      ORIGIN: 'https://dataanalytic.precare.workers.dev'
+      UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
     steps:
-      - name: radar_img
+      - name: Page and scripts
+        continue-on-error: true
         run: |
-          curl -sS -m 30 -H "Origin: $ORIGIN" -D h.txt -o r.json -w "%{http_code} %{content_type} %{size_download}\n" "https://api-v3.thaiwater.net/api/v1/thaiwater30/analyst/radar_img"
-          tr -d '\r' < h.txt | grep -iE 'access-control|cache-control'
-          python3 - <<'PY'
-          import json
-          d = json.load(open('r.json'))
-          print(type(d).__name__, list(d.keys()) if isinstance(d, dict) else '')
-          rows = d.get('data') if isinstance(d, dict) else d
-          if isinstance(rows, dict): print('data keys', list(rows.keys())[:20]); rows = next((v for v in rows.values() if isinstance(v, list)), [])
-          print('rows', len(rows))
-          for r in rows:
-              s = json.dumps(r, ensure_ascii=False)
-              if any(k in s for k in ('njk', 'nkm', 'svp', 'หนองจอก', 'หนองแขม', 'สุวรรณภูมิ')): print(s[:700])
-          if rows: print('FIRST', json.dumps(rows[0], ensure_ascii=False)[:700])
-          PY
-          mp=$(python3 -c "import json; print(next(x['media_path_thumb'] for x in json.load(open('r.json'))['data'] if x['radar_type']=='njk'))")
-          curl -sS -m 20 -o i.bin -w "image without Origin: %{http_code} %{content_type} %{size_download}\n" "https://api-v3.thaiwater.net/api/v1/thaiwater30/shared/image?image=$mp"
+          base=https://app.streambridge.online
+          curl -sS -L -m 20 -A "$UA" -D h.txt -o p.html -w "HTTP %{http_code} %{content_type} %{size_download}\n" "$base/p/bangkruai-city"
+          tr -d '\r' < h.txt | grep -iE '^(x-frame-options|content-security-policy|access-control|server)'
+          grep -oiE '<title>[^<]*</title>' p.html; head -c 1500 p.html; echo
+          for s in $(grep -oE '(src|href)="[^"]+\.js[^"]*"' p.html | sed -E 's/^(src|href)="//;s/"$//' | head -10); do
+            case "$s" in http*) u="$s";; /*) u="$base$s";; *) u="$base/$s";; esac
+            echo "===== $u"; curl -sS -L -m 20 -o s.js "$u" || continue
+            grep -oE '["'"'"'`][^"'"'"'`]{0,80}(api|/p/|public|m3u8|hls|snapshot|whep|webrtc|rtsp|stream|camera|cctv|supabase|firebase)[^"'"'"'`]{0,80}["'"'"'`]' s.js | sort -u | head -40
+          done
+      - name: Guess API
+        continue-on-error: true
+        run: |
+          for p in api/p/bangkruai-city api/public/bangkruai-city api/pages/bangkruai-city api/portal/bangkruai-city p/bangkruai-city.json; do
+            curl -sS -m 15 -A "$UA" -o r.bin -w "%{http_code} %{content_type} %{size_download} <- $p\n" "https://app.streambridge.online/$p" || true
+            head -c 300 r.bin; echo
+          done
