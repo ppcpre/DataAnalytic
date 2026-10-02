@@ -3,7 +3,7 @@ import { CAMERAS } from '../src/data/cameras.js';
 import { NONT_STATIC } from '../src/data/nonthaburi.js';
 import { createApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
-import { NONT_BODY, PAKKRET_HTML } from './fixtures.js';
+import { NONT_BODY, PAKKRET_HTML, STREAMBRIDGE_BODY } from './fixtures.js';
 
 const nontJson = (path: string) => {
   if (path !== '/json.php?app=station') throw new Error(`unexpected ${path}`);
@@ -107,6 +107,7 @@ describe('cameras and geocode', () => {
       loadConfig({}),
       async (url) => {
         urls.push(url);
+        if (url.startsWith('https://app.streambridge.online/')) return STREAMBRIDGE_BODY;
         return {
           item: [
             { camid: 'ITICM_BMAMI0123', title: '(กรุงเทพมหานคร) แยกตัวอย่าง', latitude: '13.75', longitude: '100.5', geocode: '103605', organization: 'กทม.' },
@@ -118,15 +119,18 @@ describe('cameras and geocode', () => {
       { getText: async () => PAKKRET_HTML, nontGet: async (path) => nontJson(path) },
     );
     const live = await (await app.request('/api/cameras')).json();
-    expect(urls).toEqual(['https://traffic.longdo.com/camera.json']);
+    expect(urls.sort()).toEqual(['https://app.streambridge.online/api/public/bangkruai-city', 'https://traffic.longdo.com/camera.json']);
     const fromList = live.data.filter((c: { id: string }) => c.id.startsWith('longdo-'));
     expect(fromList.map((c: { name: string; url: string }) => [c.name, c.url])).toEqual([
       ['แยกตัวอย่าง', 'https://traffic.longdo.com/camera?vdo=i123'],
     ]);
     // กล้อง/จุดวัดที่เพิ่มเองใน data/cameras.ts แสดงร่วมด้วยเสมอ
     const ids = live.data.map((c: { id: string }) => c.id);
-    expect(ids).toEqual(expect.arrayContaining([...CAMERAS.map((c) => c.id), 'nont-STN2', 'pakkret-eon-001']));
-    expect(live.data.length).toBe(CAMERAS.length + 4); // Longdo 1 + นนทบุรี 2 (เซนเซอร์ถนนค่าเก่าไม่แสดง) + ปากเกร็ด 1
+    expect(ids).toEqual(
+      expect.arrayContaining([...CAMERAS.map((c) => c.id), 'nont-STN2', 'pakkret-eon-001', 'sb-4aac4b3e-b18a-49a3-903b-e3ad9f960a44']),
+    );
+    // Longdo 1 + นนทบุรี 2 (เซนเซอร์ถนนค่าเก่าไม่แสดง) + ปากเกร็ด 1 + บางกรวย 2
+    expect(live.data.length).toBe(CAMERAS.length + 6);
 
     // แหล่งใดล่ม ยังแสดงแหล่งที่เหลือ และจุดของนนทบุรีใช้รายชื่อที่บันทึกไว้
     const down = async () => {

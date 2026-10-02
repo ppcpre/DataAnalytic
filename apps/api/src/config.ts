@@ -32,6 +32,8 @@ export interface Config {
     cacheTtlMs: number;
     /** ดึงภาพกล้อง/ระดับน้ำสดของเทศบาลนครนนทบุรี — false = ปักหมุดจากรายชื่อที่บันทึกไว้เท่านั้น */
     nontLive: boolean;
+    /** หน้ากล้องของหน่วยงานบน StreamBridge (คั่นด้วย ,) — ว่าง = ปิด */
+    streamBridgeSlugs: string[];
   };
   floodhub: {
     /** API key ของ Google Flood Forecasting API — ว่าง = ปิดชั้นข้อมูลนี้ */
@@ -79,6 +81,10 @@ export function loadConfig(env: Env = process.env): Config {
       listUrl: env.CAMERA_LIST_URL ?? 'https://traffic.longdo.com/camera.json',
       cacheTtlMs: Number(env.CAMERA_CACHE_SECONDS ?? 3600) * 1000,
       nontLive: env.NONT_LIVE !== 'false',
+      streamBridgeSlugs: (env.STREAMBRIDGE_SLUGS ?? 'bangkruai-city')
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean),
     },
     floodhub: {
       apiKey: env.GOOGLE_FLOOD_API_KEY ?? '',

@@ -50,3 +50,24 @@ export const PAKKRET_HTML = `<html><body>
 <script>
   const sensorData = [{"sensor_id":"001","location_name":"Water Sensor 1","latitude":"13.915300","longitude":"100.494700","snapshot":"http:\\/\\/water.eon-solution.com\\/x.jpg","log_datetime":"2026-09-28 14:45:05.000","water_level":"1.90","status_color":"yellow","status_label":"เฝ้าระวัง"}];
 </script></body></html>`;
+
+/** ย่อจาก https://app.streambridge.online/api/public/bangkruai-city (ต.ค. 2569) */
+export const STREAMBRIDGE_BODY = {
+  slug: 'bangkruai-city',
+  title: 'BangKruai City : เทศบาลเมืองบางกรวย',
+  subtitle: 'เทศบาลเมืองบางกรวย',
+  cameras: [
+    {
+      id: '4aac4b3e-b18a-49a3-903b-e3ad9f960a44',
+      name: 'แยกเทิดพระเกียรติ กล้อง 1',
+      status: 'online',
+      latitude: 13.80272,
+      longitude: 100.47725,
+      hlsUrl: null,
+      thumbnail: 'https://app.streambridge.online/snapshots/4aac4b3e-b18a-49a3-903b-e3ad9f960a44.jpg?v=1790860181887',
+    },
+    { id: 'off', name: 'กล้องออฟไลน์', status: 'offline', latitude: 13.8, longitude: 100.48, thumbnail: null },
+    { id: 'nopos', name: 'ไม่มีพิกัด', status: 'online', latitude: null, longitude: null },
+    { id: 'evil', name: 'ภาพจากโดเมนอื่น', status: 'online', latitude: 13.81, longitude: 100.5, thumbnail: 'https://evil.example/x.jpg' },
+  ],
+};

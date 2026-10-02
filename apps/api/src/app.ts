@@ -10,6 +10,7 @@ import { geocodeUrl, parsePhoton } from './adapters/geocode.js';
 import { CAMERAS } from './data/cameras.js';
 import { parseLongdoCameras } from './adapters/longdo.js';
 import { PAKKRET_EON_URL, parsePakkretEon } from './adapters/pakkret.js';
+import { parseStreamBridge, streamBridgeListUrl } from './adapters/streambridge.js';
 import { NONT_CAMERA_NAME, NONT_STATIONS_PATH, nontImagePath, parseNonthaburiStations } from './adapters/nonthaburi.js';
 import type { RawResponse } from './raw-http.js';
 import { NONT_STATIC } from './data/nonthaburi.js';
@@ -238,12 +239,12 @@ export function createApp(
     '/api/cameras',
     serve({
       key: 'cameras',
-      source: 'Longdo Traffic / มูลนิธิ iTIC / เทศบาลนครนนทบุรี',
+      source: 'Longdo Traffic / มูลนิธิ iTIC / เทศบาลนครนนทบุรี / StreamBridge',
       enabled: () => true,
       load: async () => {
         const url = config.cameras.listUrl;
         // ดึงแต่ละแหล่งแยกกัน แหล่งใดล่ม ยังแสดงกล้อง/จุดวัดจากแหล่งอื่นได้
-        const [fromList, fromNont, fromPakkret] = await Promise.all([
+        const [fromList, fromNont, fromPakkret, fromStreamBridge] = await Promise.all([
           (url ? cameraCache.get('longdo-cameras', () => getJson(url)) : Promise.resolve({ value: null }))
             .then((r) => parseLongdoCameras(r.value))
             .catch((err: unknown) => {
@@ -259,9 +260,21 @@ export function createApp(
               console.error('[cameras] pakkret', err);
               return [] as Camera[];
             }),
+          // กล้องของเทศบาลที่เผยแพร่ผ่าน StreamBridge (รายชื่อ/ภาพล่าสุด)
+          Promise.all(
+            config.cameras.streamBridgeSlugs.map((slug) =>
+              cameraCache
+                .get(`streambridge:${slug}`, () => getJson(streamBridgeListUrl(slug)))
+                .then((r) => parseStreamBridge(r.value, slug))
+                .catch((err: unknown) => {
+                  console.error('[cameras] streambridge', slug, err);
+                  return [] as Camera[];
+                }),
+            ),
+          ).then((lists) => lists.flat()),
         ]);
         const own = new Set(CAMERAS.map((c) => c.id));
-        return [...CAMERAS, ...fromPakkret, ...fromNont, ...fromList.filter((c) => !own.has(c.id))];
+        return [...CAMERAS, ...fromPakkret, ...fromNont, ...fromStreamBridge, ...fromList.filter((c) => !own.has(c.id))];
       },
       sample: sampleCameras,
     }),
