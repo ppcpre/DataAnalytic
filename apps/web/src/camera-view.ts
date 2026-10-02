@@ -28,6 +28,8 @@ async function hlsFromSession(path: string): Promise<string> {
 
 /** ถ้าแหล่งภาพไม่ขึ้นภายในเวลานี้ ให้ลองแหล่งถัดไป */
 const SOURCE_TIMEOUT_MS = 10000;
+/** วิดีโอสดบนมือถือเริ่มช้ากว่า (ต้องขอ session + โหลดตัวเล่น + รอ segment แรก) */
+const HLS_TIMEOUT_MS = 25000;
 const SNAPSHOT_REFRESH_MS = 10000;
 
 const LABEL: Record<SourceKind | 'loading' | 'off', string> = {
@@ -150,7 +152,9 @@ export function startCameraView(root: HTMLElement, c: Camera, fresh = false) {
       setMode(src.kind);
     };
     // หน้าเว็บอาจโหลดช้า ไม่ตัดทิ้งตามเวลา
-    if (src.kind !== 'page') timers.push(window.setTimeout(() => !done && next(), SOURCE_TIMEOUT_MS));
+    if (src.kind !== 'page') {
+      timers.push(window.setTimeout(() => !done && next(), src.kind === 'hls' ? HLS_TIMEOUT_MS : SOURCE_TIMEOUT_MS));
+    }
 
     if (src.kind === 'page') {
       // เบราว์เซอร์ไม่บอกว่าหน้าถูกบล็อกการฝังหรือไม่ จึงถือว่าสำเร็จเมื่อโหลดเสร็จ และมีปุ่มเปิดในเว็บต้นทางเสมอ
@@ -189,19 +193,35 @@ export function startCameraView(root: HTMLElement, c: Camera, fresh = false) {
 
     if (src.kind === 'hls') {
       const video = document.createElement('video');
+      // iOS เล่นอัตโนมัติได้เมื่อมี attribute muted/playsinline ในตัว element (ตั้งแค่ property ไม่พอ)
       video.muted = true;
+      video.setAttribute('muted', '');
       video.autoplay = true;
       video.playsInline = true;
+      video.setAttribute('playsinline', '');
+      // จำเป็นสำหรับ ManagedMediaSource ของ iOS (hls.js)
+      video.disableRemotePlayback = true;
       video.setAttribute('aria-label', `ภาพสดจากกล้อง ${c.name}`);
       video.addEventListener('playing', ok, { once: true });
+      // ภาพพร้อมแต่เครื่องไม่ยอมเล่นอัตโนมัติ (เช่น โหมดประหยัดพลังงานของ iOS) → แสดงปุ่มเล่นแทนการเปลี่ยนไปใช้ภาพนิ่ง
+      video.addEventListener(
+        'loadeddata',
+        () =>
+          window.setTimeout(() => {
+            if (stopped || done || !video.paused) return;
+            video.controls = true;
+            ok();
+          }, 1500),
+        { once: true },
+      );
       video.addEventListener('error', next, { once: true });
       media.appendChild(video);
-      // Safari บน iPhone/iPad/Mac เล่น HLS ได้เอง ไม่ต้องโหลด hls.js
-      if (video.canPlayType('application/vnd.apple.mpegurl') && /Apple/.test(navigator.vendor)) {
+      const native = () => {
         video.src = src.url;
         void video.play().catch(() => {});
-        return;
-      }
+      };
+      // ใช้ hls.js ทุกเครื่องที่รองรับ (รวม iPhone/iPad iOS 17.1+ ผ่าน ManagedMediaSource) เพราะเริ่มภาพได้เร็วกว่า
+      // ตัวเล่น HLS ในตัวของ Safari; เครื่องที่ไม่รองรับใช้ตัวเล่นในตัวแทน
       void import('hls.js/light')
         .then(({ default: Hls }) => {
           if (stopped || done) return;
@@ -210,12 +230,11 @@ export function startCameraView(root: HTMLElement, c: Camera, fresh = false) {
             hls.on(Hls.Events.ERROR, (_e, data) => data.fatal && next());
             hls.loadSource(src.url);
             hls.attachMedia(video);
-          } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            video.src = src.url; // Safari บน iPhone/iPad เล่น HLS ได้เอง
-          } else next();
-          void video.play().catch(() => {});
+            void video.play().catch(() => {});
+          } else if (video.canPlayType('application/vnd.apple.mpegurl')) native();
+          else next();
         })
-        .catch(next);
+        .catch(() => (video.canPlayType('application/vnd.apple.mpegurl') ? native() : next()));
       return;
     }
 

@@ -64,7 +64,11 @@ export default defineConfig({
             // ข้อมูลล่าสุด: พยายามดึงใหม่ก่อน ถ้าออฟไลน์ใช้ชุดล่าสุดที่เคยโหลด
             // ไม่ cache ผลค้นหาสถานที่ใน service worker (cache ที่เซิร์ฟเวอร์แล้ว)
             urlPattern: ({ url }) =>
-              url.pathname.includes('/api/') && !url.pathname.endsWith('/api/geocode') && !url.pathname.endsWith('/api/nont/image'),
+              url.pathname.includes('/api/') &&
+              !url.pathname.endsWith('/api/geocode') &&
+              !url.pathname.endsWith('/api/nont/image') &&
+              // ลิงก์ภาพสดมีอายุสั้น ห้ามใช้ค่าเก่าจาก cache
+              !url.pathname.endsWith('/session'),
             handler: 'NetworkFirst',
             options: {
               cacheName: 'api',
