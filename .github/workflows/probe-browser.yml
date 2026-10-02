@@ -36,14 +36,15 @@ jobs:
           await m.goto(process.env.BASE + '/', { waitUntil: 'domcontentloaded' });
           await m.waitForSelector('[data-open="camera:water-bma-mahasawat"]', { state: 'attached', timeout: 40000 });
           await m.waitForTimeout(15000);
-          for (const id of ['water-bma-mahasawat', 'nont-STN2']) {
-            await m.evaluate((id) => document.querySelector(`[data-open="camera:${id}"]`)?.click(), id);
+          for (const id of ['water-bma-mahasawat', 'nont-STN2', 'sb-4aac4b3e-b18a-49a3-903b-e3ad9f960a44']) {
+            await m.evaluate((id) => (document.querySelector(`[data-open="camera:${id}"]`) ?? null)?.click(), id);
+            if (id.startsWith('sb-')) await m.evaluate(() => document.querySelector('#water-cams') && null);
             await m.waitForTimeout(8000);
             console.log('SHEET', id, JSON.stringify(await m.evaluate(() => {
               const s = document.getElementById('sheet');
               const img = s.querySelector('.cam-media img');
               const fr = s.querySelector('.cam-media iframe');
-              return { title: s.querySelector('h2,h3')?.textContent, diagram: !!s.querySelector('svg[viewBox]'), nearTitle: [...s.querySelectorAll('.nearby-title')].map((e) => e.textContent), tiles: [...s.querySelectorAll('.tile')].map((e) => e.textContent.replace(/\s+/g, ' ')), img: img ? img.naturalWidth : null, frameTop: fr?.style.top ?? null, mode: s.querySelector('.cam-view')?.dataset.mode };
+              return { title: s.querySelector('h2,h3')?.textContent, diagram: !!s.querySelector('svg[viewBox]'), nearTitle: [...s.querySelectorAll('.nearby-title')].map((e) => e.textContent), tiles: [...s.querySelectorAll('.tile')].map((e) => e.textContent.replace(/\s+/g, ' ')), img: img ? img.naturalWidth : null, video: (() => { const v = s.querySelector('.cam-media video'); return v ? { w: v.videoWidth, t: Math.round(v.currentTime * 10) / 10, src: (v.currentSrc || '').slice(0, 60) } : null; })(), label: s.querySelector('[data-cam-label]')?.textContent, frameTop: fr?.style.top ?? null, mode: s.querySelector('.cam-view')?.dataset.mode };
             })));
             await m.screenshot({ path: `sheet-${id}.png` });
             await m.evaluate(() => document.querySelector('#sheet [aria-label="ปิด"], #sheet .sheet-close')?.click());

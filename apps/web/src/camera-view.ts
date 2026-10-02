@@ -14,6 +14,16 @@ type SourceKind = 'hls' | 'mjpeg' | 'still' | 'page';
 interface Source {
   kind: SourceKind;
   url: string;
+  /** ลิงก์ที่ต้องขอก่อนเล่น (เช่น session ภาพสดที่มีอายุ) — ได้ URL จริงจากค่า hlsUrl ที่ตอบกลับ */
+  resolve?: () => Promise<string>;
+}
+
+async function hlsFromSession(path: string): Promise<string> {
+  const res = await fetch(apiUrl(path), { cache: 'no-store' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const { hlsUrl } = (await res.json()) as { hlsUrl?: string };
+  if (!hlsUrl?.startsWith('https://')) throw new Error('ไม่มีลิงก์ภาพสด');
+  return hlsUrl;
 }
 
 /** ถ้าแหล่งภาพไม่ขึ้นภายในเวลานี้ ให้ลองแหล่งถัดไป */
@@ -32,6 +42,10 @@ const LABEL: Record<SourceKind | 'loading' | 'off', string> = {
 function sourcesOf(c: Camera): Source[] {
   const list: Source[] = [];
   if (c.hlsUrl) list.push({ kind: 'hls', url: c.hlsUrl });
+  else if (c.hlsSessionUrl) {
+    const path = c.hlsSessionUrl;
+    list.push({ kind: 'hls', url: '', resolve: () => hlsFromSession(path) });
+  }
   if (c.streamUrl) list.push({ kind: 'mjpeg', url: c.streamUrl });
   if (c.imageUrl) list.push({ kind: 'still', url: apiUrl(c.imageUrl) });
   // หน้าเว็บของผู้ให้บริการ (ฝังได้เฉพาะ https)
@@ -48,7 +62,7 @@ export function hasCameraMedia(c: Camera): boolean {
  * เพราะกล้องที่มีแต่ MJPEG/ภาพนิ่งส่วนใหญ่ออฟไลน์ที่ต้นทาง (ตรวจ ก.ย. 2569)
  */
 export function isLiveCamera(c: Camera): boolean {
-  return !!(c.hlsUrl || c.embedUrl);
+  return !!(c.hlsUrl || c.hlsSessionUrl || c.embedUrl);
 }
 
 export function cameraViewHtml(c: Camera): string {
@@ -154,6 +168,22 @@ export function startCameraView(root: HTMLElement, c: Camera, fresh = false) {
       }
       view.classList.add('is-page');
       media.appendChild(frame);
+      return;
+    }
+
+    if (src.kind === 'hls' && src.resolve && !src.url) {
+      // ขอลิงก์ภาพสดก่อน แล้วเล่นแหล่งเดิมด้วยลิงก์ที่ได้
+      const resolve = src.resolve;
+      void resolve()
+        .then((url) => {
+          if (stopped || done) return;
+          sources[i] = { kind: 'hls', url };
+          done = true;
+          tryFrom(i);
+          // คืนค่าเดิมไว้ เผื่อกดโหลดใหม่หลังลิงก์หมดอายุ
+          sources[i] = { kind: 'hls', url: '', resolve };
+        })
+        .catch(next);
       return;
     }
 

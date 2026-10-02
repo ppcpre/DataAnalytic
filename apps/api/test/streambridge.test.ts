@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { parseStreamBridge } from '../src/adapters/streambridge.js';
+import { parseStreamBridge, parseStreamBridgeSession } from '../src/adapters/streambridge.js';
+import { createApp } from '../src/app.js';
+import { loadConfig } from '../src/config.js';
 import { STREAMBRIDGE_BODY } from './fixtures.js';
 
 describe('streambridge cameras', () => {
@@ -14,12 +16,43 @@ describe('streambridge cameras', () => {
       owner: 'เทศบาลเมืองบางกรวย',
       url: 'https://app.streambridge.online/p/bangkruai-city',
       via: 'StreamBridge',
+      hlsSessionUrl: '/api/streambridge/bangkruai-city/4aac4b3e-b18a-49a3-903b-e3ad9f960a44/session',
       imageUrl: 'https://app.streambridge.online/snapshots/4aac4b3e-b18a-49a3-903b-e3ad9f960a44.jpg',
       imageTakenAt: '2026-10-01T13:09:41.887Z',
       imageCredit: 'เทศบาลเมืองบางกรวย',
     });
-    // ภาพจากโดเมนอื่นไม่นำมาแสดง
+    // ภาพจากโดเมนอื่นไม่นำมาแสดง และรหัสกล้องที่ไม่ใช่ UUID ไม่มีภาพสด
     expect(out[1].imageUrl).toBeUndefined();
+    expect(out[1].hlsSessionUrl).toBeUndefined();
     expect(parseStreamBridge(null, 'x')).toEqual([]);
+  });
+});
+
+describe('streambridge live session', () => {
+  const CAM = '4aac4b3e-b18a-49a3-903b-e3ad9f960a44';
+  const HLS = 'https://app.streambridge.online/hls/abc.def.ghi/live/x/y.m3u8';
+
+  it('accepts only HLS links on the StreamBridge domain', () => {
+    expect(parseStreamBridgeSession({ hlsUrl: HLS, expiresAt: 'x' })).toBe(HLS);
+    expect(parseStreamBridgeSession({ hlsUrl: 'https://evil.example/hls/x.m3u8' })).toBeUndefined();
+    expect(parseStreamBridgeSession(null)).toBeUndefined();
+  });
+
+  it('requests a session only for configured sites and camera ids', async () => {
+    const posted: string[] = [];
+    const app = createApp(loadConfig({}), undefined, undefined, {
+      postSession: async (url) => {
+        posted.push(url);
+        return { hlsUrl: HLS, expiresAt: '2026-10-02T02:00:00.000Z' };
+      },
+    });
+    const ok = await app.request(`/api/streambridge/bangkruai-city/${CAM}/session`);
+    expect(ok.status).toBe(200);
+    expect(ok.headers.get('cache-control')).toBe('no-store');
+    expect(await ok.json()).toEqual({ hlsUrl: HLS });
+    expect(posted).toEqual([`https://app.streambridge.online/api/public/bangkruai-city/cameras/${CAM}/session`]);
+    expect((await app.request(`/api/streambridge/other-city/${CAM}/session`)).status).toBe(404);
+    expect((await app.request('/api/streambridge/bangkruai-city/not-a-uuid/session')).status).toBe(404);
+    expect(posted).toHaveLength(1);
   });
 });

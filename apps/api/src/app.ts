@@ -10,7 +10,13 @@ import { geocodeUrl, parsePhoton } from './adapters/geocode.js';
 import { CAMERAS } from './data/cameras.js';
 import { parseLongdoCameras } from './adapters/longdo.js';
 import { PAKKRET_EON_URL, parsePakkretEon } from './adapters/pakkret.js';
-import { parseStreamBridge, streamBridgeListUrl } from './adapters/streambridge.js';
+import {
+  parseStreamBridge,
+  parseStreamBridgeSession,
+  STREAMBRIDGE_CAM_ID,
+  streamBridgeListUrl,
+  streamBridgeSessionUrl,
+} from './adapters/streambridge.js';
 import { NONT_CAMERA_NAME, NONT_STATIONS_PATH, nontImagePath, parseNonthaburiStations } from './adapters/nonthaburi.js';
 import type { RawResponse } from './raw-http.js';
 import { NONT_STATIC } from './data/nonthaburi.js';
@@ -45,6 +51,8 @@ export interface AppDeps {
   history?: HistoryStore;
   /** ดึงหน้าเว็บแบบข้อความ (แทนได้ในการทดสอบ) */
   getText?: (url: string) => Promise<string>;
+  /** POST ไม่มี body แล้วอ่าน JSON (ขอ session ภาพสด) — แทนได้ในการทดสอบ */
+  postSession?: (url: string) => Promise<unknown>;
   /** GET ไปที่เซิร์ฟเวอร์ของเทศบาลนครนนทบุรี (path เช่น /json.php?…) — ไม่มี = ใช้รายชื่อจุดที่บันทึกไว้ */
   nontGet?: (path: string) => Promise<RawResponse>;
 }
@@ -57,6 +65,7 @@ export function createApp(
 ) {
   const history = deps.history ?? new MemoryHistoryStore();
   const getText = deps.getText ?? fetchText;
+  const postSession = deps.postSession ?? ((url: string) => fetchJson(url, 15000, { method: 'POST' }));
   /** ตัดค่าวัดที่เก่าเกิน (เช่น สถานีที่หยุดส่งข้อมูลไปหลายวัน) */
   const fresh = <T extends { observedAt: string }>(list: T[]): T[] => {
     const cutoff = Date.now() - config.maxReadingAgeHours * 3600_000;
@@ -232,6 +241,26 @@ export function createApp(
     } catch (err) {
       console.error('[nont-image]', err);
       return c.json({ error: 'ดึงภาพจากกล้องไม่สำเร็จ' }, 502);
+    }
+  });
+
+  /**
+   * ขอลิงก์ภาพสดของกล้อง StreamBridge (ต้นทางไม่อนุญาต CORS สำหรับคำขอนี้)
+   * รับเฉพาะหน่วยงานที่ตั้งค่าไว้ และรหัสกล้องรูปแบบ UUID
+   */
+  app.get('/api/streambridge/:slug/:cam/session', async (c) => {
+    c.header('cache-control', 'no-store');
+    const { slug, cam } = c.req.param();
+    if (!config.cameras.streamBridgeSlugs.includes(slug) || !STREAMBRIDGE_CAM_ID.test(cam)) {
+      return c.json({ error: 'ไม่พบกล้องนี้' }, 404);
+    }
+    try {
+      const hlsUrl = parseStreamBridgeSession(await postSession(streamBridgeSessionUrl(slug, cam)));
+      if (!hlsUrl) return c.json({ error: 'กล้องนี้ไม่มีภาพสดขณะนี้' }, 502);
+      return c.json({ hlsUrl });
+    } catch (err) {
+      console.error('[streambridge-session]', err);
+      return c.json({ error: 'ขอภาพสดจากต้นทางไม่สำเร็จ' }, 502);
     }
   });
 

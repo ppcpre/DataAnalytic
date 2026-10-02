@@ -137,6 +137,8 @@ export interface Camera {
   via?: string;
   /** วิดีโอสดแบบ HLS (https) — กล้องกรมทางหลวงผ่าน iTIC มีเฉพาะแบบนี้ */
   hlsUrl?: string;
+  /** เส้นทาง API ที่ขอลิงก์วิดีโอสด HLS แบบมีอายุ (ตอบ { hlsUrl }) — ใช้กับกล้องที่ต้องขอ session ก่อนดู */
+  hlsSessionUrl?: string;
   /** ภาพเคลื่อนไหวแบบ MJPEG (https) สำหรับแสดงในแอป */
   streamUrl?: string;
   /** ภาพนิ่งล่าสุด (https) ใช้เมื่อเปิดภาพเคลื่อนไหวไม่ได้ */
