@@ -1,32 +1,53 @@
 name: Probe CCTV sources
 
-# หาวิธีเล่นภาพสดของ StreamBridge (รันเองจากแท็บ Actions)
+# หาวิธีเล่นภาพสดของ StreamBridge ด้วย Chrome จริง (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
 
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
-    env:
-      UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
+    timeout-minutes: 8
     steps:
-      - name: Player code
-        continue-on-error: true
+      - name: Live player network
         run: |
-          base=https://app.streambridge.online
-          curl -sS -m 20 -A "$UA" -o p.html "$base/p/bangkruai-city"
-          s=$(grep -oE '/_next/static/chunks/app/p/[^"]+\.js' p.html | head -1)
-          curl -sS -m 20 -o pg.js "$base$s"; wc -c pg.js
-          echo "--- fetch/concat calls"; grep -oE '.{0,40}fetch\([^)]{0,200}\)' pg.js | head -20
-          grep -oE '.{0,30}concat\(j,"[^"]+"\).{0,120}' pg.js | head -20
-          echo "--- strings with /"; grep -oE '"/[a-zA-Z0-9_/.-]{3,60}"' pg.js | sort -u | head -60
-          echo "--- media hints"; grep -oiE '.{0,100}(hls|m3u8|whep|webrtc|RTCPeer|mse|websocket|wss:|ws:|flv|mpegts|jsmpeg|token).{0,100}' pg.js | head -30
-          # chunks loaded by webpack runtime
-          w=$(grep -oE '/_next/static/chunks/webpack-[^"]+\.js' p.html | head -1); curl -sS -m 20 -o w.js "$base$w"
-          echo "--- other chunks with media"
-          for c in $(grep -oE '/_next/static/chunks/[^"]+\.js' p.html | sort -u); do
-            curl -sS -m 20 -o c.js "$base$c" || continue
-            n=$(grep -ciE 'm3u8|whep|RTCPeerConnection|hls\.js|Hls\.' c.js || true)
-            [ "$n" != "0" ] && { echo "== $c ($n)"; grep -oiE '.{0,100}(m3u8|whep|RTCPeerConnection|loadSource|/api/[a-z]).{0,120}' c.js | head -15; }
-          done
+          mkdir b && cd b && npm init -y >/dev/null && npm i playwright-core@1 >/dev/null 2>&1
+          cat > t.mjs <<'JS'
+          import { chromium } from 'playwright-core';
+          const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome' });
+          const p = await b.newPage({ viewport: { width: 1280, height: 900 } });
+          const seen = new Set();
+          p.on('request', (r) => {
+            const u = r.url();
+            if (/_next\/static|fonts|tile|\.png|\.webp|\.svg|\.css/.test(u)) return;
+            const k = r.method() + ' ' + u.replace(/\?.*/, '');
+            if (seen.has(k)) return; seen.add(k);
+            console.log('REQ', r.method(), r.resourceType(), u.slice(0, 220), r.postData() ? 'BODY ' + r.postData().slice(0, 300) : '');
+          });
+          p.on('response', async (r) => {
+            const u = r.url();
+            if (/api\/(?!public)|m3u8|whep|stream|live/i.test(u)) {
+              let body = '';
+              try { body = (await r.text()).slice(0, 400); } catch {}
+              console.log('RESP', r.status(), r.headers()['content-type'], u.slice(0, 200), body.replace(/\s+/g, ' '));
+            }
+          });
+          p.on('websocket', (ws) => console.log('WS', ws.url()));
+          await p.goto('https://app.streambridge.online/p/bangkruai-city', { waitUntil: 'networkidle' });
+          await p.waitForTimeout(3000);
+          const texts = await p.evaluate(() => [...document.querySelectorAll('button')].map((b) => b.textContent.trim()).filter(Boolean).slice(0, 40));
+          console.log('BUTTONS', JSON.stringify(texts));
+          // เปิดรายการกล้องด้านล่าง แล้วเลือกกล้องแรก
+          for (const sel of ['text=CAMERAS', '[class*=marker]', '.maplibregl-marker', '.leaflet-marker-icon']) {
+            const el = p.locator(sel).first();
+            if (await el.count()) { try { await el.click({ timeout: 3000 }); console.log('CLICKED', sel); await p.waitForTimeout(1500); } catch (e) { console.log('NOCLICK', sel, e.message.slice(0, 80)); } }
+          }
+          for (const sel of ['text=Add to view', 'text=เพิ่ม', 'input[type=checkbox]']) {
+            const el = p.locator(sel).first();
+            if (await el.count()) { try { await el.click({ timeout: 3000 }); console.log('CLICKED', sel); await p.waitForTimeout(12000); break; } catch (e) { console.log('NOCLICK', sel, e.message.slice(0, 80)); } }
+          }
+          const vids = await p.evaluate(() => [...document.querySelectorAll('video, iframe, img[src*=mjpeg], canvas')].map((v) => `${v.tagName} src=${(v.currentSrc || v.src || '').slice(0, 150)} w=${v.videoWidth ?? v.width}`));
+          console.log('MEDIA', JSON.stringify(vids));
+          await b.close();
+          JS
+          node t.mjs
