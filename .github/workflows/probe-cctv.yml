@@ -1,48 +1,39 @@
 name: Probe CCTV sources
 
-# หาวิธีเล่นภาพสดของ StreamBridge ด้วย Chrome จริง (รันเองจากแท็บ Actions)
+# ตรวจว่าแอปขอภาพสดจาก StreamBridge ได้หรือไม่ (CORS) (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
 
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 4
+    env:
+      O: 'https://dataanalytic.precare.workers.dev'
+      S: 'https://app.streambridge.online/api/public/bangkruai-city/cameras/4aac4b3e-b18a-49a3-903b-e3ad9f960a44/session'
     steps:
-      - name: Live player network
+      - name: Session and HLS CORS
         run: |
-          mkdir b && cd b && npm init -y >/dev/null && npm i playwright-core@1 >/dev/null 2>&1
-          cat > t.mjs <<'JS'
-          import { chromium } from 'playwright-core';
-          const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome' });
-          const p = await b.newPage({ viewport: { width: 1280, height: 900 } });
-          const seen = new Set();
-          p.on('request', (r) => {
-            const u = r.url();
-            if (/_next\/static|fonts|tile|map-assets|\.png|\.webp|\.svg|\.css|pmtiles/.test(u)) return;
-            const k = r.method() + ' ' + u.replace(/\?.*/, '');
-            if (seen.has(k)) return; seen.add(k);
-            console.log('REQ', r.method(), r.resourceType(), u.slice(0, 220), r.postData() ? 'BODY ' + r.postData().slice(0, 300) : '');
-          });
-          p.on('response', async (r) => {
-            const u = r.url();
-            if (/map-assets|pmtiles|fonts|\.png/.test(u)) return;
-            if (/api\/(?!public)|m3u8|whep|stream|live|\.ts|\.mp4/i.test(u)) {
-              let body = '';
-              try { body = (await r.text()).slice(0, 400); } catch {}
-              console.log('RESP', r.status(), r.headers()['content-type'], u.slice(0, 200), body.replace(/\s+/g, ' '));
-            }
-          });
-          p.on('websocket', (ws) => console.log('WS', ws.url()));
-          await p.goto('https://app.streambridge.online/p/bangkruai-city', { waitUntil: 'networkidle' });
-          await p.waitForTimeout(3000);
-          const texts = await p.evaluate(() => [...document.querySelectorAll('button')].map((b) => b.textContent.trim()).filter(Boolean).slice(0, 40));
-          console.log('BUTTONS', JSON.stringify(texts));
-          for (const name of ['แยกเทิดพระเกียรติ กล้อง 1', 'Show selected']) {
-            try { await p.getByRole('button', { name }).first().click({ timeout: 5000 }); console.log('CLICKED', name); await p.waitForTimeout(name === 'Show selected' ? 15000 : 1500); } catch (e) { console.log('NOCLICK', name, e.message.slice(0, 80)); }
-          }
-          const vids = await p.evaluate(() => [...document.querySelectorAll('video, iframe, img, canvas')].filter((v) => !/map-assets|\.svg/.test(v.src || '')).map((v) => `${v.tagName} src=${(v.currentSrc || v.src || '').slice(0, 150)} w=${v.videoWidth ?? v.naturalWidth ?? v.width}`));
-          console.log('MEDIA', JSON.stringify(vids));
-          await b.close();
-          JS
-          node t.mjs
+          mask() { sed -E 's/[A-Za-z0-9_-]{24,}/<TOKEN len=&>/g' | sed -E 's/len=([A-Za-z0-9_-]+)>/LEN/g'; }
+          echo "--- preflight"
+          curl -sS -m 20 -X OPTIONS -D - -o /dev/null "$S" -H "Origin: $O" -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: content-type' | tr -d '\r' | grep -iE '^(HTTP|access-control)'
+          echo "--- POST no body"
+          curl -sS -m 20 -X POST -D h.txt -o s.json "$S" -H "Origin: $O"
+          tr -d '\r' < h.txt | grep -iE '^(HTTP|access-control|set-cookie|content-type)' | mask
+          python3 - <<'PY'
+          import json, re
+          d = json.load(open('s.json'))
+          print('keys', list(d.keys()))
+          u = d.get('hlsUrl') or ''
+          print('hlsUrl shape', re.sub(r'[A-Za-z0-9_-]{16,}', lambda m: f'<{len(m.group())}>', u))
+          print({k: (v if not isinstance(v, str) or len(v) < 20 else f'<{len(v)} chars>') for k, v in d.items() if k != 'hlsUrl'})
+          open('u.txt', 'w').write(u)
+          PY
+          u=$(cat u.txt)
+          echo "--- playlist"
+          curl -sS -m 20 -D h2.txt -o pl.m3u8 "$u" -H "Origin: $O"; tr -d '\r' < h2.txt | grep -iE '^(HTTP|access-control|content-type|cache-control)'
+          head -c 300 pl.m3u8; echo
+          seg=$(grep -v '^#' pl.m3u8 | head -1); base=${u%/*}
+          echo "--- segment"; curl -sS -m 20 -D - -o /dev/null "$base/$seg" -H "Origin: $O" | tr -d '\r' | grep -iE '^(HTTP|access-control|content-type)'
+          echo "--- POST with JSON body"
+          curl -sS -m 20 -X POST -o s2.json -w "%{http_code}\n" "$S" -H "Origin: $O" -H 'content-type: application/json' -d '{}'; head -c 80 s2.json | mask; echo
