@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# ตรวจว่าแอปขอภาพสดจาก StreamBridge ได้หรือไม่ (CORS) (รันเองจากแท็บ Actions)
+# ตรวจสถานะเว็บจริง: ที่เก็บประวัติระดับน้ำ (D1) (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
 
@@ -8,32 +8,11 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     timeout-minutes: 4
-    env:
-      O: 'https://dataanalytic.precare.workers.dev'
-      S: 'https://app.streambridge.online/api/public/bangkruai-city/cameras/4aac4b3e-b18a-49a3-903b-e3ad9f960a44/session'
     steps:
-      - name: Session and HLS CORS
+      - name: Health and history
         run: |
-          mask() { sed -E 's/[A-Za-z0-9_-]{24,}/<TOKEN len=&>/g' | sed -E 's/len=([A-Za-z0-9_-]+)>/LEN/g'; }
-          echo "--- preflight"
-          curl -sS -m 20 -X OPTIONS -D - -o /dev/null "$S" -H "Origin: $O" -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: content-type' | tr -d '\r' | grep -iE '^(HTTP|access-control)'
-          echo "--- POST no body"
-          curl -sS -m 20 -X POST -D h.txt -o s.json "$S" -H "Origin: $O"
-          tr -d '\r' < h.txt | grep -iE '^(HTTP|access-control|set-cookie|content-type)' | mask
-          python3 - <<'PY'
-          import json, re
-          d = json.load(open('s.json'))
-          print('keys', list(d.keys()))
-          u = d.get('hlsUrl') or ''
-          print('hlsUrl shape', re.sub(r'[A-Za-z0-9_-]{16,}', lambda m: f'<{len(m.group())}>', u))
-          print({k: (v if not isinstance(v, str) or len(v) < 20 else f'<{len(v)} chars>') for k, v in d.items() if k != 'hlsUrl'})
-          open('u.txt', 'w').write(u)
-          PY
-          u=$(cat u.txt)
-          echo "--- playlist"
-          curl -sS -m 20 -D h2.txt -o pl.m3u8 "$u" -H "Origin: $O"; tr -d '\r' < h2.txt | grep -iE '^(HTTP|access-control|content-type|cache-control)'
-          head -c 300 pl.m3u8; echo
-          seg=$(grep -v '^#' pl.m3u8 | head -1); base=${u%/*}
-          echo "--- segment"; curl -sS -m 20 -D - -o /dev/null "$base/$seg" -H "Origin: $O" | tr -d '\r' | grep -iE '^(HTTP|access-control|content-type)'
-          echo "--- POST with JSON body"
-          curl -sS -m 20 -X POST -o s2.json -w "%{http_code}\n" "$S" -H "Origin: $O" -H 'content-type: application/json' -d '{}'; head -c 80 s2.json | mask; echo
+          site=https://dataanalytic.precare.workers.dev
+          curl -sS -m 30 "$site/api/health"; echo
+          id=$(curl -sS -m 60 "$site/api/key-stations" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['data'][0]['id'] if d.get('data') else '')" || true)
+          echo "station $id"
+          [ -n "$id" ] && curl -sS -m 30 "$site/api/history/$id?hours=24" | head -c 400; echo
