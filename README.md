@@ -77,17 +77,11 @@ API บันทึกค่าระดับน้ำทุกครั้ง�
 (`trend` ในแต่ละสถานี) และให้บริการกราฟย้อนหลังที่ `GET /api/history/:stationId?hours=24`
 
 - **Node.js:** เก็บในหน่วยความจำ (หายเมื่อรีสตาร์ท)
-- **Cloudflare:** Cron Trigger ดึงข้อมูลทุก 15 นาที ถ้าผูกฐานข้อมูล D1 ไว้ ข้อมูลจะเก็บถาวร 7 วัน
-  ถ้าไม่ผูก จะเก็บในหน่วยความจำชั่วคราวของ Worker (แนวโน้มอาจว่างบ่อย)
+- **Cloudflare:** Cron Trigger ดึงข้อมูลทุก 15 นาที แล้วเก็บลงฐานข้อมูล D1 (`DB`) ถาวร 7 วัน
 
-เปิดใช้ D1 (ฟรี):
-
-```bash
-npx wrangler d1 create flood-watch
-```
-
-แล้วเอา `//` ออกจากส่วน `d1_databases` ใน `wrangler.jsonc` และใส่ `database_id` ที่ได้
-ตารางจะถูกสร้างอัตโนมัติเมื่อใช้งานครั้งแรก
+D1 ผูกไว้ใน `wrangler.jsonc` โดยไม่ระบุ `database_id` — `wrangler deploy` สร้างฐานข้อมูล `flood-watch`
+ในบัญชี Cloudflare ให้เองครั้งแรกและผูกกับ Worker (automatic resource provisioning) ตารางสร้างเองเมื่อใช้งานครั้งแรก
+ตรวจได้ที่ `GET /api/health` → `"history": "d1"` (ถ้าเป็น `"memory"` แปลว่ายังไม่ได้ผูก D1)
 
 ### กล้อง CCTV บนแผนที่
 

@@ -20,7 +20,7 @@ import {
 import { NONT_CAMERA_NAME, NONT_STATIONS_PATH, nontImagePath, parseNonthaburiStations } from './adapters/nonthaburi.js';
 import type { RawResponse } from './raw-http.js';
 import { NONT_STATIC } from './data/nonthaburi.js';
-import { HOUR, MemoryHistoryStore, recordAndAttachTrends, type HistoryStore } from './history.js';
+import { D1HistoryStore, HOUR, MemoryHistoryStore, recordAndAttachTrends, type HistoryStore } from './history.js';
 import {
   sampleCameras,
   sampleFloodForecasts,
@@ -138,6 +138,8 @@ export function createApp(
       floodgates: config.dataMode === 'sample' || !!config.thaiwater.floodgateUrl,
       cameras: config.dataMode === 'sample' || CAMERAS.length > 0 || !!config.cameras.listUrl,
       geocode: !!config.geocode.url,
+      // ที่เก็บประวัติระดับน้ำ: d1 = ถาวร, memory = หายเมื่อ Worker รีสตาร์ท
+      history: history instanceof D1HistoryStore ? 'd1' : 'memory',
     }),
   );
 

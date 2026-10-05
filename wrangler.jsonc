@@ -13,13 +13,11 @@
   "alias": {
     "@flood-watch/shared": "./packages/shared/src/index.ts"
   },
-  // ดึงข้อมูลทุก 15 นาทีเพื่อเก็บประวัติระดับน้ำ (ใช้กับ D1 ด้านล่าง)
+  // ดึงข้อมูลทุก 15 นาทีเพื่อเก็บประวัติระดับน้ำ (ลงฐานข้อมูล D1 ด้านล่าง)
   "triggers": { "crons": ["*/15 * * * *"] },
-  // เปิดใช้การเก็บประวัติแบบถาวร: สร้างฐานข้อมูลด้วย `npx wrangler d1 create flood-watch`
-  // แล้วเอาเครื่องหมาย // ออกจาก 3 บรรทัดด้านล่างและใส่ database_id ที่ได้
-  // "d1_databases": [
-  //   { "binding": "DB", "database_name": "flood-watch", "database_id": "<ใส่ database_id>" }
-  // ],
+  // ฐานข้อมูลประวัติระดับน้ำ — ไม่ใส่ database_id: wrangler deploy สร้างฐานข้อมูลให้เองครั้งแรก
+  // (automatic resource provisioning) แล้วผูกกับ Worker นี้ ตารางสร้างเองตอนใช้งาน (history.ts)
+  "d1_databases": [{ "binding": "DB", "database_name": "flood-watch" }],
   "vars": {
     "DATA_MODE": "live",
     "KEY_STATION_CODES": "C.2,C.13,C.7A,C.35"
