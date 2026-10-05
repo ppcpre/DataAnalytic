@@ -13,6 +13,8 @@ jobs:
         run: |
           site=https://dataanalytic.precare.workers.dev
           curl -sS -m 30 "$site/api/health"; echo
+          for st in tw-wl-5 tw-wl-1; do echo "history $st:"; curl -sS -m 30 "$site/api/history/$st?hours=24" | head -c 300; echo; done
+          curl -sS -m 30 -o /dev/null -w "water-level via API: %{http_code}\n" "$site/api/water-level"
           id=$(curl -sS -m 60 "$site/api/key-stations" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['data'][0]['id'] if d.get('data') else '')" || true)
           echo "station $id"
           [ -n "$id" ] && curl -sS -m 30 "$site/api/history/$id?hours=24" | head -c 400; echo
