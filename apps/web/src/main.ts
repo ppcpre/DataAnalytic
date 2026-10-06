@@ -44,6 +44,7 @@ import {
   type NearbyInput,
   type SavedPlace,
 } from './places';
+import { loadFavorites, storeFavorites, toggleFavorite, type FavoriteCamera } from './favorites';
 
 registerSW({ immediate: true });
 
@@ -135,6 +136,8 @@ interface State {
   showAllRisks: boolean;
   selected: { kind: LayerKey; id: string } | null;
   places: SavedPlace[];
+  /** กล้องโปรด (เก็บในเครื่องผู้ใช้) */
+  favorites: FavoriteCamera[];
   /** สถานที่จากการค้นหา/ตำแหน่งปัจจุบันที่ยังไม่ได้บันทึก */
   tempPlace: SavedPlace | null;
 }
@@ -151,6 +154,7 @@ const state: State = {
   showAllRisks: false,
   selected: null,
   places: loadPlaces(),
+  favorites: loadFavorites(),
   tempPlace: null,
 };
 
@@ -191,7 +195,7 @@ function findEntity(kind: LayerKey, id: string): Entity | null {
 const markers = new Map<string, { marker: L.Marker; kind: LayerKey; status: Status; extra: string }>();
 
 // ---------- มุมมอง (responsive) ----------
-type View = 'map' | 'watch' | 'cctv' | 'info';
+type View = 'map' | 'watch' | 'cctv' | 'fav' | 'info';
 function showView(view: View) {
   document.body.dataset.view = view;
   const panel = view === 'map' ? 'watch' : view;
@@ -229,7 +233,7 @@ function distanceText(loc: { lat: number; lng: number }): string {
   return state.userPos ? ` · ห่าง ${formatDistance(distanceKm(state.userPos, loc))}` : '';
 }
 
-function sheetHead(kindHtml: string, title: string, sub: string, lead = ''): string {
+function sheetHead(kindHtml: string, title: string, sub: string, lead = '', actions = ''): string {
   return `
     <div class="sheet-handle"></div>
     <div class="sheet-head">
@@ -239,6 +243,7 @@ function sheetHead(kindHtml: string, title: string, sub: string, lead = ''): str
         <div class="sheet-title">${escapeHtml(title)}</div>
         <div class="sheet-sub">${sub}</div>
       </div>
+      ${actions}
       <button type="button" class="close-btn" data-close aria-label="ปิด">${icons.close()}</button>
     </div>`;
 }
@@ -295,6 +300,82 @@ function nearWaterDiagram(c: Camera): string {
       </button>
     </div>`;
 }
+
+const isFavorite = (id: string) => state.favorites.some((f) => f.id === id);
+
+/** ปุ่มดาว: บันทึก/เอาออกจากรายการโปรด */
+function favButton(id: string): string {
+  const on = isFavorite(id);
+  return `<button type="button" class="close-btn fav-btn${on ? ' is-on' : ''}" data-fav-toggle="${escapeHtml(id)}" aria-pressed="${on}"
+    aria-label="${on ? 'เอาออกจากรายการโปรด' : 'บันทึกเป็นกล้องโปรด'}" title="${on ? 'เอาออกจากรายการโปรด' : 'บันทึกเป็นกล้องโปรด'}">${icons.star(20)}</button>`;
+}
+
+function toggleFavoriteCamera(id: string) {
+  const cam = (state.cameras?.data ?? []).find((c) => c.id === id);
+  const known = state.favorites.find((f) => f.id === id);
+  if (!cam && !known) return;
+  state.favorites = toggleFavorite(state.favorites, cam ?? known!);
+  if (!storeFavorites(state.favorites)) alert('บันทึกในเครื่องนี้ไม่ได้ (อาจเปิดโหมดส่วนตัวอยู่) — รายการโปรดจะหายเมื่อปิดแอป');
+  sheetEl.querySelectorAll<HTMLElement>(`[data-fav-toggle]`).forEach((b) => {
+    if (b.dataset.favToggle === id) b.outerHTML = favButton(id);
+  });
+  renderFavorites();
+}
+
+/** แท็บรายการโปรด: แตะเพื่อเปิดกล้องบนแผนที่ */
+function renderFavorites() {
+  const badge = document.getElementById('fav-badge');
+  if (badge) {
+    badge.textContent = String(state.favorites.length);
+    badge.hidden = state.favorites.length === 0;
+  }
+  const host = document.getElementById('fav-list');
+  if (!host) return;
+  if (!state.favorites.length) {
+    host.innerHTML = `<li class="card card-empty">ยังไม่มีกล้องโปรด — เปิดกล้องบนแผนที่แล้วแตะ ${icons.star(16)} เพื่อบันทึกไว้ที่นี่</li>`;
+    return;
+  }
+  const cams = new Map((state.cameras?.data ?? []).map((c) => [c.id, c]));
+  const loaded = !!state.cameras;
+  host.innerHTML = state.favorites
+    .map((f) => {
+      const c = cams.get(f.id);
+      const live = c ? isLiveCamera(c) : false;
+      const note = !c
+        ? loaded
+          ? 'ไม่พบกล้องนี้ในขณะนี้'
+          : 'กำลังโหลด…'
+        : [live ? 'ภาพสด' : '', c.road && c.road !== c.owner ? c.road : '', state.userPos ? `ห่าง ${formatDistance(distanceKm(state.userPos, c.location))}` : '']
+            .filter(Boolean)
+            .join(' · ');
+      return `
+    <li class="fav-item">
+      <button type="button" class="link-card" data-open="camera:${escapeHtml(f.id)}"${c ? '' : ' disabled'}>
+        <span class="link-icon${c?.kind === 'water' ? ' link-icon-water' : live ? ' link-icon-live' : ''}">${c?.kind === 'water' ? icons.drop(20) : icons.camera(20)}</span>
+        <span class="link-text">
+          <span class="link-name">${escapeHtml(c?.name ?? f.name)}</span>
+          <span class="link-desc">${escapeHtml([c?.owner ?? f.owner, note].filter(Boolean).join(' · '))}</span>
+        </span>
+        ${icons.pin(18)}
+      </button>
+      <button type="button" class="fav-remove" data-fav-remove="${escapeHtml(f.id)}" aria-label="เอา ${escapeHtml(f.name)} ออกจากรายการโปรด" title="เอาออกจากรายการโปรด">${icons.star(18)}</button>
+    </li>`;
+    })
+    .join('');
+}
+
+document.getElementById('fav-list')!.addEventListener('click', (ev) => {
+  const t = (ev.target as HTMLElement).closest<HTMLElement>('[data-open],[data-fav-remove]');
+  if (!t) return;
+  if (t.dataset.favRemove) {
+    state.favorites = state.favorites.filter((f) => f.id !== t.dataset.favRemove);
+    storeFavorites(state.favorites);
+    renderFavorites();
+    return;
+  }
+  const [kind, ...rest] = t.dataset.open!.split(':');
+  openEntity(kind as LayerKey, rest.join(':'));
+});
 
 function nearestCamera(loc: { lat: number; lng: number }, maxKm = 2): Camera | null {
   let best: Camera | null = null;
@@ -448,6 +529,7 @@ function cameraSheet(c: Camera): string {
       c.name,
       escapeHtml(c.road ?? '') + distanceText(c.location),
       `<span class="cam-icon">${icons.camera(24)}</span>`,
+      favButton(c.id),
     )}
     ${cameraViewHtml(c)}
     ${cameraReadings(c)}
@@ -654,9 +736,13 @@ function closeSheet() {
 
 sheetEl.addEventListener('click', (ev) => {
   const t = (ev.target as HTMLElement).closest<HTMLElement>(
-    '[data-close],[data-open],[data-goto],[data-label],[data-save-place],[data-remove-place],[data-cam-refresh]',
+    '[data-close],[data-open],[data-goto],[data-label],[data-save-place],[data-remove-place],[data-cam-refresh],[data-fav-toggle]',
   );
   if (!t) return;
+  if (t.dataset.favToggle) {
+    toggleFavoriteCamera(t.dataset.favToggle);
+    return;
+  }
   if (t.dataset.label) {
     sheetEl.querySelectorAll('[data-label]').forEach((b) => b.setAttribute('aria-pressed', String(b === t)));
   } else if (t.dataset.savePlace && state.tempPlace?.id === t.dataset.savePlace) {
@@ -1124,6 +1210,7 @@ async function loadAll() {
   renderPlaces();
   renderBanners();
   renderWaterCams();
+  renderFavorites();
   void renderRadar();
   document.body.classList.remove('loading');
   loading = false;
@@ -1227,5 +1314,6 @@ setInterval(() => {
 DESKTOP.addEventListener('change', () => showView(document.body.dataset.view as View));
 
 showView('map');
+renderFavorites();
 void loadAll();
 void loadLinks();

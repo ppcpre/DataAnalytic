@@ -55,6 +55,24 @@ jobs:
             await m.evaluate(() => document.querySelector('#sheet [aria-label="ปิด"], #sheet .sheet-close')?.click());
             await m.waitForTimeout(1000);
           }
+          // กล้องโปรด: กดดาวในหน้าต่างกล้อง → โหลดหน้าใหม่ → ต้องยังอยู่ในแท็บรายการโปรด
+          await m.evaluate(() => {
+            let b = document.querySelector('[data-open="camera:sb-4aac4b3e-b18a-49a3-903b-e3ad9f960a44"]');
+            if (!b) { b = document.createElement('button'); b.dataset.open = 'camera:sb-4aac4b3e-b18a-49a3-903b-e3ad9f960a44'; document.querySelector('#water-cams ul').appendChild(b); }
+            b.click();
+          });
+          await m.waitForTimeout(1500);
+          await m.click('#sheet [data-fav-toggle]');
+          console.log('FAV pressed', await m.getAttribute('#sheet [data-fav-toggle]', 'aria-pressed'));
+          await m.reload({ waitUntil: 'domcontentloaded' });
+          await m.waitForTimeout(15000);
+          await m.click('.tabbar [data-view="fav"]');
+          await m.waitForTimeout(1000);
+          console.log('FAV list', JSON.stringify(await m.evaluate(() => ({ badge: document.getElementById('fav-badge')?.textContent, items: [...document.querySelectorAll('#fav-list .link-name')].map((e) => e.textContent), visible: getComputedStyle(document.getElementById('sec-fav')).display }))));
+          await m.screenshot({ path: 'fav.png' });
+          await m.click('#fav-list [data-open]');
+          await m.waitForTimeout(3000);
+          console.log('FAV open', await m.evaluate(() => document.querySelector('#sheet .sheet-title')?.textContent));
           await b.close();
           JS
           BASE="$BASE" node t.mjs

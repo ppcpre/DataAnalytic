@@ -80,6 +80,7 @@
           <div class="seg" role="tablist" aria-label="แผงข้อมูล">
             <button type="button" role="tab" data-panel="watch">เฝ้าระวัง</button>
             <button type="button" role="tab" data-panel="cctv">กล้อง CCTV</button>
+            <button type="button" role="tab" data-panel="fav">รายการโปรด</button>
             <button type="button" role="tab" data-panel="info">แหล่งข้อมูล</button>
           </div>
         </div>
@@ -140,6 +141,16 @@
           </div>
         </section>
 
+        <section id="sec-fav" class="sec" aria-labelledby="h-fav">
+          <div class="sec-head">
+            <div>
+              <h1 id="h-fav">รายการโปรด</h1>
+              <span class="muted">กล้องที่กดดาวไว้ · เก็บในเครื่องนี้เท่านั้น</span>
+            </div>
+          </div>
+          <ul id="fav-list" class="cards"></ul>
+        </section>
+
         <section id="sec-info" class="sec" aria-labelledby="h-info">
           <div class="sec-head">
             <div><h1 id="h-info">แหล่งข้อมูล</h1></div>
@@ -165,6 +176,7 @@
       <button type="button" data-view="map"><span data-icon="map"></span>แผนที่</button>
       <button type="button" data-view="watch"><span data-icon="alert"></span>เฝ้าระวัง<span class="tab-badge" id="tab-badge" hidden></span></button>
       <button type="button" data-view="cctv"><span data-icon="camera"></span>กล้อง CCTV</button>
+      <button type="button" data-view="fav"><span data-icon="star"></span>โปรด<span class="tab-badge tab-badge-soft" id="fav-badge" hidden></span></button>
       <button type="button" data-view="info"><span data-icon="info"></span>แหล่งข้อมูล</button>
     </nav>
 
