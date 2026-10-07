@@ -310,6 +310,76 @@ function favButton(id: string): string {
     aria-label="${on ? 'เอาออกจากรายการโปรด' : 'บันทึกเป็นกล้องโปรด'}" title="${on ? 'เอาออกจากรายการโปรด' : 'บันทึกเป็นกล้องโปรด'}">${icons.star(20)}</button>`;
 }
 
+/** ปุ่มแชร์ลิงก์ของกล้อง (เปิดแอปแล้วไปที่กล้องนี้ทันที) */
+function shareButton(id: string): string {
+  return `<button type="button" class="close-btn" data-share="${escapeHtml(id)}" aria-label="แชร์ลิงก์กล้องนี้" title="แชร์ลิงก์กล้องนี้">${icons.share(20)}</button>`;
+}
+
+/** ลิงก์ของกล้อง: https://<แอป>/?cam=<id> */
+const cameraLink = (id: string) => `${location.origin}/?cam=${encodeURIComponent(id)}`;
+
+async function shareCamera(id: string) {
+  const cam = (state.cameras?.data ?? []).find((c) => c.id === id);
+  const url = cameraLink(id);
+  const title = cam ? `กล้อง ${cam.name}` : 'กล้อง CCTV';
+  const text = cam ? `${cam.name} · ${cam.owner} — ดูภาพกล้องใน Pre-Monitoring` : 'ดูภาพกล้องใน Pre-Monitoring';
+  // มือถือ: เปิดเมนูแชร์ของเครื่อง (LINE, Messenger ฯลฯ) — คอมพิวเตอร์/เครื่องที่ไม่รองรับ: คัดลอกลิงก์
+  if (navigator.share) {
+    try {
+      await navigator.share({ title, text, url });
+      return;
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return; // ผู้ใช้ปิดเมนูแชร์เอง
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast('คัดลอกลิงก์กล้องแล้ว — วางส่งให้คนอื่นได้เลย');
+  } catch {
+    window.prompt('คัดลอกลิงก์นี้เพื่อส่งให้คนอื่น', url);
+  }
+}
+
+let toastTimer = 0;
+function showToast(message: string) {
+  let el = document.getElementById('toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'toast';
+    el.className = 'toast';
+    el.setAttribute('role', 'status');
+    document.body.appendChild(el);
+  }
+  el.textContent = message;
+  el.classList.add('is-on');
+  window.clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => el!.classList.remove('is-on'), 2600);
+}
+
+/** เปิดแอปจากลิงก์แชร์ (?cam=<id>) — เปิดกล้องนั้นเมื่อรายชื่อกล้องโหลดเสร็จ */
+let pendingCamera = (() => {
+  try {
+    return new URLSearchParams(location.search).get('cam');
+  } catch {
+    return null;
+  }
+})();
+function openPendingCamera() {
+  if (!pendingCamera || !state.cameras) return;
+  const id = pendingCamera;
+  pendingCamera = null;
+  // เอา ?cam= ออกจากแถบที่อยู่ เพื่อไม่ให้เปิดซ้ำเมื่อรีเฟรช
+  try {
+    history.replaceState(null, '', location.pathname + location.hash);
+  } catch {
+    /* ไม่สำคัญ */
+  }
+  if (state.cameras.data.some((c) => c.id === id)) {
+    showView('map');
+    openEntity('camera', id);
+  } else showToast('ไม่พบกล้องจากลิงก์นี้ในขณะนี้');
+}
+
 function toggleFavoriteCamera(id: string) {
   const cam = (state.cameras?.data ?? []).find((c) => c.id === id);
   const known = state.favorites.find((f) => f.id === id);
@@ -529,7 +599,7 @@ function cameraSheet(c: Camera): string {
       c.name,
       escapeHtml(c.road ?? '') + distanceText(c.location),
       `<span class="cam-icon">${icons.camera(24)}</span>`,
-      favButton(c.id),
+      shareButton(c.id) + favButton(c.id),
     )}
     ${cameraViewHtml(c)}
     ${cameraReadings(c)}
@@ -736,9 +806,13 @@ function closeSheet() {
 
 sheetEl.addEventListener('click', (ev) => {
   const t = (ev.target as HTMLElement).closest<HTMLElement>(
-    '[data-close],[data-open],[data-goto],[data-label],[data-save-place],[data-remove-place],[data-cam-refresh],[data-fav-toggle]',
+    '[data-close],[data-open],[data-goto],[data-label],[data-save-place],[data-remove-place],[data-cam-refresh],[data-fav-toggle],[data-share]',
   );
   if (!t) return;
+  if (t.dataset.share) {
+    void shareCamera(t.dataset.share);
+    return;
+  }
   if (t.dataset.favToggle) {
     toggleFavoriteCamera(t.dataset.favToggle);
     return;
@@ -1211,6 +1285,7 @@ async function loadAll() {
   renderBanners();
   renderWaterCams();
   renderFavorites();
+  openPendingCamera();
   void renderRadar();
   document.body.classList.remove('loading');
   loading = false;

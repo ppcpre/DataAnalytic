@@ -680,3 +680,12 @@ button.link-card { width: 100%; text-align: left; font: inherit; color: inherit;
 .fav-remove svg { fill: currentColor; }
 .link-icon-live { background: var(--camera-live) !important; color: #fff !important; }
 .tab-badge-soft { background: var(--brand); }
+
+/* ข้อความแจ้งสั้น ๆ (เช่น คัดลอกลิงก์แล้ว) */
+.toast {
+  position: fixed; left: 50%; bottom: calc(var(--tabbar-h, 64px) + 20px + env(safe-area-inset-bottom)); z-index: 3000;
+  transform: translate(-50%, 12px); opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s;
+  max-width: min(92vw, 420px); padding: 10px 16px; border-radius: 12px;
+  background: var(--ink); color: var(--surface); font-size: 0.88rem; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+.toast.is-on { opacity: 1; transform: translate(-50%, 0); }

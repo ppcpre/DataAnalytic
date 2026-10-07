@@ -73,6 +73,16 @@ jobs:
           await m.click('#fav-list [data-open]');
           await m.waitForTimeout(3000);
           console.log('FAV open', await m.evaluate(() => document.querySelector('#sheet .sheet-title')?.textContent));
+          // ลิงก์แชร์: เปิด /?cam=<id> แล้วต้องเปิดหน้าต่างกล้องนั้นเอง และปุ่มแชร์คัดลอกลิงก์ได้
+          const ctx2 = await b.newContext({ viewport: { width: 390, height: 844 }, permissions: ['clipboard-read', 'clipboard-write'] });
+          const sp = await ctx2.newPage();
+          await sp.goto(process.env.BASE + '/?cam=sb-4aac4b3e-b18a-49a3-903b-e3ad9f960a44', { waitUntil: 'domcontentloaded' });
+          await sp.waitForSelector('#sheet [data-share]', { timeout: 60000 });
+          console.log('SHARE opened', await sp.evaluate(() => ({ title: document.querySelector('#sheet .sheet-title')?.textContent, url: location.href })));
+          await sp.click('#sheet [data-share]');
+          await sp.waitForTimeout(800);
+          console.log('SHARE copied', await sp.evaluate(async () => ({ clip: await navigator.clipboard.readText().catch((e) => 'ERR ' + e.message), toast: document.getElementById('toast')?.textContent })));
+          await sp.screenshot({ path: 'share.png' });
           await b.close();
           JS
           BASE="$BASE" node t.mjs
