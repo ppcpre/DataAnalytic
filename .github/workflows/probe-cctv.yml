@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# หาแหล่งกล้องเพิ่ม (รันเองจากแท็บ Actions)
+# ตรวจแหล่งกล้องใหม่ + ข้อมูลประวัติบนเว็บจริง (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
 
@@ -11,31 +11,24 @@ jobs:
     env:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
     steps:
-      - name: News article links
+      - name: History on live site
         continue-on-error: true
-        timeout-minutes: 2
         run: |
-          for u in https://www.thansettakij.com/general-news/670064 https://www.bangkokbiznews.com/news/1253547; do
-            echo "== $u"; curl -sS -L -m 25 -A "$UA" -o a.html "$u" -w "HTTP %{http_code}\n" || continue
-            grep -oiE 'href="https?://[^"]+"' a.html | sed 's/href="//;s/"$//' | grep -viE 'thansettakij|bangkokbiznews|facebook.com/sharer|twitter|line.me/R|google|doubleclick|cdn|\.css|\.js|\.png|\.jpg' | sort -u | head -40
-            sed -e 's/<[^>]*>/ /g' a.html | tr -s ' \n\t' ' ' | grep -oiE '.{0,80}(cctv|กล้อง|flood ?watch|ระบบ)[^.]{0,120}' | head -15
-          done
-      - name: StreamBridge other sites
+          site=https://dataanalytic.precare.workers.dev
+          curl -sS -m 60 -o /dev/null "$site/api/cameras"
+          curl -sS -m 30 "$site/api/history/stats"; echo
+          curl -sS -m 30 "$site/api/history/nont-STN2:down?hours=24" | head -c 400; echo
+      - name: New camera sources
         continue-on-error: true
-        timeout-minutes: 3
+        timeout-minutes: 5
         run: |
-          b=https://app.streambridge.online
-          for p in robots.txt sitemap.xml api/public api/public/sites api/sites api/projects; do curl -sS -m 15 -A "$UA" -o r.bin -w "%{http_code} %{content_type} %{size_download} <- $p\n" "$b/$p"; head -c 400 r.bin | tr '\n' ' '; echo; done
-          for s in nonthaburi-city nonthaburi pakkret-city pakkret rangsit-city rangsit bangbuathong bangbuathong-city bangyai sainoi samutprakan samutprakan-city pathumthani bangkok bangkruai bangkruai-city2 thanyaburi lamlukka bangpli phrapradaeng nakhonpathom samutsakhon kohkret bangkrasor bangsrimuang tha-it; do
-            code=$(curl -sS -m 10 -A "$UA" -o r.json -w "%{http_code}" "$b/api/public/$s" || echo ERR)
-            [ "$code" = "200" ] && echo "FOUND $s $(python3 -c "import json; d=json.load(open('r.json')); print(d.get('title'), len(d.get('cameras') or []))")" || echo "$s $code"
-          done
-      - name: Rangsit municipality
-        continue-on-error: true
-        timeout-minutes: 2
-        run: |
-          for u in https://www.rangsit.org/ https://rangsit.org/; do
-            echo "== $u"; curl -sS -L -m 20 -A "$UA" -o r.html "$u" -w "HTTP %{http_code} final=%{url_effective}\n" || continue
-            grep -oiE 'href="[^"]*(flood|cctv|camera|water|น้ำ|กล้อง)[^"]*"' r.html | sort -u | head -20
-            grep -oiE '<a[^>]+>[^<]*(flood|cctv|กล้อง|น้ำท่วม|ระดับน้ำ)[^<]*</a>' r.html | head -20
+          for u in https://cdp.rangsitcity.go.th/ https://nkndatamap.nakornnont.go.th/public https://world.tehx.dyndns.info/flood https://floodbangkok.bangkok.go.th/ https://live.iticfoundation.org/; do
+            echo; echo "=================== $u"
+            curl -sS -L -m 20 -A "$UA" -D h.txt -o p.html -w "HTTP %{http_code} final=%{url_effective} type=%{content_type} size=%{size_download}\n" "$u" 2>&1 | tail -1
+            tr -d '\r' < h.txt | grep -iE '^(x-frame-options|content-security-policy|access-control|server)' | cut -c1-200
+            grep -oiE '<title>[^<]*</title>' p.html | head -1
+            echo "-- scripts:"; grep -oiE '<script[^>]+src="[^"]+"' p.html | sed -E 's/.*src="([^"]+)"/\1/' | head -12
+            echo "-- hints:"; grep -oiE '["'"'"'(=][^"'"'"' ()<>]{0,80}(api|json|m3u8|hls|snapshot|cctv|camera|stream|lat|lng)[^"'"'"' ()<>]{0,60}' p.html | sort -u | head -30
+            echo "-- iframes:"; grep -oiE '<iframe[^>]*>' p.html | head -5
+            echo "-- text:"; sed -e 's/<script[^>]*>.*<\/script>//g; s/<[^>]*>/ /g' p.html | tr -s ' \n\t' ' ' | head -c 600; echo
           done
