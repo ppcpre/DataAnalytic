@@ -19,7 +19,7 @@ describe('nonthaburi stations', () => {
       owner: 'เทศบาลนครนนทบุรี',
       url: 'http://182.52.224.70/',
       kind: 'water',
-      readings: [{ label: 'ความลึกน้ำบนถนน', value: 0.27, unit: 'ม.', warning: 0.2, danger: 0.4 }],
+      readings: [{ label: 'ความลึกน้ำบนถนน', value: 0.27, unit: 'ม.', warning: 0.2, danger: 0.4, historyId: 'nont-STN30:up' }],
       observedAt: '2026-09-28T07:40:00.000Z',
     });
     expect(a2).toMatchObject({
@@ -32,8 +32,8 @@ describe('nonthaburi stations', () => {
       observedAt: '2026-09-28T07:30:00.000Z',
     });
     expect(a2.readings).toEqual([
-      { label: 'ระดับน้ำด้านเหนือประตู', value: 1.12, unit: 'ม.', warning: 1.5, danger: 2 },
-      { label: 'ระดับน้ำด้านท้ายประตู', value: 1.84, unit: 'ม.', warning: 1.5, danger: 2.5 },
+      { label: 'ระดับน้ำด้านเหนือประตู', value: 1.12, unit: 'ม.', warning: 1.5, danger: 2, historyId: 'nont-STN2:up' },
+      { label: 'ระดับน้ำด้านท้ายประตู', value: 1.84, unit: 'ม.', warning: 1.5, danger: 2.5, historyId: 'nont-STN2:down' },
       { label: 'ฝนสะสมวันนี้', value: 43.8, unit: 'มม.', warning: 30, danger: 90 },
     ]);
     // ไม่นำชื่อผู้ดูแลจุด (address) มาแสดง
@@ -86,5 +86,28 @@ describe('nonthaburi saved stations', () => {
       expect(c.url).toBe('http://182.52.224.70/?page=cctv');
       expect(c.kind).toBe('water');
     }
+  });
+});
+
+describe('nonthaburi history', () => {
+  it('turns recent gate readings into history rows with percent of the critical level', async () => {
+    const { cameraReadings, MemoryHistoryStore } = await import('../src/history.js');
+    const list = parseNonthaburiStations(NONT_BODY, NOW);
+    const rows = cameraReadings(list);
+    expect(rows).toEqual([
+      { stationId: 'nont-STN2:up', t: Date.parse('2026-09-28T07:30:00Z'), level: 1.12, percent: 56 },
+      { stationId: 'nont-STN2:down', t: Date.parse('2026-09-28T07:30:00Z'), level: 1.84, percent: 73.6 },
+      { stationId: 'nont-STN30:up', t: Date.parse('2026-09-28T07:40:00Z'), level: 0.27, percent: 67.5 },
+    ]);
+    const store = new MemoryHistoryStore();
+    await store.record(rows);
+    await store.record(rows); // ค่าเดิมซ้ำไม่บันทึกซ้ำ
+    expect(await store.stats()).toEqual({
+      rows: 3,
+      stations: 3,
+      first: Date.parse('2026-09-28T07:30:00Z'),
+      last: Date.parse('2026-09-28T07:40:00Z'),
+      bySource: { nont: 3 },
+    });
   });
 });

@@ -83,6 +83,38 @@ D1 ผูกไว้ใน `wrangler.jsonc` โดยไม่ระบุ `dat
 ในบัญชี Cloudflare ให้เองครั้งแรกและผูกกับ Worker (automatic resource provisioning) ตารางสร้างเองเมื่อใช้งานครั้งแรก
 ตรวจได้ที่ `GET /api/health` → `"history": "d1"` (ถ้าเป็น `"memory"` แปลว่ายังไม่ได้ผูก D1)
 
+#### ข้อมูลที่เก็บใน D1 และการ query
+
+ตาราง `readings (station_id, t, level, percent)` — `t` เป็นเวลาแบบ ms (UTC)
+
+| `station_id` | ที่มา | `level` | `percent` |
+|---|---|---|---|
+| `tw-wl-<id>` | สถานีวัดระดับน้ำ ThaiWater | ม.รทก. | % ของตลิ่ง |
+| `nont-<STN>:up` / `:down` | ประตูน้ำนนทบุรี ด้านเหนือ/ท้ายประตู | ม. | % ของระดับวิกฤต |
+| `nont-<STN>:up` (จุด C) | เซนเซอร์น้ำท่วมถนนนนทบุรี (ความลึกบนถนน) | ม. | % ของระดับวิกฤต |
+
+ดูสรุปเร็ว ๆ: `GET /api/history/stats` · ดูชุดข้อมูล: `GET /api/history/<station_id>?hours=24`
+
+Query เอง: Cloudflare dashboard → Storage & Databases → D1 → `flood-watch` → **Console**
+หรือ `npx wrangler d1 execute flood-watch --remote --command "<SQL>"`
+
+```sql
+-- จำนวนแถวต่อแหล่ง และช่วงเวลา (เวลาไทย)
+SELECT substr(station_id, 1, instr(station_id || '-', '-') - 1) AS source, COUNT(*) AS rows,
+       datetime(MIN(t)/1000, 'unixepoch', '+7 hours') AS first_th,
+       datetime(MAX(t)/1000, 'unixepoch', '+7 hours') AS last_th
+FROM readings GROUP BY source;
+
+-- ค่าล่าสุดของประตูน้ำวัดตำหนักใต้ (STN2) ทั้งสองฝั่ง
+SELECT station_id, datetime(t/1000, 'unixepoch', '+7 hours') AS time_th, level
+FROM readings WHERE station_id LIKE 'nont-STN2:%' ORDER BY t DESC LIMIT 20;
+
+-- จุดที่เกินระดับวิกฤตใน 24 ชม.ที่ผ่านมา
+SELECT station_id, MAX(level) AS max_level, MAX(percent) AS max_pct_of_critical
+FROM readings WHERE station_id LIKE 'nont-%' AND t > (strftime('%s','now') - 86400) * 1000
+GROUP BY station_id HAVING MAX(percent) >= 100 ORDER BY max_pct_of_critical DESC;
+```
+
 ### กล้อง CCTV บนแผนที่
 
 หมุดกล้องมาจากรายชื่อกล้องของ Longdo Traffic (`https://traffic.longdo.com/camera.json` — กล้องของ กทม. และกรมทางหลวงผ่านมูลนิธิ iTIC)

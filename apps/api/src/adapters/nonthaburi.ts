@@ -54,14 +54,17 @@ function cameraName(url: unknown): string | undefined {
   return NONT_CAMERA_NAME.test(name) ? name : undefined;
 }
 
-function reading(label: string, v: unknown, unit: string, key = 'now'): CameraReading | undefined {
+function reading(label: string, v: unknown, unit: string, key = 'now', historyId?: string): CameraReading | undefined {
   const r = v as Rec | null;
   if (!r || r.enable !== true) return undefined;
   const value = r.value as Rec | null;
   const now = num(value?.[key]);
   if (now === undefined) return undefined;
-  return { label, value: now, unit, warning: num(value?.warning), danger: num(value?.danger) };
+  return { label, value: now, unit, warning: num(value?.warning), danger: num(value?.danger), ...(historyId ? { historyId } : {}) };
 }
+
+/** รหัสชุดข้อมูลย้อนหลังของค่าวัด เช่น nont-STN2:down */
+export const nontHistoryId = (stationId: string, side: 'up' | 'down') => `nont-${stationId}:${side}`;
 
 export function parseNonthaburiStations(body: unknown, now = Date.now()): Camera[] {
   const list = (body as Rec | null)?.station;
@@ -84,7 +87,7 @@ export function parseNonthaburiStations(body: unknown, now = Date.now()): Camera
 
     if (!cams.length) {
       // จุด C: เซนเซอร์วัดน้ำท่วมบนถนน (ไม่มีกล้อง) — ปักหมุดเฉพาะเมื่อมีค่าวัดล่าสุด
-      const depth = recent && code?.startsWith('C') ? reading('ความลึกน้ำบนถนน', data.wl_up, 'ม.') : undefined;
+      const depth = recent && code?.startsWith('C') ? reading('ความลึกน้ำบนถนน', data.wl_up, 'ม.', 'now', nontHistoryId(id, 'up')) : undefined;
       if (!depth) continue;
       out.push({
         id: `nont-${id}`,
@@ -101,8 +104,8 @@ export function parseNonthaburiStations(body: unknown, now = Date.now()): Camera
     }
     const readings = recent
       ? [
-          reading('ระดับน้ำด้านเหนือประตู', data.wl_up, 'ม.'),
-          reading('ระดับน้ำด้านท้ายประตู', data.wl_down, 'ม.'),
+          reading('ระดับน้ำด้านเหนือประตู', data.wl_up, 'ม.', 'now', nontHistoryId(id, 'up')),
+          reading('ระดับน้ำด้านท้ายประตู', data.wl_down, 'ม.', 'now', nontHistoryId(id, 'down')),
           reading('ฝนสะสมวันนี้', data.rf, 'มม.', 'day'),
         ].filter((x): x is CameraReading => !!x)
       : [];

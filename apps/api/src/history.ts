@@ -20,6 +20,44 @@ export interface HistoryStore {
   /** ค่าของทุกสถานีในช่วงเวลา (ใช้คำนวณแนวโน้ม) */
   range(fromMs: number, toMs: number): Promise<Reading[]>;
   prune(beforeMs: number): Promise<void>;
+  /** สรุปข้อมูลที่เก็บไว้ (ดูว่าระบบเก็บประวัติทำงานอยู่หรือไม่) */
+  stats(): Promise<HistoryStats>;
+}
+
+export interface HistoryStats {
+  rows: number;
+  stations: number;
+  /** เวลาค่าแรก/ค่าล่าสุดที่เก็บไว้ (ms) */
+  first: number | null;
+  last: number | null;
+  /** จำนวนแถวแยกตามแหล่ง (คำนำหน้ารหัสสถานี เช่น tw, nont) */
+  bySource: Record<string, number>;
+}
+
+const sourceOf = (stationId: string) => stationId.split('-')[0] || stationId;
+
+/**
+ * ค่าวัดประกอบกล้อง/จุดวัด (เช่น ระดับน้ำประตูน้ำนนทบุรี) ที่มีรหัสชุดข้อมูลย้อนหลัง
+ * percent = ร้อยละของระดับวิกฤต (ถ้ามี) เพื่อใช้คำนวณแนวโน้มแบบเดียวกับสถานีอื่น
+ */
+export function cameraReadings(
+  cams: Array<{ observedAt?: string; readings?: Array<{ value: number; danger?: number; historyId?: string }> }>,
+): Reading[] {
+  const out: Reading[] = [];
+  for (const c of cams) {
+    const t = c.observedAt ? new Date(c.observedAt).getTime() : NaN;
+    if (!Number.isFinite(t)) continue;
+    for (const r of c.readings ?? []) {
+      if (!r.historyId) continue;
+      out.push({
+        stationId: r.historyId,
+        t,
+        level: r.value,
+        percent: r.danger ? Math.round((r.value / r.danger) * 1000) / 10 : null,
+      });
+    }
+  }
+  return out;
 }
 
 export const HOUR = 3600_000;
@@ -59,6 +97,19 @@ export class MemoryHistoryStore implements HistoryStore {
 
   async prune(beforeMs: number) {
     for (const [id, list] of this.data) this.data.set(id, list.filter((r) => r.t >= beforeMs));
+  }
+
+  async stats(): Promise<HistoryStats> {
+    const all = [...this.data.values()].flat();
+    const bySource: Record<string, number> = {};
+    for (const r of all) bySource[sourceOf(r.stationId)] = (bySource[sourceOf(r.stationId)] ?? 0) + 1;
+    return {
+      rows: all.length,
+      stations: [...this.data.values()].filter((l) => l.length).length,
+      first: all.length ? Math.min(...all.map((r) => r.t)) : null,
+      last: all.length ? Math.max(...all.map((r) => r.t)) : null,
+      bySource,
+    };
   }
 }
 
@@ -134,6 +185,24 @@ export class D1HistoryStore implements HistoryStore {
   async prune(beforeMs: number) {
     await this.init();
     await this.db.prepare('DELETE FROM readings WHERE t < ?').bind(beforeMs).run();
+  }
+
+  async stats(): Promise<HistoryStats> {
+    await this.init();
+    const { results } = await this.db
+      .prepare(
+        "SELECT substr(station_id, 1, instr(station_id || '-', '-') - 1) AS source, COUNT(*) AS n, COUNT(DISTINCT station_id) AS s, MIN(t) AS first, MAX(t) AS last FROM readings GROUP BY source",
+      )
+      .all<{ source: string; n: number; s: number; first: number; last: number }>();
+    const bySource: Record<string, number> = {};
+    for (const r of results) bySource[r.source] = r.n;
+    return {
+      rows: results.reduce((a, r) => a + r.n, 0),
+      stations: results.reduce((a, r) => a + r.s, 0),
+      first: results.length ? Math.min(...results.map((r) => r.first)) : null,
+      last: results.length ? Math.max(...results.map((r) => r.last)) : null,
+      bySource,
+    };
   }
 }
 

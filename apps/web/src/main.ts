@@ -278,7 +278,25 @@ function cameraReadings(c: Camera): string {
         limits(r) ? `<small>${escapeHtml(limits(r))}</small>` : ''
       }</div>`,
     )
-    .join('')}</div>${c.observedAt ? `<span class="btn-caption">ค่าวัดเมื่อ ${escapeHtml(formatAgo(c.observedAt) || formatTime(c.observedAt))}</span>` : ''}`;
+    .join('')}</div>${c.observedAt ? `<span class="btn-caption">ค่าวัดเมื่อ ${escapeHtml(formatAgo(c.observedAt) || formatTime(c.observedAt))}</span>` : ''}${historyCharts(c)}`;
+}
+
+/** กราฟ 24 ชม. ของค่าวัดที่ระบบเก็บประวัติ (เช่น ระดับน้ำสองฝั่งประตูน้ำนนทบุรี) */
+function historyCharts(c: Camera): string {
+  const list = (c.readings ?? []).filter((r) => r.historyId && r.unit === 'ม.');
+  if (!list.length) return '';
+  return list
+    .map((r) => {
+      const refs: Array<[number, string]> = [];
+      if (r.warning !== undefined) refs.push([r.warning, `เฝ้าระวัง ${formatNum(r.warning)} ม.`]);
+      if (r.danger !== undefined) refs.push([r.danger, `วิกฤต ${formatNum(r.danger)} ม.`]);
+      return `
+    <div class="chart-block">
+      <div class="chart-title"><span>${escapeHtml(r.label)} 24 ชม.</span></div>
+      <div class="chart-host" data-history="${escapeHtml(r.historyId!)}" data-chart="level" data-refs="${escapeHtml(JSON.stringify(refs))}" data-title="${escapeHtml(r.label)}"><p class="chart-loading">กำลังโหลดข้อมูลย้อนหลัง…</p></div>
+    </div>`;
+    })
+    .join('');
 }
 
 /** สถานีวัดระดับน้ำที่ใกล้จุดวัด/กล้องน้ำ ในระยะนี้ ใช้วาดภาพเทียบตลิ่งกับระดับน้ำในหน้าต่างกล้อง */
@@ -744,21 +762,33 @@ function openEntity(kind: LayerKey, id: string, pan = true) {
 
 const historyCache = new Map<string, { at: number; data: Awaited<ReturnType<typeof api.history>>['data'] }>();
 async function loadHistoryChart() {
-  const host = sheetEl.querySelector<HTMLElement>('[data-history]');
-  if (!host) return;
+  // หน้าต่างหนึ่งอาจมีหลายกราฟ (เช่น ระดับน้ำสองฝั่งประตูน้ำ)
+  await Promise.all([...sheetEl.querySelectorAll<HTMLElement>('[data-history]')].map(loadOneHistory));
+}
+
+async function loadOneHistory(host: HTMLElement) {
   const id = host.dataset.history!;
+  const meters = host.dataset.chart === 'level';
   try {
     let entry = historyCache.get(id);
     if (!entry || Date.now() - entry.at > 2 * 60_000) {
       let data = await api.history(id, 24).then((r) => r.data, () => []);
-      // API ยังเก็บประวัติไม่พอ (หรือดึงไม่ได้) → ใช้กราฟย้อนหลังของ ThaiWater โดยตรง
-      if (data.filter((p) => p.percent !== null).length < 2) data = await thaiWaterHistory(id, 24).catch(() => data);
+      // API ยังเก็บประวัติไม่พอ (หรือดึงไม่ได้) → ใช้กราฟย้อนหลังของ ThaiWater โดยตรง (เฉพาะสถานี ThaiWater)
+      if (!meters && data.filter((p) => p.percent !== null).length < 2) data = await thaiWaterHistory(id, 24).catch(() => data);
       entry = { at: Date.now(), data };
       historyCache.set(id, entry);
     }
     // ผู้ใช้อาจเปิดจุดอื่นระหว่างรอ
     if (!host.isConnected) return;
-    renderHistoryChart(host, entry.data, 24);
+    if (meters) {
+      let refs: Array<[number, string]> = [];
+      try {
+        refs = JSON.parse(host.dataset.refs ?? '[]') as Array<[number, string]>;
+      } catch {
+        /* ไม่มีเส้นอ้างอิง */
+      }
+      renderHistoryChart(host, entry.data, 24, { value: 'level', refs, title: host.dataset.title });
+    } else renderHistoryChart(host, entry.data, 24);
   } catch {
     if (host.isConnected) host.innerHTML = '<p class="chart-empty">โหลดข้อมูลย้อนหลังไม่สำเร็จ</p>';
   }

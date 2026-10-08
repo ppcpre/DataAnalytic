@@ -42,7 +42,8 @@ export default {
   async scheduled(_event: unknown, env: WorkerEnv, ctx: Ctx) {
     const { app, history } = init(env);
     const run = async () => {
-      for (const path of ['/api/water-level', '/api/key-stations']) {
+      // /api/cameras ดึงข้อมูลนนทบุรีและเก็บประวัติระดับน้ำประตูน้ำ/น้ำท่วมถนน
+      for (const path of ['/api/water-level', '/api/key-stations', '/api/cameras']) {
         const res = await app.fetch(new Request(`https://internal${path}`), env, ctx as never);
         if (!res.ok) console.error('[cron]', path, res.status);
       }

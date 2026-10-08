@@ -13,6 +13,13 @@ export function trendText(t: Trend | null | undefined, short = false): string {
   return `${arrow} ${t.direction === 'rise' ? 'สูงขึ้น' : 'ลดลง'} ${amount} ใน ${hours}`;
 }
 
+/** ช่วงแกนที่อ่านง่าย (0.05, 0.1, 0.2, 0.25, 0.5, 1 …) */
+function niceStep(raw: number): number {
+  const p = 10 ** Math.floor(Math.log10(raw || 1));
+  const n = raw / p;
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p;
+}
+
 const THRESHOLDS: Array<[number, string]> = [
   [70, '70% เฝ้าระวัง'],
   [100, 'ตลิ่ง 100%'],
@@ -22,10 +29,20 @@ const THRESHOLDS: Array<[number, string]> = [
  * กราฟเส้นระดับน้ำ (% ของตลิ่ง) ย้อนหลัง — ชุดข้อมูลเดียว จึงไม่มีกล่อง legend (หัวข้อบอกชื่อแล้ว)
  * มีเส้นอ้างอิงเกณฑ์ เฝ้าระวัง / ตลิ่ง, crosshair + tooltip เมื่อชี้, และตารางสำหรับอ่านแบบข้อความ
  */
-export function renderHistoryChart(host: HTMLElement, raw: HistoryPoint[], hours: number) {
+export interface ChartOptions {
+  /** ค่าที่วาด: % ของตลิ่ง (ค่าเริ่มต้น) หรือระดับน้ำเป็นเมตร */
+  value?: 'percent' | 'level';
+  /** เส้นอ้างอิงเมื่อวาดเป็นเมตร เช่น [[1.5, 'เฝ้าระวัง 1.5 ม.'], [2, 'วิกฤต 2 ม.']] */
+  refs?: Array<[number, string]>;
+  /** ชื่อกราฟสำหรับโปรแกรมอ่านหน้าจอ */
+  title?: string;
+}
+
+export function renderHistoryChart(host: HTMLElement, raw: HistoryPoint[], hours: number, opts: ChartOptions = {}) {
+  const meters = opts.value === 'level';
   const points = raw
-    .filter((p) => p.percent !== null)
-    .map((p) => ({ t: new Date(p.t).getTime(), v: p.percent as number, level: p.levelMsl }))
+    .filter((p) => (meters ? p.levelMsl : p.percent) !== null)
+    .map((p) => ({ t: new Date(p.t).getTime(), v: (meters ? p.levelMsl : p.percent) as number, level: p.levelMsl }))
     .sort((a, b) => a.t - b.t);
 
   if (points.length < 2) {
@@ -42,8 +59,20 @@ export function renderHistoryChart(host: HTMLElement, raw: HistoryPoint[], hours
   const tEnd = points[points.length - 1].t;
   const tStart = Math.min(points[0].t, tEnd - hours * 3600_000);
   const vals = points.map((p) => p.v);
-  const yMin = Math.max(0, Math.floor(Math.min(...vals, 60) / 10) * 10);
-  const yMax = Math.ceil(Math.max(...vals, 105) / 10) * 10;
+  const refs = meters ? (opts.refs ?? []) : THRESHOLDS;
+  let yMin: number;
+  let yMax: number;
+  if (meters) {
+    // ให้เห็นเส้นเฝ้าระวัง/วิกฤตเสมอ และเผื่อขอบบนล่างเล็กน้อย
+    const lo = Math.min(...vals, ...refs.map(([v]) => v));
+    const hi = Math.max(...vals, ...refs.map(([v]) => v));
+    const pad = Math.max(0.1, (hi - lo) * 0.12);
+    yMin = Math.floor((lo - pad) * 10) / 10;
+    yMax = Math.ceil((hi + pad) * 10) / 10;
+  } else {
+    yMin = Math.max(0, Math.floor(Math.min(...vals, 60) / 10) * 10);
+    yMax = Math.ceil(Math.max(...vals, 105) / 10) * 10;
+  }
   const x = (t: number) => m.left + ((t - tStart) / (tEnd - tStart || 1)) * iw;
   const y = (v: number) => m.top + ih - ((v - yMin) / (yMax - yMin || 1)) * ih;
 
@@ -51,13 +80,15 @@ export function renderHistoryChart(host: HTMLElement, raw: HistoryPoint[], hours
   const last = points[points.length - 1];
 
   const yTicks: number[] = [];
-  const step = yMax - yMin > 60 ? 40 : 20;
-  for (let v = Math.ceil(yMin / step) * step; v <= yMax; v += step) yTicks.push(v);
+  const step = meters ? niceStep((yMax - yMin) / 4) : yMax - yMin > 60 ? 40 : 20;
+  for (let v = Math.ceil(yMin / step) * step; v <= yMax + 1e-9; v += step) yTicks.push(Math.round(v * 100) / 100);
+  const unit = meters ? ' ม.' : '%';
+  const fmt = (v: number) => (meters ? formatNum(v, 2) : formatNum(v, 1));
   const xTicks = [0, 1, 2, 3].map((i) => tStart + ((tEnd - tStart) * i) / 3);
 
   const min = Math.min(...vals);
   const max = Math.max(...vals);
-  const label = `กราฟระดับน้ำเทียบตลิ่ง ${hours} ชั่วโมง: ต่ำสุด ${formatNum(min, 1)}% สูงสุด ${formatNum(max, 1)}% ล่าสุด ${formatNum(last.v, 1)}%`;
+  const label = `${opts.title ?? (meters ? 'กราฟระดับน้ำ' : 'กราฟระดับน้ำเทียบตลิ่ง')} ${hours} ชั่วโมง: ต่ำสุด ${fmt(min)}${unit} สูงสุด ${fmt(max)}${unit} ล่าสุด ${fmt(last.v)}${unit}`;
 
   host.innerHTML = `
     <div class="chart-wrap">
@@ -68,7 +99,7 @@ export function renderHistoryChart(host: HTMLElement, raw: HistoryPoint[], hours
               `<line class="grid" x1="${m.left}" x2="${W - m.right}" y1="${y(v)}" y2="${y(v)}"/><text class="axis" x="${m.left - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`,
           )
           .join('')}
-        ${THRESHOLDS.filter(([v]) => v >= yMin && v <= yMax)
+        ${refs.filter(([v]) => v >= yMin && v <= yMax)
           .map(
             ([v, name]) =>
               `<line class="ref" x1="${m.left}" x2="${W - m.right}" y1="${y(v)}" y2="${y(v)}"/><text class="ref-label" x="${m.left + 4}" y="${y(v) - 4}">${name}</text>`,
@@ -95,13 +126,13 @@ export function renderHistoryChart(host: HTMLElement, raw: HistoryPoint[], hours
     <details class="chart-table">
       <summary>ดูเป็นตาราง</summary>
       <table>
-        <thead><tr><th scope="col">เวลา</th><th scope="col">% ตลิ่ง</th><th scope="col">ม.รทก.</th></tr></thead>
+        <thead><tr><th scope="col">เวลา</th>${meters ? '<th scope="col">ระดับน้ำ (ม.)</th>' : '<th scope="col">% ตลิ่ง</th><th scope="col">ม.รทก.</th>'}</tr></thead>
         <tbody>${points
           .filter((_, i) => i % Math.max(1, Math.round(points.length / 12)) === 0 || i === points.length - 1)
           .reverse()
           .map(
             (p) =>
-              `<tr><td>${formatClock(new Date(p.t).toISOString())}</td><td>${formatNum(p.v, 1)}</td><td>${formatNum(p.level)}</td></tr>`,
+              `<tr><td>${formatClock(new Date(p.t).toISOString())}</td><td>${fmt(p.v)}</td>${meters ? '' : `<td>${formatNum(p.level)}</td>`}</tr>`,
           )
           .join('')}</tbody>
       </table>
@@ -125,7 +156,7 @@ export function renderHistoryChart(host: HTMLElement, raw: HistoryPoint[], hours
     dot.setAttribute('cy', String(y(best.v)));
     hover.setAttribute('visibility', 'visible');
     tip.hidden = false;
-    tip.innerHTML = `<strong>${formatNum(best.v, 1)}%</strong> ${best.level !== null ? `· ${formatNum(best.level)} ม.รทก.` : ''}<br><span>${formatClock(
+    tip.innerHTML = `<strong>${fmt(best.v)}${unit}</strong> ${!meters && best.level !== null ? `· ${formatNum(best.level)} ม.รทก.` : ''}<br><span>${formatClock(
       new Date(best.t).toISOString(),
     )}</span>`;
     const left = (cx / W) * rect.width;

@@ -167,6 +167,8 @@ export interface CameraReading {
   /** ระดับเฝ้าระวัง/วิกฤตของค่านี้ (หน่วยเดียวกับ value) */
   warning?: number;
   danger?: number;
+  /** รหัสชุดข้อมูลย้อนหลัง (GET /api/history/:id) — มีเมื่อระบบเก็บประวัติของค่านี้ */
+  historyId?: string;
 }
 
 /** ผลการค้นหาสถานที่ */

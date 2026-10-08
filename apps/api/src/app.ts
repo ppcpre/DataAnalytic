@@ -20,7 +20,14 @@ import {
 import { NONT_CAMERA_NAME, NONT_STATIONS_PATH, nontImagePath, parseNonthaburiStations } from './adapters/nonthaburi.js';
 import type { RawResponse } from './raw-http.js';
 import { NONT_STATIC } from './data/nonthaburi.js';
-import { D1HistoryStore, HOUR, MemoryHistoryStore, recordAndAttachTrends, type HistoryStore } from './history.js';
+import {
+  cameraReadings,
+  D1HistoryStore,
+  HOUR,
+  MemoryHistoryStore,
+  recordAndAttachTrends,
+  type HistoryStore,
+} from './history.js';
 import {
   sampleCameras,
   sampleFloodForecasts,
@@ -214,7 +221,10 @@ export function createApp(
       const r = await cache.get('nont-stations', async () => {
         const res = await nontGet(NONT_STATIONS_PATH);
         if (res.status !== 200) throw new UpstreamError(`ต้นทางตอบกลับ HTTP ${res.status}`, 'nonthaburi');
-        return parseNonthaburiStations(JSON.parse(new TextDecoder().decode(res.body)));
+        const list = parseNonthaburiStations(JSON.parse(new TextDecoder().decode(res.body)));
+        // เก็บประวัติระดับน้ำประตูน้ำ/น้ำท่วมถนน (ค่าเดิมซ้ำจะถูกข้าม) — เก็บไม่ได้ก็ยังแสดงข้อมูลได้
+        await history.record(cameraReadings(list)).catch((err: unknown) => console.error('[history] nonthaburi', err));
+        return list;
       });
       return r.value.length ? r.value : NONT_STATIC;
     } catch (err) {
@@ -310,6 +320,19 @@ export function createApp(
       sample: sampleCameras,
     }),
   );
+
+  /** สรุปข้อมูลประวัติที่เก็บไว้ (จำนวนแถว/สถานี/ช่วงเวลา แยกตามแหล่ง) */
+  app.get('/api/history/stats', async (c) => {
+    c.header('cache-control', 'no-store');
+    try {
+      const s = await history.stats();
+      const iso = (t: number | null) => (t === null ? null : new Date(t).toISOString());
+      return c.json({ store: history instanceof D1HistoryStore ? 'd1' : 'memory', ...s, first: iso(s.first), last: iso(s.last) });
+    } catch (err) {
+      console.error('[history-stats]', err);
+      return c.json({ error: 'อ่านข้อมูลประวัติไม่สำเร็จ' }, 502);
+    }
+  });
 
   /** ระดับน้ำย้อนหลังของสถานี (สูงสุด 7 วัน) */
   app.get('/api/history/:id', async (c) => {

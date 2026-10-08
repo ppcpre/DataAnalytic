@@ -236,3 +236,11 @@ describe('history endpoint', () => {
     expect(body.data).toEqual([{ t: observed.toISOString(), levelMsl: 1.5, percent: 75 }]);
   });
 });
+
+describe('history stats', () => {
+  it('reports what the history store holds', async () => {
+    const app = createApp(loadConfig({}));
+    const body = await (await app.request('/api/history/stats')).json();
+    expect(body).toEqual({ store: 'memory', rows: 0, stations: 0, first: null, last: null, bySource: {} });
+  });
+});
