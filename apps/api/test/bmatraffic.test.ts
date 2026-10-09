@@ -38,7 +38,7 @@ describe('bmatraffic cameras', () => {
     expect(isRealBmaFrame(BLANK)).toBe(false);
   });
 
-  const appWith = (frame: Uint8Array, env: Record<string, string> = {}) => {
+  const appWith = (frame: Uint8Array, env: Record<string, string> = { BMA_TRAFFIC: 'auto' }) => {
     const fetched: string[] = [];
     const app = createApp(loadConfig({ CAMERA_LIST_URL: '', RANGSIT_LIVE: 'false', STREAMBRIDGE_SLUGS: '', NONT_LIVE: 'false', ...env }), async () => ({}), undefined, {
       getText: async (url) => (url.includes('bmatraffic') ? BMA_HTML : ''),
@@ -71,7 +71,7 @@ describe('bmatraffic cameras', () => {
 
   it('uses the socket getter for page and images when provided', async () => {
     const paths: string[] = [];
-    const app = createApp(loadConfig({ CAMERA_LIST_URL: '', RANGSIT_LIVE: 'false', STREAMBRIDGE_SLUGS: '', NONT_LIVE: 'false' }), async () => ({}), undefined, {
+    const app = createApp(loadConfig({ CAMERA_LIST_URL: '', RANGSIT_LIVE: 'false', STREAMBRIDGE_SLUGS: '', NONT_LIVE: 'false', BMA_TRAFFIC: 'auto' }), async () => ({}), undefined, {
       getText: async () => '',
       bmaGet: async (path) => {
         paths.push(path);
@@ -82,6 +82,13 @@ describe('bmatraffic cameras', () => {
     expect(await bmaIds(app)).toBe(3);
     expect(paths[0]).toBe('/');
     expect(paths[1]).toMatch(/^\/show\.aspx\?image=603&&time=\d+$/);
+  });
+
+  it('is off by default', async () => {
+    const { app, fetched } = appWith(FRAME, {});
+    expect(await bmaIds(app)).toBe(0);
+    expect(await (await app.request('/api/bma/status')).json()).toEqual({ mode: 'off', show: false });
+    expect(fetched).toEqual([]);
   });
 
   it('can be forced on or off', async () => {

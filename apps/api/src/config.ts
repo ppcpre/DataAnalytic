@@ -37,8 +37,9 @@ export interface Config {
     /** กล้องและจุดน้ำท่วมที่ประชาชนแจ้งของเทศบาลนครรังสิต — false = ปิด */
     rangsit: boolean;
     /**
-     * กล้องจราจร กทม. (bmatraffic.com): auto = แสดงเมื่อสุ่มตรวจแล้วต้นทางส่งภาพจริง (ค่าเริ่มต้น),
-     * on = แสดงเสมอ, off = ปิด
+     * กล้องจราจร กทม. (bmatraffic.com): auto = แสดงเมื่อสุ่มตรวจแล้วต้นทางส่งภาพจริง,
+     * on = แสดงเสมอ, off = ปิด (ค่าเริ่มต้น — ต.ค. 2569 ต้นทางไม่ตอบการเชื่อมต่อจาก Cloudflare Workers
+     * ทั้ง fetch และ TCP socket จึงเปิดได้เฉพาะเมื่อรัน API บนเครื่องที่ต้นทางยอมให้เข้าถึง)
      */
     bmaTraffic: 'auto' | 'on' | 'off';
   };
@@ -93,7 +94,7 @@ export function loadConfig(env: Env = process.env): Config {
         .map((x) => x.trim())
         .filter(Boolean),
       rangsit: env.RANGSIT_LIVE !== 'false',
-      bmaTraffic: env.BMA_TRAFFIC === 'on' || env.BMA_TRAFFIC === 'off' ? env.BMA_TRAFFIC : 'auto',
+      bmaTraffic: env.BMA_TRAFFIC === 'on' || env.BMA_TRAFFIC === 'auto' ? env.BMA_TRAFFIC : 'off',
     },
     floodhub: {
       apiKey: env.GOOGLE_FLOOD_API_KEY ?? '',
