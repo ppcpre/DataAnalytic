@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# ตรวจสถานะกล้องจราจร กทม. บนเว็บที่ deploy แล้ว (รันเองจากแท็บ Actions)
+# ตรวจสถานะกล้องจราจร กทม. บนเว็บที่ deploy แล้ว (ผ่าน TCP socket) (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -16,7 +16,7 @@ jobs:
     steps:
       - name: BMA status on the live API
         run: |
-          for i in $(seq 1 30); do
+          for i in $(seq 1 16); do
             out=$(curl -sS -m 90 "$APP/api/bma/status" || true)
             echo "try $i: $out"
             echo "$out" | grep -q '"cameras"' && break
