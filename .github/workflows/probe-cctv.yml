@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# หากล้องย่านปิ่นเกล้า-ราชพฤกษ์ (รันเองจากแท็บ Actions)
+# สำรวจระบบกล้อง bmatraffic.com (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -13,40 +13,28 @@ jobs:
     timeout-minutes: 6
     env:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
-      APP: https://dataanalytic.precare.workers.dev
+      B: http://www.bmatraffic.com
     steps:
-      - name: Cameras in the area
+      - name: Home page structure
         continue-on-error: true
         run: |
-          curl -sS -m 30 "$APP/api/cameras" -o app.json
-          curl -sS -m 30 -A "$UA" https://traffic.longdo.com/camera.json -o longdo.json
+          curl -sS -m 30 -A "$UA" -c jar.txt -D h.txt -o p.html "$B/"
+          cat h.txt | tr -d '\r' | grep -iE '^(HTTP|set-cookie|content-type|server|location)'
           python3 - <<'PY'
-          import json, collections
-          box = lambda la, ln: 13.72 <= la <= 13.90 and 100.40 <= ln <= 100.50
-          d = json.load(open('app.json'))['data']
-          a = [c for c in d if box(c['location']['lat'], c['location']['lng'])]
-          print('APP in box', len(a))
-          for c in a: print(' ', c['id'], '|', c['name'], '|', c.get('road'), '| hls' if c.get('hlsUrl') or c.get('hlsSessionUrl') else '| still' if c.get('imageUrl') else '| link')
-          L = json.load(open('longdo.json'))
-          items = L.get('item') if isinstance(L, dict) else L
-          print('LONGDO total', len(items), 'keys', sorted(items[0].keys()))
-          f = []
-          for c in items:
-              try: la, ln = float(c.get('latitude')), float(c.get('longitude'))
-              except: continue
-              if box(la, ln): f.append(c)
-          print('LONGDO in box', len(f), collections.Counter(c.get('organization') for c in f))
-          for c in f: print(' ', json.dumps({k: c.get(k) for k in ['camid','title','organization','geocode','vdourl','imgurl','url','hls','stream']}, ensure_ascii=False)[:400])
-          kw = ['ราชพฤกษ์', 'ปิ่นเกล้า', 'บรมราชชนนี', 'ตลิ่งชัน', 'บางกรวย', 'จรัญ', 'บางบำหรุ', 'สิรินธร']
-          print('LONGDO by keyword')
-          for c in items:
-              t = c.get('title') or ''
-              if any(k in t for k in kw): print(' ', c.get('camid'), t, c.get('latitude'), c.get('longitude'), c.get('organization'))
+          import re, collections
+          h = open('p.html', encoding='utf-8', errors='replace').read()
+          print('len', len(h))
+          print('scripts', re.findall(r'<script[^>]+src="([^"]+)"', h)[:20])
+          print('hrefs', collections.Counter(re.sub(r'\d+', 'N', x) for x in re.findall(r'(?:href|src)="([^"]+\.aspx[^"]*)"', h)).most_common(20))
+          for k in ['ราชพฤกษ์', 'ปิ่นเกล้า', 'บรมราชชนนี', 'ตลิ่งชัน', 'สิรินธร', 'จรัญ', 'lat', 'lng', 'LatLng', 'PlayVideo', 'show.aspx', 'camera', 'm3u8', 'rtsp', 'json']:
+              idx = [m.start() for m in re.finditer(k, h)]
+              print('==', k, len(idx))
+              for i in idx[:2]: print('   ', h[max(0, i-250):i+250].replace('\n', ' '))
           PY
-      - name: BMA traffic camera site
+      - name: Endpoints
         continue-on-error: true
         run: |
-          for u in http://www.bmatraffic.com/ https://www.bmatraffic.com/index.aspx http://www.bmatraffic.com/PlayVideo.aspx?ID=1 ; do
-            curl -sS -m 20 -A "$UA" -o r.bin -w "%{http_code} %{content_type} %{size_download} <- $u\n" "$u"; head -c 300 r.bin | tr '\n' ' '; echo
+          for p in "index.aspx" "PlayVideo.aspx?ID=1" "show.aspx?image=1" "show.aspx?image=100" "DataService.asmx" "api/cameras" "cameras.json" "map.aspx"; do
+            curl -sS -m 20 -A "$UA" -b jar.txt -c jar.txt -e "$B/" -o r.bin -w "%{http_code} %{content_type} %{size_download} <- $p\n" "$B/$p" || true
+            file r.bin | cut -c1-120; head -c 250 r.bin | tr '\n\r' '  '; echo
           done
-          grep -oE "(ราชพฤกษ์|ปิ่นเกล้า|บรมราชชนนี)[^<\"']{0,60}" r.bin | head
