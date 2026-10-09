@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# ตรวจกล้องเทศบาลนครรังสิตบนเว็บที่ deploy แล้ว (รันเองจากแท็บ Actions)
+# เปิดหน้าต่างกล้องเทศบาลนครรังสิตบนเว็บที่ deploy แล้วใน Chrome (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -14,22 +14,40 @@ jobs:
     env:
       APP: https://dataanalytic.precare.workers.dev
     steps:
-      - name: Rangsit points on the live API
+      - name: Rangsit sheets in Chrome
         run: |
-          for i in $(seq 1 30); do
-            curl -sS -m 30 "$APP/api/cameras?ts=$(date +%s)" -o c.json || true
-            n=$(python3 -c "import json; d=json.load(open('c.json'))['data']; print(sum(1 for c in d if c['id'].startswith('rs-')))" 2>/dev/null || echo 0)
-            echo "try $i: rs=$n"; [ "$n" -gt 0 ] && break; sleep 15
-          done
-          python3 - <<'PY'
-          import json, collections
-          d = json.load(open('c.json'))['data']
-          rs = [c for c in d if c['id'].startswith('rs-')]
-          print('total cameras', len(d), 'rangsit', len(rs))
-          print('cams', [c['id'] for c in rs if c['id'].startswith('rs-cam-')])
-          print('reports', sum(1 for c in rs if c['id'].startswith('rs-rep-')), 'with clip', sum(1 for c in rs if c.get('videoUrl')))
-          print(collections.Counter(c.get('alert', {}).get('label') for c in rs))
-          for c in rs[:3]: print(json.dumps(c, ensure_ascii=False))
-          open('urls.txt', 'w').write('\n'.join([rs[0]['imageUrl']] + [c['imageUrl'] for c in rs if c['id'].startswith('rs-rep-')][:1]))
-          PY
-          while read u; do curl -sS -m 20 -o /dev/null -w "%{http_code} %{content_type} %{size_download} <- $u\n" -H "Referer: $APP/" "$u"; done < urls.txt
+          mkdir b && cd b && npm init -y >/dev/null && npm i playwright-core@1 >/dev/null 2>&1
+          rep=$(curl -sS -m 30 "$APP/api/cameras" | python3 -c "import json,sys; d=json.load(sys.stdin)['data']; print(next(c['id'] for c in d if c.get('videoUrl')))")
+          echo "report with clip: $rep"
+          cat > t.mjs <<'JS'
+          import { chromium } from 'playwright-core';
+          const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome' });
+          for (const id of ['rs-cam-151', 'rs-cam-152', process.env.REP]) {
+            const p = await b.newPage({ viewport: { width: 390, height: 844 } });
+            p.on('console', (m) => m.type() === 'error' && console.log('CONSOLE', m.text().slice(0, 200)));
+            await p.goto(`${process.env.APP}/?cam=${id}`, { waitUntil: 'domcontentloaded' });
+            await p.waitForSelector('#sheet [data-cam-view]', { timeout: 60000 });
+            await p.waitForTimeout(14000);
+            console.log('SHEET', id, JSON.stringify(await p.evaluate(() => {
+              const s = document.getElementById('sheet');
+              const img = s.querySelector('.cam-media img');
+              const v = s.querySelector('.cam-media video');
+              return {
+                title: s.querySelector('.sheet-title')?.textContent,
+                mode: s.querySelector('.cam-view')?.dataset.mode,
+                label: s.querySelector('[data-cam-label]')?.textContent,
+                img: img ? [img.naturalWidth, img.src.slice(0, 80)] : null,
+                video: v ? { dur: Math.round(v.duration), w: v.videoWidth, poster: !!v.poster } : null,
+                tiles: [...s.querySelectorAll('.tile')].map((e) => e.textContent.replace(/\s+/g, ' ').slice(0, 120)),
+                captions: [...s.querySelectorAll('.btn-caption')].map((e) => e.textContent),
+              };
+            })));
+            await p.close();
+          }
+          const m = await b.newPage({ viewport: { width: 1280, height: 900 } });
+          await m.goto(process.env.APP + '/', { waitUntil: 'domcontentloaded' });
+          await m.waitForTimeout(20000);
+          console.log('PINS', await m.evaluate(() => ({ cams: document.querySelectorAll('.pin-camera').length, watercams: document.querySelectorAll('.pin-watercam').length, alert: document.querySelectorAll('[class*=pin-alert-critical]').length + '/' + document.querySelectorAll('[class*=pin-alert-watch]').length })));
+          await b.close();
+          JS
+          REP=$rep node t.mjs
