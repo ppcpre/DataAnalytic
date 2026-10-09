@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# สำรวจระบบกล้อง bmatraffic.com (รันเองจากแท็บ Actions)
+# ตรวจภาพกล้อง bmatraffic.com ย่านปิ่นเกล้า-ราชพฤกษ์ (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -10,33 +10,31 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     env:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
       B: http://www.bmatraffic.com
     steps:
-      - name: How cameras open
+      - name: Cameras in the area and their images
         continue-on-error: true
         run: |
           curl -sS -m 30 -A "$UA" -o p.html "$B/"
           python3 - <<'PY'
           import re
           h = open('p.html', encoding='utf-8', errors='replace').read()
-          for k in [r"\.aspx\?[A-Za-z]+=", 'image=', 'window.open', 'location.href', r"\$\('\.subname'\)", 'subname', 'PlayVideo', 'snapshot', 'jpg?']:
-              idx = [m.start() for m in re.finditer(k, h)]
-              print('==', k, len(idx))
-              for i in idx[:3]: print('   ', h[max(0, i-300):i+300].replace('\n', ' '))
-          print(sorted(set(re.findall(r'[\w/-]+\.aspx', h))))
+          i = h.find('var locations = [')
+          rows = re.findall(r"\['(\d+)','([^']*)','[^']*','[^']*','[^']*',([\d.]+),([\d.]+),'([^']*)'", h[i:i+400000])
+          print('locations', len(rows))
+          box = [r for r in rows if 13.74 <= float(r[2]) <= 13.86 and 100.40 <= float(r[3]) <= 100.50]
+          print('in Pinklao-Ratchaphruek box', len(box))
+          for r in box: print(' ', r[0], r[1].replace('\t', ' '), r[2], r[3])
+          open('ids.txt', 'w').write('\n'.join(r[0] for r in box[:6]) or '1692')
           PY
-      - name: Spaced requests
-        continue-on-error: true
-        run: |
-          for t in 0 30 60; do
-            sleep $t
-            curl -sS -m 20 -A "$UA" -o /dev/null -w "after +${t}s home %{http_code} %{size_download}\n" "$B/" || echo "after +${t}s home failed"
-          done
-          sleep 30
-          curl -sS -m 20 -A "$UA" -o r.bin -w "show no-cookie %{http_code} %{content_type} %{size_download}\n" "$B/show.aspx?image=1692" || echo "show failed"
-          file r.bin 2>/dev/null
-          sleep 30
-          curl -sS -m 20 -A "$UA" -o r.bin -w "images dir %{http_code} %{content_type}\n" "$B/images/logo-bkk-small.png" || echo "static failed"
+          while read id; do
+            sleep 12
+            curl -sS -m 20 -A "$UA" -o "s$id.bin" -w "show $id %{http_code} %{content_type} %{size_download}\n" "$B/show.aspx?image=$id" || echo "show $id failed"
+            file "s$id.bin" | cut -c1-100; md5sum "s$id.bin" | cut -c1-12
+          done < ids.txt
+          sleep 12
+          curl -sS -m 20 -A "$UA" -o pv.bin -w "PlayVideo %{http_code} %{content_type} %{size_download}\n" "$B/PlayVideo.aspx?ID=$(head -1 ids.txt)" || echo "PlayVideo failed"
+          head -c 1500 pv.bin 2>/dev/null | tr '\n\r' '  '; echo
