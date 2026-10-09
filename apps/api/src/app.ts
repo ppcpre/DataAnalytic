@@ -12,6 +12,13 @@ import { parseLongdoCameras } from './adapters/longdo.js';
 import { PAKKRET_EON_URL, parsePakkretEon } from './adapters/pakkret.js';
 import { parseRangsit, RANGSIT_PAGE } from './adapters/rangsit.js';
 import {
+  BMA_CAM_ID,
+  BMA_TRAFFIC_PAGE,
+  bmaImageUrl,
+  isRealBmaFrame,
+  parseBmaTraffic,
+} from './adapters/bmatraffic.js';
+import {
   parseStreamBridge,
   parseStreamBridgeSession,
   STREAMBRIDGE_CAM_ID,
@@ -55,6 +62,17 @@ interface Dataset<T> {
   sample: () => T[];
 }
 
+export interface FetchedImage {
+  status: number;
+  type: string;
+  body: Uint8Array;
+}
+
+async function fetchImage(url: string): Promise<FetchedImage> {
+  const res = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0 PreMonitoring' }, signal: AbortSignal.timeout(10000) });
+  return { status: res.status, type: res.headers.get('content-type') ?? '', body: new Uint8Array(await res.arrayBuffer()) };
+}
+
 export interface AppDeps {
   history?: HistoryStore;
   /** ดึงหน้าเว็บแบบข้อความ (แทนได้ในการทดสอบ) */
@@ -63,6 +81,8 @@ export interface AppDeps {
   postSession?: (url: string) => Promise<unknown>;
   /** GET ไปที่เซิร์ฟเวอร์ของเทศบาลนครนนทบุรี (path เช่น /json.php?…) — ไม่มี = ใช้รายชื่อจุดที่บันทึกไว้ */
   nontGet?: (path: string) => Promise<RawResponse>;
+  /** ดึงภาพ (ไบต์) — ค่าเริ่มต้นใช้ fetch */
+  getImage?: (url: string) => Promise<FetchedImage>;
 }
 
 export function createApp(
@@ -215,6 +235,30 @@ export function createApp(
    * จุดเฝ้าระวังของเทศบาลนครนนทบุรี — ค่าระดับน้ำเปลี่ยนทุก 15 นาที จึงใช้ cache เดียวกับข้อมูลน้ำ
    * ดึงสดไม่ได้/ไม่ได้ตั้งค่า ใช้รายชื่อจุดที่บันทึกไว้ (ลิงก์ไปดูภาพในเว็บเทศบาล)
    */
+  const getImage = deps.getImage ?? fetchImage;
+
+  /**
+   * กล้องจราจร กทม.: รายชื่อจากหน้าแรกของ bmatraffic.com + สุ่มตรวจภาพว่าต้นทางส่งภาพจริงหรือยัง
+   * (ตรวจทีละกล้องแบบเว้นระยะ ต้นทางตัดการเชื่อมต่อเมื่อขอถี่ ๆ)
+   */
+  const bmaTraffic = () =>
+    cameraCache
+      .get('bmatraffic', async () => {
+        const cameras = parseBmaTraffic(await getText(BMA_TRAFFIC_PAGE));
+        let live = false;
+        const step = Math.max(1, Math.floor(cameras.length / 3));
+        for (let i = 0; i < cameras.length && i < step * 3 && !live; i += step) {
+          const id = cameras[i].id.slice('bma-'.length);
+          try {
+            live = isRealBmaFrame((await getImage(bmaImageUrl(id))).body);
+          } catch (err) {
+            console.error('[bmatraffic] sample', id, err);
+          }
+        }
+        return { cameras, live, checkedAt: new Date().toISOString() };
+      })
+      .then((r) => r.value);
+
   const nontGet = config.cameras.nontLive ? deps.nontGet : undefined;
   const nontStations = async () => {
     if (!nontGet) return NONT_STATIC;
@@ -257,6 +301,36 @@ export function createApp(
     }
   });
 
+  /** สถานะกล้องจราจร กทม.: จำนวนกล้อง และต้นทางส่งภาพจริงแล้วหรือยัง (แอปแสดงกล้องชุดนี้เมื่อ show = true) */
+  app.get('/api/bma/status', async (c) => {
+    c.header('cache-control', 'no-store');
+    const mode = config.cameras.bmaTraffic;
+    if (mode === 'off') return c.json({ mode, show: false });
+    try {
+      const s = await bmaTraffic();
+      return c.json({ mode, show: mode === 'on' || s.live, live: s.live, cameras: s.cameras.length, checkedAt: s.checkedAt });
+    } catch (err) {
+      console.error('[bmatraffic] status', err);
+      return c.json({ mode, show: false, error: 'ดึงรายชื่อกล้องไม่สำเร็จ' }, 502);
+    }
+  });
+
+  /** ภาพล่าสุดของกล้องจราจร กทม. (ต้นทางมีแต่ http) */
+  app.get('/api/bma/image', async (c) => {
+    const id = c.req.query('id') ?? '';
+    if (!BMA_CAM_ID.test(id)) return c.json({ error: 'รหัสกล้องไม่ถูกต้อง' }, 400);
+    if (config.cameras.bmaTraffic === 'off') return c.json({ error: 'ปิดแหล่งภาพนี้อยู่' }, 404);
+    try {
+      const res = await getImage(bmaImageUrl(id));
+      // ขณะต้นทางปิดปรับปรุง ภาพเป็นสีขาวล้วน — ตอบว่าไม่มีภาพ ให้หน้าเว็บแจ้งผู้ใช้แทน
+      if (res.status !== 200 || !isRealBmaFrame(res.body)) return c.json({ error: 'กล้องนี้ไม่มีภาพขณะนี้' }, 502);
+      return c.body(new Uint8Array(res.body), 200, { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=5' });
+    } catch (err) {
+      console.error('[bmatraffic] image', err);
+      return c.json({ error: 'ดึงภาพจากกล้องไม่สำเร็จ' }, 502);
+    }
+  });
+
   /**
    * ขอลิงก์ภาพสดของกล้อง StreamBridge (ต้นทางไม่อนุญาต CORS สำหรับคำขอนี้)
    * รับเฉพาะหน่วยงานที่ตั้งค่าไว้ และรหัสกล้องรูปแบบ UUID
@@ -286,7 +360,7 @@ export function createApp(
       load: async () => {
         const url = config.cameras.listUrl;
         // ดึงแต่ละแหล่งแยกกัน แหล่งใดล่ม ยังแสดงกล้อง/จุดวัดจากแหล่งอื่นได้
-        const [fromList, fromNont, fromPakkret, fromStreamBridge, fromRangsit] = await Promise.all([
+        const [fromList, fromNont, fromPakkret, fromStreamBridge, fromRangsit, fromBma] = await Promise.all([
           (url ? cameraCache.get('longdo-cameras', () => getJson(url)) : Promise.resolve({ value: null }))
             .then((r) => parseLongdoCameras(r.value))
             .catch((err: unknown) => {
@@ -322,9 +396,17 @@ export function createApp(
             console.error('[cameras] rangsit', err);
             return [] as Camera[];
           }),
+          // กล้องจราจร กทม. — แสดงเมื่อต้นทางส่งภาพจริงแล้ว (หรือตั้ง BMA_TRAFFIC=on)
+          (config.cameras.bmaTraffic === 'off'
+            ? Promise.resolve([] as Camera[])
+            : bmaTraffic().then((s) => (config.cameras.bmaTraffic === 'on' || s.live ? s.cameras : []))
+          ).catch((err: unknown) => {
+            console.error('[cameras] bmatraffic', err);
+            return [] as Camera[];
+          }),
         ]);
         const own = new Set(CAMERAS.map((c) => c.id));
-        return [...CAMERAS, ...fromPakkret, ...fromNont, ...fromStreamBridge, ...fromRangsit, ...fromList.filter((c) => !own.has(c.id))];
+        return [...CAMERAS, ...fromPakkret, ...fromNont, ...fromStreamBridge, ...fromRangsit, ...fromBma, ...fromList.filter((c) => !own.has(c.id))];
       },
       sample: sampleCameras,
     }),

@@ -69,6 +69,7 @@ export default defineConfig({
               !url.pathname.startsWith('/api/flood/') &&
               !url.pathname.endsWith('/api/geocode') &&
               !url.pathname.endsWith('/api/nont/image') &&
+              !url.pathname.endsWith('/api/bma/image') &&
               // ลิงก์ภาพสดมีอายุสั้น ห้ามใช้ค่าเก่าจาก cache
               !url.pathname.endsWith('/session'),
             handler: 'NetworkFirst',

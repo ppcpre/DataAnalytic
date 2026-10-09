@@ -36,6 +36,11 @@ export interface Config {
     streamBridgeSlugs: string[];
     /** กล้องและจุดน้ำท่วมที่ประชาชนแจ้งของเทศบาลนครรังสิต — false = ปิด */
     rangsit: boolean;
+    /**
+     * กล้องจราจร กทม. (bmatraffic.com): auto = แสดงเมื่อสุ่มตรวจแล้วต้นทางส่งภาพจริง (ค่าเริ่มต้น),
+     * on = แสดงเสมอ, off = ปิด
+     */
+    bmaTraffic: 'auto' | 'on' | 'off';
   };
   floodhub: {
     /** API key ของ Google Flood Forecasting API — ว่าง = ปิดชั้นข้อมูลนี้ */
@@ -88,6 +93,7 @@ export function loadConfig(env: Env = process.env): Config {
         .map((x) => x.trim())
         .filter(Boolean),
       rangsit: env.RANGSIT_LIVE !== 'false',
+      bmaTraffic: env.BMA_TRAFFIC === 'on' || env.BMA_TRAFFIC === 'off' ? env.BMA_TRAFFIC : 'auto',
     },
     floodhub: {
       apiKey: env.GOOGLE_FLOOD_API_KEY ?? '',
