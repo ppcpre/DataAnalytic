@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# ตรวจภาพกล้อง bmatraffic.com ย่านปิ่นเกล้า-ราชพฤกษ์ (รันเองจากแท็บ Actions)
+# ตรวจขั้นตอนเปิดภาพกล้อง bmatraffic.com (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -10,31 +10,30 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 8
     env:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
       B: http://www.bmatraffic.com
     steps:
-      - name: Cameras in the area and their images
+      - name: PlayVideo flow
         continue-on-error: true
         run: |
-          curl -sS -m 30 -A "$UA" -o p.html "$B/"
-          python3 - <<'PY'
-          import re
-          h = open('p.html', encoding='utf-8', errors='replace').read()
-          i = h.find('var locations = [')
-          rows = re.findall(r"\['(\d+)','([^']*)','[^']*','[^']*','[^']*',([\d.]+),([\d.]+),'([^']*)'", h[i:i+400000])
-          print('locations', len(rows))
-          box = [r for r in rows if 13.74 <= float(r[2]) <= 13.86 and 100.40 <= float(r[3]) <= 100.50]
-          print('in Pinklao-Ratchaphruek box', len(box))
-          for r in box: print(' ', r[0], r[1].replace('\t', ' '), r[2], r[3])
-          open('ids.txt', 'w').write('\n'.join(r[0] for r in box[:6]) or '1692')
+          pip install -q pillow >/dev/null 2>&1 || true
+          curl -sS -m 20 -A "$UA" -c jar.txt -D h.txt -o pv.html "$B/PlayVideo.aspx?ID=1692" || echo "PlayVideo failed"
+          tr -d '\r' < h.txt | grep -iE '^(HTTP|set-cookie)'
+          python3 -c "
+          h=open('pv.html',encoding='utf-8',errors='replace').read(); i=h.find('<script'); print(h[i:i+3500])"
+          desc() { python3 - "$1" <<'PY'
+          import sys
+          from PIL import Image
+          im = Image.open(sys.argv[1]).convert('RGB'); px = list(im.getdata())
+          from collections import Counter
+          c = Counter(px).most_common(4); print(im.size, 'distinct colours', len(set(px)), 'top', c)
           PY
-          while read id; do
-            sleep 12
-            curl -sS -m 20 -A "$UA" -o "s$id.bin" -w "show $id %{http_code} %{content_type} %{size_download}\n" "$B/show.aspx?image=$id" || echo "show $id failed"
-            file "s$id.bin" | cut -c1-100; md5sum "s$id.bin" | cut -c1-12
-          done < ids.txt
+          }
           sleep 12
-          curl -sS -m 20 -A "$UA" -o pv.bin -w "PlayVideo %{http_code} %{content_type} %{size_download}\n" "$B/PlayVideo.aspx?ID=$(head -1 ids.txt)" || echo "PlayVideo failed"
-          head -c 1500 pv.bin 2>/dev/null | tr '\n\r' '  '; echo
+          curl -sS -m 20 -A "$UA" -b jar.txt -o a.bin -w "show+cookie %{http_code} %{content_type} %{size_download}\n" "$B/show.aspx?image=1692" || echo "show+cookie failed"
+          [ -s a.bin ] && { file a.bin; desc a.bin; }
+          sleep 12
+          curl -sS -m 20 -A "$UA" -o b.bin -w "show-no-cookie %{http_code} %{content_type} %{size_download}\n" "$B/show.aspx?image=1692" || echo "show-no-cookie failed"
+          [ -s b.bin ] && { file b.bin; desc b.bin; }
