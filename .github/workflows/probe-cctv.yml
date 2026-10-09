@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# ตรวจขั้นตอนเปิดภาพกล้อง bmatraffic.com (รันเองจากแท็บ Actions)
+# ตรวจสถานะกล้องจราจร กทม. บนเว็บที่ deploy แล้ว (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -10,30 +10,17 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     env:
-      UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
-      B: http://www.bmatraffic.com
+      APP: https://dataanalytic.precare.workers.dev
     steps:
-      - name: PlayVideo flow
-        continue-on-error: true
+      - name: BMA status on the live API
         run: |
-          pip install -q pillow >/dev/null 2>&1 || true
-          curl -sS -m 20 -A "$UA" -c jar.txt -D h.txt -o pv.html "$B/PlayVideo.aspx?ID=1692" || echo "PlayVideo failed"
-          tr -d '\r' < h.txt | grep -iE '^(HTTP|set-cookie)'
-          python3 -c "
-          h=open('pv.html',encoding='utf-8',errors='replace').read(); i=h.find('<script'); print(h[i:i+3500])"
-          desc() { python3 - "$1" <<'PY'
-          import sys
-          from PIL import Image
-          im = Image.open(sys.argv[1]).convert('RGB'); px = list(im.getdata())
-          from collections import Counter
-          c = Counter(px).most_common(4); print(im.size, 'distinct colours', len(set(px)), 'top', c)
-          PY
-          }
-          sleep 12
-          curl -sS -m 20 -A "$UA" -b jar.txt -o a.bin -w "show+cookie %{http_code} %{content_type} %{size_download}\n" "$B/show.aspx?image=1692" || echo "show+cookie failed"
-          [ -s a.bin ] && { file a.bin; desc a.bin; }
-          sleep 12
-          curl -sS -m 20 -A "$UA" -o b.bin -w "show-no-cookie %{http_code} %{content_type} %{size_download}\n" "$B/show.aspx?image=1692" || echo "show-no-cookie failed"
-          [ -s b.bin ] && { file b.bin; desc b.bin; }
+          for i in $(seq 1 30); do
+            out=$(curl -sS -m 90 "$APP/api/bma/status" || true)
+            echo "try $i: $out"
+            echo "$out" | grep -q '"cameras"' && break
+            sleep 15
+          done
+          curl -sS -m 30 -o /dev/null -w "image proxy %{http_code}\n" "$APP/api/bma/image?id=1692"
+          curl -sS -m 60 "$APP/api/cameras" | python3 -c "import json,sys; d=json.load(sys.stdin)['data']; print('cameras', len(d), 'bma', sum(c['id'].startswith('bma-') for c in d))"
