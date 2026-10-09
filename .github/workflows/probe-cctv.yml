@@ -10,47 +10,58 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 4
     env:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
       B: https://cdp.rangsitcity.go.th
     steps:
-      - name: Records in page data
+      - name: Cameras, reports and snapshot
         continue-on-error: true
         run: |
           curl -sS -m 30 -A "$UA" -o p.html "$B/"
           python3 - <<'PY'
-          import re, json
+          import re, json, collections
           h = open('p.html', encoding='utf-8', errors='replace').read()
-          # รวม self.__next_f.push([1,"..."]) เป็นข้อความเดียว
           parts = re.findall(r'self\.__next_f\.push\(\[1,"((?:[^"\\]|\\.)*)"\]\)', h)
           s = ''.join(json.loads('"%s"' % p) for p in parts)
-          open('rsc.txt', 'w').write(s)
-          print('rsc len', len(s))
-          for key in ['"waterLevel"', '"latitude"', 'snapshot', '"cameras"', '"cctv"', 'streamUrl', 'hls', 'm3u8', 'rtsp']:
-              idx = [m.start() for m in re.finditer(re.escape(key), s)]
-              print('==', key, len(idx))
-              for i in idx[:2]:
-                  print(s[max(0, i-500):i+700].replace('\n', ' '))
-                  print('--')
-          # วัตถุที่มี latitude แต่ไม่มี waterLevel
-          objs = re.findall(r'\{[^{}]*"latitude"[^{}]*\}', s)
-          print('objs with latitude', len(objs))
-          nw = [o for o in objs if 'waterLevel' not in o]
-          print('without waterLevel', len(nw))
-          for o in nw[:8]: print(o[:800])
+          def arr(key):
+              i = s.find('"%s":[' % key)
+              if i < 0: return None
+              j = i + len(key) + 3
+              v, _ = json.JSONDecoder().raw_decode(s[j:])
+              return v, s[max(0,i-200):i]
+          cams = arr('cameras')
+          if cams:
+              print('cameras prefix:', cams[1][-200:])
+              print(json.dumps(cams[0], ensure_ascii=False, indent=1)[:4000])
+          reps = arr('reports')
+          if reps:
+              r = reps[0]
+              print('reports', len(r), 'keys', sorted(r[0].keys()))
+              print(collections.Counter(x['waterLevel'] for x in r))
+              print(collections.Counter(x['createdAt'][:10] for x in r))
+              print(collections.Counter(bool(x.get('hasVideo')) for x in r))
+              lat = [x['latitude'] for x in r]; lng = [x['longitude'] for x in r]
+              print('bbox', min(lat), max(lat), min(lng), max(lng))
+              print(json.dumps(r[-1], ensure_ascii=False))
+          for k in ['"level":"', 'cvLevel']:
+              print(k, collections.Counter(re.findall(re.escape(k) + r'"?([A-Z_]+)', s)))
           PY
-      - name: Snapshot endpoint and JS
+          for p in api/flood/snapshot/151 api/flood/snapshot/152 api/flood/image/QZ6E7X494A api/flood/video/QZ6E7X494A; do
+            echo "== $p"; curl -sS -m 20 -A "$UA" -H 'Origin: https://dataanalytic.precare.workers.dev' -D - -o r.bin -r 0-1000 "$B/$p" | tr -d '\r' | grep -iE '^(HTTP|content-type|content-length|content-range|last-modified|cache-control|access-control|cross-origin|x-|date|etag)'
+            file r.bin
+          done
+          sleep 20; curl -sS -m 20 -D - -o r2.bin "$B/api/flood/snapshot/151" | tr -d '\r' | grep -iE '^(HTTP|content-length|last-modified|etag|date)'
+      - name: JS around snapshot
         continue-on-error: true
         run: |
-          for s in $(grep -oE '/_next/static/chunks/[^"]+\.js' p.html | sort -u); do
-            curl -sS -m 20 -o c.js "$B$s" || continue
-            if grep -q 'flood/snapshot' c.js; then
-              echo "== $s"
-              grep -oE '.{0,1500}/api/flood/snapshot.{0,1500}' c.js | head -c 4000; echo
-              grep -oE '.{0,300}(cameras|cctv|Cctv|Camera)[^a-z].{0,300}' c.js | head -c 3000; echo
-            fi
-          done
-          for p in api/flood/cameras api/flood/cctv api/cctv/list api/flood/snapshot api/flood/reports api/flood/reports?limit=5 api/flood/markers api/flood/map; do
-            curl -sS -m 15 -A "$UA" -o r.bin -w "%{http_code} %{content_type} %{size_download} <- $p\n" "$B/$p"; head -c 400 r.bin | tr '\n' ' '; echo
+          for s in /_next/static/chunks/9caac2463eb81155.js; do
+            curl -sS -m 20 -o c.js "$B$s"
+            python3 - <<'PY'
+          s = open('c.js', encoding='utf-8', errors='replace').read()
+          for key in ['/api/flood/snapshot', '/api/flood/video', 'CRITICAL', 'WATCH']:
+              i = s.find(key)
+              print('==', key, i)
+              if i >= 0: print(s[max(0, i-1200):i+1200])
+          PY
           done
