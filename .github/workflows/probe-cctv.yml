@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# เปิดหน้าต่างกล้องเทศบาลนครรังสิตบนเว็บที่ deploy แล้วใน Chrome (รันเองจากแท็บ Actions)
+# หากล้องย่านปิ่นเกล้า-ราชพฤกษ์ (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -10,44 +10,43 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 6
     env:
+      UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
       APP: https://dataanalytic.precare.workers.dev
     steps:
-      - name: Rangsit sheets in Chrome
+      - name: Cameras in the area
+        continue-on-error: true
         run: |
-          mkdir b && cd b && npm init -y >/dev/null && npm i playwright-core@1 >/dev/null 2>&1
-          rep=$(curl -sS -m 30 "$APP/api/cameras" | python3 -c "import json,sys; d=json.load(sys.stdin)['data']; print(next(c['id'] for c in d if c.get('videoUrl')))")
-          echo "report with clip: $rep"
-          cat > t.mjs <<'JS'
-          import { chromium } from 'playwright-core';
-          const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome' });
-          for (const id of ['rs-cam-151', 'rs-cam-152', process.env.REP]) {
-            const p = await b.newPage({ viewport: { width: 390, height: 844 } });
-            p.on('console', (m) => m.type() === 'error' && console.log('CONSOLE', m.text().slice(0, 200)));
-            await p.goto(`${process.env.APP}/?cam=${id}`, { waitUntil: 'domcontentloaded' });
-            await p.waitForSelector('#sheet [data-cam-view]', { timeout: 60000 });
-            await p.waitForTimeout(14000);
-            console.log('SHEET', id, JSON.stringify(await p.evaluate(() => {
-              const s = document.getElementById('sheet');
-              const img = s.querySelector('.cam-media img');
-              const v = s.querySelector('.cam-media video');
-              return {
-                title: s.querySelector('.sheet-title')?.textContent,
-                mode: s.querySelector('.cam-view')?.dataset.mode,
-                label: s.querySelector('[data-cam-label]')?.textContent,
-                img: img ? [img.naturalWidth, img.src.slice(0, 80)] : null,
-                video: v ? { dur: Math.round(v.duration), w: v.videoWidth, poster: !!v.poster } : null,
-                tiles: [...s.querySelectorAll('.tile')].map((e) => e.textContent.replace(/\s+/g, ' ').slice(0, 120)),
-                captions: [...s.querySelectorAll('.btn-caption')].map((e) => e.textContent),
-              };
-            })));
-            await p.close();
-          }
-          const m = await b.newPage({ viewport: { width: 1280, height: 900 } });
-          await m.goto(process.env.APP + '/', { waitUntil: 'domcontentloaded' });
-          await m.waitForTimeout(20000);
-          console.log('PINS', await m.evaluate(() => ({ cams: document.querySelectorAll('.pin-camera').length, watercams: document.querySelectorAll('.pin-watercam').length, alert: document.querySelectorAll('[class*=pin-alert-critical]').length + '/' + document.querySelectorAll('[class*=pin-alert-watch]').length })));
-          await b.close();
-          JS
-          REP=$rep node t.mjs
+          curl -sS -m 30 "$APP/api/cameras" -o app.json
+          curl -sS -m 30 -A "$UA" https://traffic.longdo.com/camera.json -o longdo.json
+          python3 - <<'PY'
+          import json, collections
+          box = lambda la, ln: 13.72 <= la <= 13.90 and 100.40 <= ln <= 100.50
+          d = json.load(open('app.json'))['data']
+          a = [c for c in d if box(c['location']['lat'], c['location']['lng'])]
+          print('APP in box', len(a))
+          for c in a: print(' ', c['id'], '|', c['name'], '|', c.get('road'), '| hls' if c.get('hlsUrl') or c.get('hlsSessionUrl') else '| still' if c.get('imageUrl') else '| link')
+          L = json.load(open('longdo.json'))
+          items = L.get('item') if isinstance(L, dict) else L
+          print('LONGDO total', len(items), 'keys', sorted(items[0].keys()))
+          f = []
+          for c in items:
+              try: la, ln = float(c.get('latitude')), float(c.get('longitude'))
+              except: continue
+              if box(la, ln): f.append(c)
+          print('LONGDO in box', len(f), collections.Counter(c.get('organization') for c in f))
+          for c in f: print(' ', json.dumps({k: c.get(k) for k in ['camid','title','organization','geocode','vdourl','imgurl','url','hls','stream']}, ensure_ascii=False)[:400])
+          kw = ['ราชพฤกษ์', 'ปิ่นเกล้า', 'บรมราชชนนี', 'ตลิ่งชัน', 'บางกรวย', 'จรัญ', 'บางบำหรุ', 'สิรินธร']
+          print('LONGDO by keyword')
+          for c in items:
+              t = c.get('title') or ''
+              if any(k in t for k in kw): print(' ', c.get('camid'), t, c.get('latitude'), c.get('longitude'), c.get('organization'))
+          PY
+      - name: BMA traffic camera site
+        continue-on-error: true
+        run: |
+          for u in http://www.bmatraffic.com/ https://www.bmatraffic.com/index.aspx http://www.bmatraffic.com/PlayVideo.aspx?ID=1 ; do
+            curl -sS -m 20 -A "$UA" -o r.bin -w "%{http_code} %{content_type} %{size_download} <- $u\n" "$u"; head -c 300 r.bin | tr '\n' ' '; echo
+          done
+          grep -oE "(ราชพฤกษ์|ปิ่นเกล้า|บรมราชชนนี)[^<\"']{0,60}" r.bin | head
