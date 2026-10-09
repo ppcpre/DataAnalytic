@@ -71,3 +71,18 @@ export const STREAMBRIDGE_BODY = {
     { id: 'evil', name: 'ภาพจากโดเมนอื่น', status: 'online', latitude: 13.81, longitude: 100.5, thumbnail: 'https://evil.example/x.jpg' },
   ],
 };
+
+/** หน้าแรกของ cdp.rangsitcity.go.th (ย่อ) — ข้อมูลอยู่ใน self.__next_f.push แบบแบ่งหลายก้อน */
+const RANGSIT_FLIGHT =
+  '23:["$","$L38",null,{"cameras":[' +
+  '{"id":151,"name":"กล้อง CCTV ตรวจวัดระดับน้ำสะพานแดง","description":null,"latitude":13.98612855394923,"longitude":100.6259594797345,' +
+  '"watch":{"pointId":151,"label":"คลองรังสิตประยูรศักดิ์ (สะพานแดง)","level":"CRITICAL","note":null,"updatedAt":"2026-10-09T01:52:12.966Z","cvReason":"ป้ายจมน้ำทั้งแผ่น","cvAt":"$D2026-10-09T01:52:12.966Z"}},' +
+  '{"id":152,"name":"เมืองปทุม","description":null,"latitude":14.02283238,"longitude":100.53555608,"watch":null},' +
+  '{"id":"x","name":"รหัสผิด","latitude":14,"longitude":100.6}]}]\n' +
+  '25:["$","div",null,{"id":"flood-map","children":["$","$L39",null,{"reports":[' +
+  '{"code":"QZ6E7X494A","latitude":13.99134340974823,"longitude":100.623865405214,"waterLevel":"KNEE","locationName":"รังสิต-นครนายก 13 ซอย 9","description":null,"createdAt":"2026-10-07T15:07:16.510Z","hasVideo":true},' +
+  '{"code":"WVZAJAUDTU","latitude":14.0021382,"longitude":100.6214296,"waterLevel":"WAIST","locationName":"ตำบลคลองหนึ่ง","description":"รถเล็กไม่แนะนำ \\"ระวัง\\" [ลึก]","createdAt":"2026-10-08T06:15:38.157Z","hasVideo":false},' +
+  '{"code":"47XDDTX43E","latitude":13.98271737183404,"longitude":100.6106981635094,"waterLevel":"ANKLE","locationName":"เก่าเกิน 7 วัน","createdAt":"2026-09-26T05:32:57.552Z","hasVideo":false},' +
+  '{"code":"bad/../x","latitude":13.99,"longitude":100.62,"waterLevel":"KNEE","createdAt":"2026-10-08T00:00:00.000Z"}]}]}]\n';
+const half = Math.floor(RANGSIT_FLIGHT.length / 2);
+export const RANGSIT_HTML = `<!DOCTYPE html><html><body><script>self.__next_f.push([1,${JSON.stringify(RANGSIT_FLIGHT.slice(0, half))}])</script><script>self.__next_f.push([1,${JSON.stringify(RANGSIT_FLIGHT.slice(half))}])</script></body></html>`;

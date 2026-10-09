@@ -259,10 +259,20 @@ type Reading = NonNullable<Camera['readings']>[number];
 const readingLevel = (r: Reading): 'critical' | 'watch' | 'normal' =>
   r.danger !== undefined && r.value >= r.danger ? 'critical' : r.warning !== undefined && r.value >= r.warning ? 'watch' : 'normal';
 
-/** ระดับเตือนสูงสุดของค่าวัดประกอบกล้อง (ใช้แต่งสีหมุด) */
+/** ระดับเตือนสูงสุดของค่าวัดประกอบกล้อง และระดับเตือนที่ต้นทางประเมิน (ใช้แต่งสีหมุด) */
 function cameraAlert(c: Camera): 'critical' | 'watch' | null {
-  const levels = (c.readings ?? []).filter((r) => r.unit === 'ม.').map(readingLevel);
+  const levels = [...(c.readings ?? []).filter((r) => r.unit === 'ม.').map(readingLevel), c.alert?.level];
   return levels.includes('critical') ? 'critical' : levels.includes('watch') ? 'watch' : null;
+}
+
+/** ระดับเตือนภัยจากต้นทาง เช่น ระบบอ่านป้ายระดับน้ำจากภาพกล้อง หรือระดับน้ำที่ประชาชนแจ้ง */
+function cameraAlertTile(c: Camera): string {
+  const a = c.alert;
+  if (!a) return '';
+  const reported = !!a.reported;
+  return `<div class="tiles"><div class="tile soft-${a.level}"><span>${reported ? 'ระดับน้ำที่แจ้ง' : 'ระดับเตือนภัย (ต้นทางประเมิน)'}</span><span>${escapeHtml(a.label)}</span>${
+    a.note ? `<small>${escapeHtml(a.note)}</small>` : ''
+  }</div></div>${a.at ? `<span class="btn-caption">${reported ? 'แจ้งเมื่อ' : 'ประเมินเมื่อ'} ${escapeHtml(formatAgo(a.at) || formatTime(a.at))}</span>` : ''}`;
 }
 
 function cameraReadings(c: Camera): string {
@@ -620,6 +630,7 @@ function cameraSheet(c: Camera): string {
       shareButton(c.id) + favButton(c.id),
     )}
     ${cameraViewHtml(c)}
+    ${cameraAlertTile(c)}
     ${cameraReadings(c)}
     ${c.kind === 'water' ? nearWaterDiagram(c) : ''}
     <div class="nearby">

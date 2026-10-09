@@ -3,7 +3,7 @@ import { CAMERAS } from '../src/data/cameras.js';
 import { NONT_STATIC } from '../src/data/nonthaburi.js';
 import { createApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
-import { NONT_BODY, PAKKRET_HTML, STREAMBRIDGE_BODY } from './fixtures.js';
+import { NONT_BODY, PAKKRET_HTML, RANGSIT_HTML, STREAMBRIDGE_BODY } from './fixtures.js';
 
 const nontJson = (path: string) => {
   if (path !== '/json.php?app=station') throw new Error(`unexpected ${path}`);
@@ -116,7 +116,7 @@ describe('cameras and geocode', () => {
         };
       },
       undefined,
-      { getText: async () => PAKKRET_HTML, nontGet: async (path) => nontJson(path) },
+      { getText: async (url) => (url.includes('rangsitcity') ? RANGSIT_HTML : PAKKRET_HTML), nontGet: async (path) => nontJson(path) },
     );
     const live = await (await app.request('/api/cameras')).json();
     expect(urls.sort()).toEqual(['https://app.streambridge.online/api/public/bangkruai-city', 'https://traffic.longdo.com/camera.json']);
@@ -127,10 +127,11 @@ describe('cameras and geocode', () => {
     // กล้อง/จุดวัดที่เพิ่มเองใน data/cameras.ts แสดงร่วมด้วยเสมอ
     const ids = live.data.map((c: { id: string }) => c.id);
     expect(ids).toEqual(
-      expect.arrayContaining([...CAMERAS.map((c) => c.id), 'nont-STN2', 'pakkret-eon-001', 'sb-4aac4b3e-b18a-49a3-903b-e3ad9f960a44']),
+      expect.arrayContaining([...CAMERAS.map((c) => c.id), 'nont-STN2', 'pakkret-eon-001', 'sb-4aac4b3e-b18a-49a3-903b-e3ad9f960a44', 'rs-cam-151']),
     );
-    // Longdo 1 + นนทบุรี 2 (เซนเซอร์ถนนค่าเก่าไม่แสดง) + ปากเกร็ด 1 + บางกรวย 2
-    expect(live.data.length).toBe(CAMERAS.length + 6);
+    // Longdo 1 + นนทบุรี 2 (เซนเซอร์ถนนค่าเก่าไม่แสดง) + ปากเกร็ด 1 + บางกรวย 2 + รังสิต กล้อง 2 (+ รายงานประชาชนที่ยังไม่เก่า)
+    const reports = live.data.filter((c: { id: string }) => c.id.startsWith('rs-rep-')).length;
+    expect(live.data.length).toBe(CAMERAS.length + 8 + reports);
 
     // แหล่งใดล่ม ยังแสดงแหล่งที่เหลือ และจุดของนนทบุรีใช้รายชื่อที่บันทึกไว้
     const down = async () => {

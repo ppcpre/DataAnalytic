@@ -143,6 +143,8 @@ export interface Camera {
   streamUrl?: string;
   /** ภาพนิ่งล่าสุด (https) ใช้เมื่อเปิดภาพเคลื่อนไหวไม่ได้ */
   imageUrl?: string;
+  /** คลิปวิดีโอสั้น (mp4, https) เช่น คลิปที่ประชาชนแจ้งน้ำท่วม */
+  videoUrl?: string;
   /** ผู้ให้บริการภาพ เช่น "มูลนิธิ iTIC" */
   imageCredit?: string;
   /** เวลาที่ถ่ายภาพนิ่ง (ISO) — มีเมื่อภาพไม่ได้อัปเดตตลอดเวลา เช่น ภาพล่าสุดที่ระบบต้นทางเก็บไว้ */
@@ -157,6 +159,20 @@ export interface Camera {
   readings?: CameraReading[];
   /** เวลาของค่าวัด (ISO) */
   observedAt?: string;
+  /** ระดับเตือนภัยที่ต้นทางประเมิน (เช่น ระบบอ่านป้ายระดับน้ำจากภาพกล้อง หรือระดับน้ำที่ประชาชนแจ้ง) */
+  alert?: CameraAlert;
+}
+
+export interface CameraAlert {
+  level: 'normal' | 'watch' | 'critical';
+  /** ชื่อระดับตามต้นทาง เช่น "วิกฤต", "ระดับเข่า" */
+  label: string;
+  /** เหตุผล/รายละเอียดประกอบ */
+  note?: string;
+  /** เวลาที่ประเมินหรือแจ้ง (ISO) */
+  at?: string;
+  /** true = ระดับที่ประชาชนแจ้ง (ไม่ใช่ที่ระบบ/เจ้าหน้าที่ประเมิน) */
+  reported?: boolean;
 }
 
 /** ค่าวัดหนึ่งค่าที่แสดงคู่กับภาพกล้อง */

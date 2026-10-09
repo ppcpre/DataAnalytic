@@ -65,6 +65,8 @@ export default defineConfig({
             // ไม่ cache ผลค้นหาสถานที่ใน service worker (cache ที่เซิร์ฟเวอร์แล้ว)
             urlPattern: ({ url }) =>
               url.pathname.includes('/api/') &&
+              // ภาพ/คลิปจากเว็บของเทศบาลนครรังสิต (เส้นทาง /api/flood/… ของต้นทาง) ไม่ใช่ข้อมูลของแอป
+              !url.pathname.startsWith('/api/flood/') &&
               !url.pathname.endsWith('/api/geocode') &&
               !url.pathname.endsWith('/api/nont/image') &&
               // ลิงก์ภาพสดมีอายุสั้น ห้ามใช้ค่าเก่าจาก cache

@@ -41,6 +41,13 @@ export const CAMERA_LINKS: CameraLink[] = [
     area: 'นนทบุรี',
   },
   {
+    id: 'rangsit-flood-watch',
+    name: 'ระบบติดตามน้ำท่วม เทศบาลนครรังสิต',
+    description: 'กล้องจุดเฝ้าระวัง ระดับเตือนภัย และจุดน้ำท่วมที่ประชาชนแจ้ง (แสดงเป็นหมุดบนแผนที่ด้วย)',
+    url: 'https://cdp.rangsitcity.go.th/',
+    area: 'ปทุมธานี',
+  },
+  {
     id: 'doh-hdms',
     name: 'กรมทางหลวง (HDMS Dashboard)',
     description: 'กล้อง CCTV และพิกัดจุดน้ำท่วมบนทางหลวงทั่วประเทศ',

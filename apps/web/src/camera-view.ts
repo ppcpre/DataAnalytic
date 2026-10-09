@@ -10,7 +10,7 @@ import { apiUrl } from './api';
  * (กล้องกรมทางหลวงผ่าน iTIC ส่งภาพ MJPEG/ภาพนิ่งว่างเปล่า มีเฉพาะ HLS)
  */
 
-type SourceKind = 'hls' | 'mjpeg' | 'still' | 'page';
+type SourceKind = 'hls' | 'mjpeg' | 'clip' | 'still' | 'page';
 interface Source {
   kind: SourceKind;
   url: string;
@@ -35,6 +35,7 @@ const SNAPSHOT_REFRESH_MS = 10000;
 const LABEL: Record<SourceKind | 'loading' | 'off', string> = {
   hls: 'ภาพสด',
   mjpeg: 'ภาพสด',
+  clip: 'คลิปวิดีโอ',
   still: 'ภาพนิ่ง · อัปเดตทุก 10 วินาที',
   page: 'หน้าเว็บต้นทาง',
   loading: 'กำลังโหลด',
@@ -49,6 +50,7 @@ function sourcesOf(c: Camera): Source[] {
     list.push({ kind: 'hls', url: '', resolve: () => hlsFromSession(path) });
   }
   if (c.streamUrl) list.push({ kind: 'mjpeg', url: c.streamUrl });
+  if (c.videoUrl?.startsWith('https://')) list.push({ kind: 'clip', url: c.videoUrl });
   if (c.imageUrl) list.push({ kind: 'still', url: apiUrl(c.imageUrl) });
   // หน้าเว็บของผู้ให้บริการ (ฝังได้เฉพาะ https)
   if (c.embedUrl?.startsWith('https://')) list.push({ kind: 'page', url: c.embedUrl });
@@ -122,8 +124,9 @@ export function startCameraView(root: HTMLElement, c: Camera, fresh = false) {
   const setMode = (mode: SourceKind | 'loading' | 'off') => {
     view.dataset.mode = mode;
     // ภาพนิ่งที่ต้นทางไม่ได้อัปเดตตลอด บอกอายุของภาพแทน "อัปเดตทุก 10 วินาที"
+    const ago = c.imageTakenAt ? formatAgo(c.imageTakenAt) || 'ไม่ทราบเวลา' : '';
     label.textContent =
-      mode === 'still' && c.imageTakenAt ? `ภาพล่าสุดที่มี · ${formatAgo(c.imageTakenAt) || 'ไม่ทราบเวลา'}` : LABEL[mode];
+      mode === 'still' && ago ? `ภาพล่าสุดที่มี · ${ago}` : mode === 'clip' && ago ? `${LABEL.clip} · ${ago}` : LABEL[mode];
     view.classList.toggle('is-loaded', mode !== 'loading' && mode !== 'off');
   };
 
@@ -188,6 +191,22 @@ export function startCameraView(root: HTMLElement, c: Camera, fresh = false) {
           sources[i] = { kind: 'hls', url: '', resolve };
         })
         .catch(next);
+      return;
+    }
+
+    if (src.kind === 'clip') {
+      // คลิปสั้น (mp4) — ให้ผู้ใช้กดเล่นเอง แสดงภาพนิ่งเป็นภาพปก
+      const video = document.createElement('video');
+      video.controls = true;
+      video.playsInline = true;
+      video.setAttribute('playsinline', '');
+      video.preload = 'metadata';
+      if (c.imageUrl) video.poster = apiUrl(c.imageUrl);
+      video.setAttribute('aria-label', `คลิปวิดีโอ ${c.name}`);
+      video.addEventListener('loadedmetadata', ok, { once: true });
+      video.addEventListener('error', next, { once: true });
+      video.src = src.url;
+      media.appendChild(video);
       return;
     }
 
@@ -260,7 +279,8 @@ export function startCameraView(root: HTMLElement, c: Camera, fresh = false) {
       }, 500);
       timers.push(check);
     }
-    if (src.kind === 'still') {
+    // ภาพที่ถ่ายไว้แล้ว (มีเวลาถ่าย) ไม่ต้องโหลดซ้ำ
+    if (src.kind === 'still' && !c.imageTakenAt) {
       const refresh = () => {
         if (stopped) return;
         if (done) img.src = bust(src.url);

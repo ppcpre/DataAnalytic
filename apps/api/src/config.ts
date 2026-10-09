@@ -34,6 +34,8 @@ export interface Config {
     nontLive: boolean;
     /** หน้ากล้องของหน่วยงานบน StreamBridge (คั่นด้วย ,) — ว่าง = ปิด */
     streamBridgeSlugs: string[];
+    /** กล้องและจุดน้ำท่วมที่ประชาชนแจ้งของเทศบาลนครรังสิต — false = ปิด */
+    rangsit: boolean;
   };
   floodhub: {
     /** API key ของ Google Flood Forecasting API — ว่าง = ปิดชั้นข้อมูลนี้ */
@@ -85,6 +87,7 @@ export function loadConfig(env: Env = process.env): Config {
         .split(',')
         .map((x) => x.trim())
         .filter(Boolean),
+      rangsit: env.RANGSIT_LIVE !== 'false',
     },
     floodhub: {
       apiKey: env.GOOGLE_FLOOD_API_KEY ?? '',

@@ -10,6 +10,7 @@ import { geocodeUrl, parsePhoton } from './adapters/geocode.js';
 import { CAMERAS } from './data/cameras.js';
 import { parseLongdoCameras } from './adapters/longdo.js';
 import { PAKKRET_EON_URL, parsePakkretEon } from './adapters/pakkret.js';
+import { parseRangsit, RANGSIT_PAGE } from './adapters/rangsit.js';
 import {
   parseStreamBridge,
   parseStreamBridgeSession,
@@ -280,12 +281,12 @@ export function createApp(
     '/api/cameras',
     serve({
       key: 'cameras',
-      source: 'Longdo Traffic / มูลนิธิ iTIC / เทศบาลนครนนทบุรี / StreamBridge',
+      source: 'Longdo Traffic / มูลนิธิ iTIC / เทศบาลนครนนทบุรี / StreamBridge / เทศบาลนครรังสิต',
       enabled: () => true,
       load: async () => {
         const url = config.cameras.listUrl;
         // ดึงแต่ละแหล่งแยกกัน แหล่งใดล่ม ยังแสดงกล้อง/จุดวัดจากแหล่งอื่นได้
-        const [fromList, fromNont, fromPakkret, fromStreamBridge] = await Promise.all([
+        const [fromList, fromNont, fromPakkret, fromStreamBridge, fromRangsit] = await Promise.all([
           (url ? cameraCache.get('longdo-cameras', () => getJson(url)) : Promise.resolve({ value: null }))
             .then((r) => parseLongdoCameras(r.value))
             .catch((err: unknown) => {
@@ -313,9 +314,17 @@ export function createApp(
                 }),
             ),
           ).then((lists) => lists.flat()),
+          // กล้องจุดเฝ้าระวังและจุดน้ำท่วมที่ประชาชนแจ้ง ของเทศบาลนครรังสิต (เก็บเฉพาะผลที่แยกแล้ว)
+          (config.cameras.rangsit
+            ? cache.get('rangsit', async () => parseRangsit(await getText(RANGSIT_PAGE))).then((r) => r.value)
+            : Promise.resolve([] as Camera[])
+          ).catch((err: unknown) => {
+            console.error('[cameras] rangsit', err);
+            return [] as Camera[];
+          }),
         ]);
         const own = new Set(CAMERAS.map((c) => c.id));
-        return [...CAMERAS, ...fromPakkret, ...fromNont, ...fromStreamBridge, ...fromList.filter((c) => !own.has(c.id))];
+        return [...CAMERAS, ...fromPakkret, ...fromNont, ...fromStreamBridge, ...fromRangsit, ...fromList.filter((c) => !own.has(c.id))];
       },
       sample: sampleCameras,
     }),
