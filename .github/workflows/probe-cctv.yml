@@ -1,34 +1,48 @@
 name: Probe CCTV sources
 
-# ตรวจแหล่งกล้องใหม่ + ข้อมูลประวัติบนเว็บจริง (รันเองจากแท็บ Actions)
+# สำรวจระบบ Flood Watch ของเทศบาลนครรังสิต (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
 
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 6
     env:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
+      B: https://cdp.rangsitcity.go.th
     steps:
-      - name: History on live site
+      - name: Rangsit page data
         continue-on-error: true
         run: |
-          site=https://dataanalytic.precare.workers.dev
-          curl -sS -m 60 -o /dev/null "$site/api/cameras"
-          curl -sS -m 30 "$site/api/history/stats"; echo
-          curl -sS -m 30 "$site/api/history/nont-STN2:down?hours=24" | head -c 400; echo
-      - name: New camera sources
+          curl -sS -m 30 -A "$UA" -o p.html "$B/"
+          echo "-- api paths:"; grep -oE '"/api/[a-zA-Z0-9_/-]{2,60}' p.html | sed -E 's#/[A-Z0-9]{10}$#/<ID>#' | sort | uniq -c | sort -rn | head -20
+          echo "-- context around first image id:"
+          python3 - <<'PY'
+          import re
+          h = open('p.html', encoding='utf-8', errors='replace').read()
+          h2 = h.replace('\\"', '"')
+          m = re.search(r'/api/flood/image/([A-Z0-9]{10})', h2)
+          if m:
+              i = m.start()
+              print(h2[max(0, i-1500):i+600])
+          for k in ['lat', 'lng', 'latitude', 'longitude', 'waterLevel', 'water_level', 'level', 'updatedAt', 'name', 'title']:
+              print(k, len(re.findall(r'"%s"\s*:' % k, h2)))
+          PY
+      - name: Endpoints and image
         continue-on-error: true
-        timeout-minutes: 5
         run: |
-          for u in https://cdp.rangsitcity.go.th/ https://nkndatamap.nakornnont.go.th/public https://world.tehx.dyndns.info/flood https://floodbangkok.bangkok.go.th/ https://live.iticfoundation.org/; do
-            echo; echo "=================== $u"
-            curl -sS -L -m 20 -A "$UA" -D h.txt -o p.html -w "HTTP %{http_code} final=%{url_effective} type=%{content_type} size=%{size_download}\n" "$u" 2>&1 | tail -1
-            tr -d '\r' < h.txt | grep -iE '^(x-frame-options|content-security-policy|access-control|server)' | cut -c1-200
-            grep -oiE '<title>[^<]*</title>' p.html | head -1
-            echo "-- scripts:"; grep -oiE '<script[^>]+src="[^"]+"' p.html | sed -E 's/.*src="([^"]+)"/\1/' | head -12
-            echo "-- hints:"; grep -oiE '["'"'"'(=][^"'"'"' ()<>]{0,80}(api|json|m3u8|hls|snapshot|cctv|camera|stream|lat|lng)[^"'"'"' ()<>]{0,60}' p.html | sort -u | head -30
-            echo "-- iframes:"; grep -oiE '<iframe[^>]*>' p.html | head -5
-            echo "-- text:"; sed -e 's/<script[^>]*>.*<\/script>//g; s/<[^>]*>/ /g' p.html | tr -s ' \n\t' ' ' | head -c 600; echo
+          id=$(grep -oE '/api/flood/image/[A-Z0-9]{10}' p.html 2>/dev/null | head -1)
+          [ -z "$id" ] && { curl -sS -m 30 -A "$UA" -o p.html "$B/"; id=$(grep -oE '/api/flood/image/[A-Z0-9]{10}' p.html | head -1); }
+          echo "image $id"; curl -sS -m 20 -D - -o i.bin "$B$id" | tr -d '\r' | grep -iE '^(HTTP|content-type|content-length|last-modified|cache-control|access-control|cross-origin|etag)'
+          for p in api/flood api/flood/cameras api/flood/list api/flood/stations api/flood/points api/cctv api/cameras api/flood/status api/flood/data; do
+            curl -sS -m 15 -A "$UA" -o r.bin -w "%{http_code} %{content_type} %{size_download} <- $p\n" "$B/$p"; head -c 300 r.bin | tr '\n' ' '; echo
+          done
+      - name: JS chunks api usage
+        continue-on-error: true
+        run: |
+          for s in $(grep -oE '/_next/static/chunks/[^"]+\.js' p.html | sort -u); do
+            curl -sS -m 20 -o c.js "$B$s" || continue
+            hits=$(grep -oE '.{0,80}/api/[a-zA-Z/_-]+.{0,100}' c.js | sort -u | head -12)
+            [ -n "$hits" ] && { echo "== $s"; echo "$hits"; }
           done
