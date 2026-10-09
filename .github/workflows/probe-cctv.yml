@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# สำรวจระบบ Flood Watch ของเทศบาลนครรังสิต (รันเองจากแท็บ Actions)
+# ตรวจกล้องเทศบาลนครรังสิตบนเว็บที่ deploy แล้ว (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -10,58 +10,26 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 8
     env:
-      UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
-      B: https://cdp.rangsitcity.go.th
+      APP: https://dataanalytic.precare.workers.dev
     steps:
-      - name: Cameras, reports and snapshot
-        continue-on-error: true
+      - name: Rangsit points on the live API
         run: |
-          curl -sS -m 30 -A "$UA" -o p.html "$B/"
+          for i in $(seq 1 30); do
+            curl -sS -m 30 "$APP/api/cameras?ts=$(date +%s)" -o c.json || true
+            n=$(python3 -c "import json; d=json.load(open('c.json'))['data']; print(sum(1 for c in d if c['id'].startswith('rs-')))" 2>/dev/null || echo 0)
+            echo "try $i: rs=$n"; [ "$n" -gt 0 ] && break; sleep 15
+          done
           python3 - <<'PY'
-          import re, json, collections
-          h = open('p.html', encoding='utf-8', errors='replace').read()
-          parts = re.findall(r'self\.__next_f\.push\(\[1,"((?:[^"\\]|\\.)*)"\]\)', h)
-          s = ''.join(json.loads('"%s"' % p) for p in parts)
-          def arr(key):
-              i = s.find('"%s":[' % key)
-              if i < 0: return None
-              j = i + len(key) + 3
-              v, _ = json.JSONDecoder().raw_decode(s[j:])
-              return v, s[max(0,i-200):i]
-          cams = arr('cameras')
-          if cams:
-              print('cameras prefix:', cams[1][-200:])
-              print(json.dumps(cams[0], ensure_ascii=False, indent=1)[:4000])
-          reps = arr('reports')
-          if reps:
-              r = reps[0]
-              print('reports', len(r), 'keys', sorted(r[0].keys()))
-              print(collections.Counter(x['waterLevel'] for x in r))
-              print(collections.Counter(x['createdAt'][:10] for x in r))
-              print(collections.Counter(bool(x.get('hasVideo')) for x in r))
-              lat = [x['latitude'] for x in r]; lng = [x['longitude'] for x in r]
-              print('bbox', min(lat), max(lat), min(lng), max(lng))
-              print(json.dumps(r[-1], ensure_ascii=False))
-          for k in ['"level":"', 'cvLevel']:
-              print(k, collections.Counter(re.findall(re.escape(k) + r'"?([A-Z_]+)', s)))
+          import json, collections
+          d = json.load(open('c.json'))['data']
+          rs = [c for c in d if c['id'].startswith('rs-')]
+          print('total cameras', len(d), 'rangsit', len(rs))
+          print('cams', [c['id'] for c in rs if c['id'].startswith('rs-cam-')])
+          print('reports', sum(1 for c in rs if c['id'].startswith('rs-rep-')), 'with clip', sum(1 for c in rs if c.get('videoUrl')))
+          print(collections.Counter(c.get('alert', {}).get('label') for c in rs))
+          for c in rs[:3]: print(json.dumps(c, ensure_ascii=False))
+          open('urls.txt', 'w').write('\n'.join([rs[0]['imageUrl']] + [c['imageUrl'] for c in rs if c['id'].startswith('rs-rep-')][:1]))
           PY
-          for p in api/flood/snapshot/151 api/flood/snapshot/152 api/flood/image/QZ6E7X494A api/flood/video/QZ6E7X494A; do
-            echo "== $p"; curl -sS -m 20 -A "$UA" -H 'Origin: https://dataanalytic.precare.workers.dev' -D - -o r.bin -r 0-1000 "$B/$p" | tr -d '\r' | grep -iE '^(HTTP|content-type|content-length|content-range|last-modified|cache-control|access-control|cross-origin|x-|date|etag)'
-            file r.bin
-          done
-          sleep 20; curl -sS -m 20 -D - -o r2.bin "$B/api/flood/snapshot/151" | tr -d '\r' | grep -iE '^(HTTP|content-length|last-modified|etag|date)'
-      - name: JS around snapshot
-        continue-on-error: true
-        run: |
-          for s in /_next/static/chunks/9caac2463eb81155.js; do
-            curl -sS -m 20 -o c.js "$B$s"
-            python3 - <<'PY'
-          s = open('c.js', encoding='utf-8', errors='replace').read()
-          for key in ['/api/flood/snapshot', '/api/flood/video', 'CRITICAL', 'WATCH']:
-              i = s.find(key)
-              print('==', key, i)
-              if i >= 0: print(s[max(0, i-1200):i+1200])
-          PY
-          done
+          while read u; do curl -sS -m 20 -o /dev/null -w "%{http_code} %{content_type} %{size_download} <- $u\n" -H "Referer: $APP/" "$u"; done < urls.txt
