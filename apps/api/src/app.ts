@@ -328,7 +328,10 @@ export function createApp(
       return c.json({ mode, show: mode === 'on' || s.live, live: s.live, cameras: s.cameras.length, checkedAt: s.checkedAt });
     } catch (err) {
       console.error('[bmatraffic] status', err);
-      return c.json({ mode, show: false, error: 'ดึงรายชื่อกล้องไม่สำเร็จ' }, 502);
+      return c.json(
+        { mode, show: false, error: 'ดึงรายชื่อกล้องไม่สำเร็จ', detail: (err as Error).message?.slice(0, 200), via: bmaGet ? 'socket' : 'fetch' },
+        502,
+      );
     }
   });
 
