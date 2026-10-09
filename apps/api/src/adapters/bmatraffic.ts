@@ -9,13 +9,14 @@
  */
 import type { Camera } from '@flood-watch/shared';
 
-export const BMA_TRAFFIC_BASE = 'http://www.bmatraffic.com';
+export const BMA_TRAFFIC_HOST = 'www.bmatraffic.com';
+export const BMA_TRAFFIC_BASE = `http://${BMA_TRAFFIC_HOST}`;
 export const BMA_TRAFFIC_PAGE = `${BMA_TRAFFIC_BASE}/`;
 const OWNER = 'กรุงเทพมหานคร (สจส.)';
 /** รหัสกล้องของต้นทาง (ตัวเลข) */
 export const BMA_CAM_ID = /^\d{1,6}$/;
 
-export const bmaImageUrl = (id: string) => `${BMA_TRAFFIC_BASE}/show.aspx?image=${id}&&time=${Date.now()}`;
+export const bmaImagePath = (id: string) => `/show.aspx?image=${id}&&time=${Date.now()}`;
 export const bmaViewerUrl = (id: string) => `${BMA_TRAFFIC_BASE}/PlayVideo.aspx?ID=${id}`;
 
 /** ข้อความในเครื่องหมาย '…' ของ JavaScript (รองรับ \' และ \\) */

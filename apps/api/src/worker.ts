@@ -5,6 +5,7 @@
 import { connect } from 'cloudflare:sockets';
 import { createApp } from './app.js';
 import { NONT_HOST } from './adapters/nonthaburi.js';
+import { BMA_TRAFFIC_HOST } from './adapters/bmatraffic.js';
 import { rawGet } from './raw-http.js';
 import { loadConfig, type Env } from './config.js';
 import { D1HistoryStore, MemoryHistoryStore, RETENTION_MS, type D1Like, type HistoryStore } from './history.js';
@@ -29,6 +30,7 @@ function init(env: WorkerEnv) {
     history,
     // เซิร์ฟเวอร์ของเทศบาลนครนนทบุรีมีแต่ IP ซึ่ง fetch() บน Workers เรียกไม่ได้ จึงต่อผ่าน TCP socket (เฉพาะเครื่องนี้)
     nontGet: (path) => rawGet(connect, NONT_HOST, path),
+    bmaGet: (path) => rawGet(connect, BMA_TRAFFIC_HOST, path),
   });
   return { app, history };
 }

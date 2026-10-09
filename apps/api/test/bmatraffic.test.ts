@@ -69,6 +69,21 @@ describe('bmatraffic cameras', () => {
     expect((await app.request('/api/bma/image?id=../x')).status).toBe(400);
   });
 
+  it('uses the socket getter for page and images when provided', async () => {
+    const paths: string[] = [];
+    const app = createApp(loadConfig({ CAMERA_LIST_URL: '', RANGSIT_LIVE: 'false', STREAMBRIDGE_SLUGS: '', NONT_LIVE: 'false' }), async () => ({}), undefined, {
+      getText: async () => '',
+      bmaGet: async (path) => {
+        paths.push(path);
+        const body = path === '/' ? new TextEncoder().encode(BMA_HTML) : FRAME;
+        return { status: 200, headers: { 'content-type': 'image/jpeg' }, body };
+      },
+    });
+    expect(await bmaIds(app)).toBe(3);
+    expect(paths[0]).toBe('/');
+    expect(paths[1]).toMatch(/^\/show\.aspx\?image=603&&time=\d+$/);
+  });
+
   it('can be forced on or off', async () => {
     expect(await bmaIds(appWith(BLANK, { BMA_TRAFFIC: 'on' }).app)).toBe(3);
     const off = appWith(FRAME, { BMA_TRAFFIC: 'off' });

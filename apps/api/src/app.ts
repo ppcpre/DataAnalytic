@@ -13,8 +13,8 @@ import { PAKKRET_EON_URL, parsePakkretEon } from './adapters/pakkret.js';
 import { parseRangsit, RANGSIT_PAGE } from './adapters/rangsit.js';
 import {
   BMA_CAM_ID,
-  BMA_TRAFFIC_PAGE,
-  bmaImageUrl,
+  BMA_TRAFFIC_BASE,
+  bmaImagePath,
   isRealBmaFrame,
   parseBmaTraffic,
 } from './adapters/bmatraffic.js';
@@ -83,6 +83,11 @@ export interface AppDeps {
   nontGet?: (path: string) => Promise<RawResponse>;
   /** ดึงภาพ (ไบต์) — ค่าเริ่มต้นใช้ fetch */
   getImage?: (url: string) => Promise<FetchedImage>;
+  /**
+   * GET ไปที่ bmatraffic.com ตาม path — บน Workers ใช้ TCP socket (ต้นทางไม่ตอบ fetch() จาก Cloudflare)
+   * ไม่ระบุ = ใช้ getText/getImage
+   */
+  bmaGet?: (path: string) => Promise<RawResponse>;
 }
 
 export function createApp(
@@ -236,6 +241,18 @@ export function createApp(
    * ดึงสดไม่ได้/ไม่ได้ตั้งค่า ใช้รายชื่อจุดที่บันทึกไว้ (ลิงก์ไปดูภาพในเว็บเทศบาล)
    */
   const getImage = deps.getImage ?? fetchImage;
+  const bmaGet = deps.bmaGet;
+  const bmaPage = async () => {
+    if (!bmaGet) return getText(`${BMA_TRAFFIC_BASE}/`);
+    const res = await bmaGet('/');
+    if (res.status !== 200) throw new Error(`bmatraffic HTTP ${res.status}`);
+    return new TextDecoder().decode(res.body);
+  };
+  const bmaImage = async (id: string): Promise<FetchedImage> => {
+    if (!bmaGet) return getImage(`${BMA_TRAFFIC_BASE}${bmaImagePath(id)}`);
+    const res = await bmaGet(bmaImagePath(id));
+    return { status: res.status, type: res.headers['content-type'] ?? '', body: res.body };
+  };
 
   /**
    * กล้องจราจร กทม.: รายชื่อจากหน้าแรกของ bmatraffic.com + สุ่มตรวจภาพว่าต้นทางส่งภาพจริงหรือยัง
@@ -244,13 +261,13 @@ export function createApp(
   const bmaTraffic = () =>
     cameraCache
       .get('bmatraffic', async () => {
-        const cameras = parseBmaTraffic(await getText(BMA_TRAFFIC_PAGE));
+        const cameras = parseBmaTraffic(await bmaPage());
         let live = false;
         const step = Math.max(1, Math.floor(cameras.length / 3));
         for (let i = 0; i < cameras.length && i < step * 3 && !live; i += step) {
           const id = cameras[i].id.slice('bma-'.length);
           try {
-            live = isRealBmaFrame((await getImage(bmaImageUrl(id))).body);
+            live = isRealBmaFrame((await bmaImage(id)).body);
           } catch (err) {
             console.error('[bmatraffic] sample', id, err);
           }
@@ -321,7 +338,7 @@ export function createApp(
     if (!BMA_CAM_ID.test(id)) return c.json({ error: 'รหัสกล้องไม่ถูกต้อง' }, 400);
     if (config.cameras.bmaTraffic === 'off') return c.json({ error: 'ปิดแหล่งภาพนี้อยู่' }, 404);
     try {
-      const res = await getImage(bmaImageUrl(id));
+      const res = await bmaImage(id);
       // ขณะต้นทางปิดปรับปรุง ภาพเป็นสีขาวล้วน — ตอบว่าไม่มีภาพ ให้หน้าเว็บแจ้งผู้ใช้แทน
       if (res.status !== 200 || !isRealBmaFrame(res.body)) return c.json({ error: 'กล้องนี้ไม่มีภาพขณะนี้' }, 502);
       return c.body(new Uint8Array(res.body), 200, { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=5' });
