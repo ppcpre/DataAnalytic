@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# ตรวจสถานะกล้องจราจร กทม. บนเว็บที่ deploy แล้ว (ดูสาเหตุ) (รันเองจากแท็บ Actions)
+# ตรวจว่ากล้องจราจร กทม. ปิดอยู่ และ /api/cameras ตอบเร็ว (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -10,17 +10,17 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 8
     env:
       APP: https://dataanalytic.precare.workers.dev
     steps:
-      - name: BMA status on the live API
+      - name: Live status
         run: |
-          for i in $(seq 1 12); do
-            out=$(curl -sS -m 90 "$APP/api/bma/status" || true)
-            echo "try $i: $out"
-            echo "$out" | grep -q '"cameras"' && break
-            sleep 15
+          for i in $(seq 1 20); do
+            out=$(curl -sS -m 60 "$APP/api/bma/status" || true); echo "try $i: $out"
+            echo "$out" | grep -q '"mode":"off"' && break; sleep 15
           done
-          curl -sS -m 30 -o /dev/null -w "image proxy %{http_code}\n" "$APP/api/bma/image?id=1692"
-          curl -sS -m 60 "$APP/api/cameras" | python3 -c "import json,sys; d=json.load(sys.stdin)['data']; print('cameras', len(d), 'bma', sum(c['id'].startswith('bma-') for c in d))"
+          for i in 1 2; do
+            curl -sS -m 60 -o c.json -w "cameras %{http_code} in %{time_total}s\n" "$APP/api/cameras?nocache=$(date +%s%N)"
+          done
+          python3 -c "import json; d=json.load(open('c.json'))['data']; print('cameras', len(d))"
