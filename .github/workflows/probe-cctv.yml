@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# ดูข้อมูลสถานีของกรมทรัพยากรน้ำ (พิกัด/ระดับน้ำ) (รันเองจากแท็บ Actions)
+# ตรวจกล้องจังหวัดใหม่และกล้องกรมทรัพยากรน้ำบนเว็บจริง (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -10,25 +10,47 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 12
     env:
-      UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
-      T: https://telemetry.dwr.go.th
+      APP: https://dataanalytic.precare.workers.dev
     steps:
-      - name: getByCode
+      - name: Live API
         run: |
-          curl -sS -m 20 -A "$UA" -D h.txt -o s.json "$T/api/public/station/getByCode/TA100220"
-          tr -d '\r' < h.txt | grep -iE '^(access-control|cache-control)'
+          for i in $(seq 1 30); do
+            curl -sS -m 90 -o c.json "$APP/api/cameras?ts=$(date +%s)" || true
+            n=$(python3 -c "import json; d=json.load(open('c.json'))['data']; print(sum(c['id'].startswith('dwr-') for c in d))" 2>/dev/null || echo 0)
+            echo "try $i: dwr=$n"; [ "$n" -gt 0 ] && break; sleep 20
+          done
           python3 - <<'PY'
-          import json
-          d = json.load(open('s.json'))['value']
-          def walk(o, p=''):
-              if isinstance(o, dict):
-                  for k, v in o.items(): walk(v, f'{p}.{k}')
-              elif isinstance(o, list):
-                  print(f'{p}[] len={len(o)}')
-                  if o: walk(o[0], p + '[0]')
-              else:
-                  print(f'{p} = {str(o)[:100]}')
-          walk(d)
+          import json, collections
+          d = json.load(open('c.json'))['data']
+          print('total', len(d))
+          print('by province', collections.Counter(c['location'].get('provinceName') or c['location']['province'] for c in d).most_common())
+          print('longdo by province', collections.Counter(c['location']['province'] for c in d if c['id'].startswith('longdo-')).most_common())
+          for c in d:
+              if c['id'].startswith('dwr-'):
+                  r = (c.get('readings') or [{}])[0]
+                  print(' ', c['id'], c['name'], c['location']['provinceName'], r.get('value'), r.get('warning'), r.get('danger'), c.get('observedAt'))
           PY
+          curl -sS -m 60 -o i.bin -w "dwr image %{http_code} %{content_type} %{size_download}\n" "$APP/api/dwr/image?code=TA100220"
+      - name: Chrome
+        run: |
+          mkdir b && cd b && npm init -y >/dev/null && npm i playwright-core@1 >/dev/null 2>&1
+          cat > t.mjs <<'JS'
+          import { chromium } from 'playwright-core';
+          const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome' });
+          for (const id of ['dwr-TA100222', 'dwr-TA100220', 'longdo-ITICM_BMAMI0272']) {
+            const p = await b.newPage({ viewport: { width: 390, height: 844 } });
+            await p.goto(`${process.env.APP}/?cam=${id}`, { waitUntil: 'domcontentloaded' });
+            try { await p.waitForSelector('#sheet [data-cam-view]', { timeout: 60000 }); } catch { console.log('SHEET', id, 'no sheet'); await p.close(); continue; }
+            await p.waitForTimeout(15000);
+            console.log('SHEET', id, JSON.stringify(await p.evaluate(() => {
+              const s = document.getElementById('sheet');
+              const img = s.querySelector('.cam-media img');
+              return { title: s.querySelector('.sheet-title')?.textContent, sub: s.querySelector('.sheet-sub, .sheet-head small')?.textContent, mode: s.querySelector('.cam-view')?.dataset.mode, label: s.querySelector('[data-cam-label]')?.textContent, img: img ? [img.naturalWidth, img.src.slice(0, 70)] : null, tiles: [...s.querySelectorAll('.tile')].map((e) => e.textContent.replace(/\s+/g, ' ')) };
+            })));
+            await p.close();
+          }
+          await b.close();
+          JS
+          node t.mjs
