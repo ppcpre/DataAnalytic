@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# สำรวจกล้องระดับน้ำของกรมทรัพยากรน้ำ (telemetry.dwr.go.th) (รันเองจากแท็บ Actions)
+# สำรวจ API กล้องของกรมทรัพยากรน้ำ (telemetry.dwr.go.th) (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -15,27 +15,22 @@ jobs:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
       T: https://telemetry.dwr.go.th
     steps:
-      - name: reportCctv page
+      - name: API client chunk
         continue-on-error: true
         run: |
-          curl -sS -m 30 -A "$UA" -L -D h.txt -o p.html -w "%{http_code} %{content_type} %{size_download} <- %{url_effective}\n" "$T/reportCctv"
-          tr -d '\r' < h.txt | grep -iE '^(HTTP|content-type|set-cookie|access-control|location)'
+          curl -sS -m 20 -A "$UA" -o c.js "$T/_next/static/chunks/6964-1ce0128e2f013e4c.js"
           python3 - <<'PY'
           import re
-          h = open('p.html', encoding='utf-8', errors='replace').read()
-          print('len', len(h))
-          print('scripts', re.findall(r'<script[^>]+src="([^"]+)"', h)[:15])
-          for k in ['อยุธยา', 'ajax', 'url:', '.json', 'api/', 'jpg', 'png', 'm3u8', 'img', 'lat', 'cctv']:
-              idx = [m.start() for m in re.finditer(re.escape(k), h, re.I)]
+          s = open('c.js', encoding='utf-8', errors='replace').read()
+          print('len', len(s))
+          for k in ['streamUrl', 'imageCctv', 'https://', 'NEXT_PUBLIC', '"/station', '/cctv', 'stationList', 'getStation', 'mapStation', 'lat']:
+              idx = [m.start() for m in re.finditer(re.escape(k), s)]
               print('==', k, len(idx))
-              for i in idx[:3]: print('   ', h[max(0, i-200):i+250].replace('\n', ' '))
+              for i in idx[:4]: print('   ', s[max(0, i-250):i+300].replace('\n', ' '))
+          print('ENDPOINTS', sorted(set(re.findall(r'concat\([a-z],"(/[A-Za-z0-9/_-]+)"', s)))[:200])
           PY
-      - name: JS endpoints
+      - name: Report page chunk
         continue-on-error: true
         run: |
-          for s in $(grep -oE 'src="[^"]+\.js[^"]*"' p.html | sed -E 's/src="([^"]+)"/\1/' | grep -vE 'jquery|bootstrap|cdn' | sort -u | head -15); do
-            case "$s" in http*) u="$s";; /*) u="$T$s";; *) u="$T/$s";; esac
-            curl -sS -m 20 -A "$UA" -o c.js "$u" || continue
-            hits=$(grep -oE '.{0,100}(ajax|url ?:|fetch\(|\.json|/api/|cctv)[^;]{0,140}' c.js | sort -u | head -10)
-            [ -n "$hits" ] && { echo "== $u"; echo "$hits"; }
-          done
+          curl -sS -m 20 -A "$UA" -o r.js "$T/_next/static/chunks/pages/reportCctv-2314420cf5a39383.js"
+          grep -oE '.{0,200}(cctv|Cctv)[^;]{0,200}' r.js | head -12
