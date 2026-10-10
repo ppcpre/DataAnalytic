@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# หาแหล่งกล้องย่านนนทบุรี-พุทธมณฑล-ปิ่นเกล้า-จรัญ (รันเองจากแท็บ Actions)
+# ดูว่าหน้ากล้องของ Longdo Traffic ดึงรายชื่อกล้องจากที่ไหน (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -10,31 +10,33 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 8
     env:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
-      SB: https://app.streambridge.online
+      L: https://traffic.longdo.com
     steps:
-      - name: StreamBridge discovery
+      - name: Longdo camera page
         continue-on-error: true
         run: |
-          for p in robots.txt sitemap.xml api/public api/public/ api/public/sites api/public/organizations api/public/list p; do
-            curl -sS -m 15 -A "$UA" -o r.bin -w "%{http_code} %{content_type} %{size_download} <- $p\n" "$SB/$p"; head -c 300 r.bin | tr '\n' ' '; echo
-          done
-          curl -sS -m 20 -A "$UA" -o home.html "$SB/p/bangkruai-city"
-          for s in $(grep -oE '/_next/static/[^"]+\.js|/assets/[^"]+\.js' home.html | sort -u); do
-            curl -sS -m 20 -o c.js "$SB$s" || continue
-            hits=$(grep -oE '.{0,60}(/api/public|/api/[a-z]+)[^"`]{0,60}' c.js | sort -u | head -15)
+          curl -sS -m 20 -A "$UA" -o cam.html "$L/camera"
+          grep -oE '(src|href)="[^"]+"' cam.html | head -40
+          grep -oE '.{0,120}(\.json|/api/|ajax|fetch\(|getJSON)[^<]{0,160}' cam.html | head -20
+          for s in $(grep -oE 'src="[^"]+\.js[^"]*"' cam.html | sed -E 's/src="([^"]+)"/\1/' | grep -v '^http' | sort -u); do
+            curl -sS -m 20 -A "$UA" -o c.js "$L$s" || continue
+            hits=$(grep -oE '.{0,100}(\.json|/api/|camid|ajax)[^;]{0,140}' c.js | sort -u | head -12)
             [ -n "$hits" ] && { echo "== $s"; echo "$hits"; }
           done
-          echo "-- slug guesses"
-          for s in bangyai bangyai-city bangbuathong bangbuathong-city bang-bua-thong sainoi bangsithong bangsrithong omkret om-kret plaibang nonthaburi nonthaburi-city nonthaburi-pao nont-pao pakkret pakkret-city bangkruai bangkruai-district salaya salaya-city phutthamonthon krathumlom krathum-lom omnoi omnoi-city nakhonpathom nakhonpathom-city talingchan bangphlat bangkoknoi thawiwatthana banglen bangmaenang sanambinnam bangkhenon mahasawat bangkhunkong watchalor bangkrang; do
-            code=$(curl -sS -m 10 -A "$UA" -o /dev/null -w "%{http_code}" "$SB/api/public/$s"); [ "$code" != "404" ] && echo "  $s -> $code"
-          done; echo "(done)"
-      - name: DOH / DRR / others
+      - name: Longdo camera list variants
         continue-on-error: true
         run: |
-          for u in https://cctv.doh.go.th/ https://its.doh.go.th/ https://itsc.doh.go.th/ https://hdms.doh.go.th/ https://trafficinfo.doh.go.th/ https://www.doh.go.th/cctv https://cctv.drr.go.th/ https://its.drr.go.th/ https://traffic.drr.go.th/ https://www.drr.go.th/ https://cctv.nonthaburi.go.th/ https://www.nonthaburipao.go.th/ https://www.salaya.go.th/ https://bangyaicity.go.th/ https://www.bangbuathongcity.go.th/ https://traffic.longdo.com/api/json/traffic/camera https://traffic.longdo.com/camera ; do
-            curl -sS -m 15 -A "$UA" -L -o r.bin -w "%{http_code} %{content_type} %{size_download} <- $u\n" "$u" || true
-            [ -s r.bin ] && grep -oiE '.{0,60}(cctv|กล้อง|camera|m3u8|hls)[^<"]{0,60}' r.bin | head -4
+          for p in "camera.json" "camera.json?all=1" "camera.json?type=all" "api/camera/list" "api/json/camera" "camera/list.json" "camera.json?org=bma" "camera.json?showall=1"; do
+            curl -sS -m 20 -A "$UA" -o r.bin -w "%{http_code} %{content_type} %{size_download} <- $p\n" "$L/$p"
+            python3 -c "
+          import json,collections
+          try:
+              d=json.load(open('r.bin')); it=d.get('item') if isinstance(d,dict) else d
+              print('  items', len(it), collections.Counter(x.get('organization') for x in it).most_common(12))
+              box=[x for x in it if 13.70<=float(x.get('latitude') or 0)<=13.95 and 100.25<=float(x.get('longitude') or 0)<=100.52]
+              print('  in west/nonthaburi box', len(box)); [print('   ', x.get('camid'), x.get('title')) for x in box[:20]]
+          except Exception as e: print('  not json', e)"
           done
