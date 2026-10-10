@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# ดึงรายชื่อสถานีกล้องของกรมทรัพยากรน้ำ และทดสอบภาพสด (รันเองจากแท็บ Actions)
+# เปิดหน้า reportCctv ของกรมทรัพยากรน้ำใน Chrome แล้วจับคำขอ API (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -11,48 +11,38 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    env:
-      UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
-      T: https://telemetry.dwr.go.th
     steps:
-      - name: List
-        continue-on-error: true
+      - name: Capture requests
         run: |
-          for q in "page=0&size=500" "page=1&size=500" "page=1&pageSize=500" "pageNumber=1&pageSize=500" "" "page=1&limit=500" "offset=0&limit=500"; do
-            curl -sS -m 30 -A "$UA" -X POST -H 'content-type: application/json' -d '{}' -D h.txt -o l.json -w "list[$q] %{http_code} %{size_download}\n" "$T/api/public/reportCctv/listPaginate?$q"
-            head -c 200 l.json; echo
-            grep -q '"messages"' l.json || break
-          done
-          tr -d '\r' < h.txt | grep -iE '^(access-control|content-type)'
+          mkdir b && cd b && npm init -y >/dev/null && npm i playwright-core@1 >/dev/null 2>&1
+          cat > t.mjs <<'JS'
+          import { chromium } from 'playwright-core';
+          import { writeFileSync } from 'node:fs';
+          const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome' });
+          const p = await b.newPage();
+          p.on('request', (r) => { if (/\/api\/|\/cctv\//.test(r.url())) console.log('REQ', r.method(), r.url(), (r.postData() ?? '').slice(0, 600)); });
+          p.on('response', async (r) => {
+            if (!/listPaginate/.test(r.url())) return;
+            const t = await r.text().catch(() => '');
+            console.log('RESP', r.status(), t.slice(0, 2500));
+            writeFileSync('list.json', t);
+          });
+          await p.goto('https://telemetry.dwr.go.th/reportCctv', { waitUntil: 'networkidle', timeout: 60000 }).catch((e) => console.log('goto', e.message));
+          await p.waitForTimeout(8000);
+          await b.close();
+          JS
+          node t.mjs
           python3 - <<'PY'
           import json, collections
-          d = json.load(open('l.json'))
+          try:
+              d = json.load(open('list.json'))
+          except Exception as e:
+              print('no list', e); raise SystemExit
           v = d.get('value', d)
-          print('top keys', list(d.keys())[:10], type(v).__name__, list(v.keys())[:10] if isinstance(v, dict) else len(v))
-          items = v.get('content') or v.get('data') or v.get('items') or v.get('list') if isinstance(v, dict) else v
-          print('items', len(items or []))
+          items = v.get('content') or v.get('items') or v.get('data') or v.get('list') if isinstance(v, dict) else v
+          print('keys', list(v.keys()) if isinstance(v, dict) else type(v), 'items', len(items or []))
           if items:
               print(json.dumps(items[0], ensure_ascii=False)[:1500])
-              key = next((k for k in items[0] if 'province' in k.lower() and 'th' in k.lower()), None)
-              print('by province', collections.Counter(x.get(key) for x in items).most_common(40))
               ay = [x for x in items if 'อยุธยา' in json.dumps(x, ensure_ascii=False)]
               print('ayutthaya', len(ay))
-              for x in ay: print('  ', json.dumps(x, ensure_ascii=False)[:500])
-              json.dump(items, open('items.json', 'w'), ensure_ascii=False)
           PY
-      - name: Stream and snapshot
-        continue-on-error: true
-        run: |
-          python3 - > ids.txt <<'PY'
-          import json
-          it = json.load(open('items.json'))
-          ay = [x for x in it if 'อยุธยา' in json.dumps(x, ensure_ascii=False)] or it
-          x = ay[0]
-          code = next((x[k] for k in x if 'code' in k.lower() and isinstance(x[k], str) and len(x[k]) == 8), '')
-          sid = next((x[k] for k in ('stationId', 'id', 'station_id') if k in x), '')
-          print(code, sid)
-          PY
-          read code sid < ids.txt; echo "code=$code sid=$sid"
-          curl -sS -m 6 -A "$UA" -H 'Origin: https://dataanalytic.precare.workers.dev' -D sh.txt -o s.bin "$T/cctv/mjpeg/$code" || true
-          tr -d '\r' < sh.txt | grep -iE '^(HTTP|content-type|access-control|cache-control|x-)'; ls -l s.bin; head -c 200 s.bin | strings | head -5
-          curl -sS -m 20 -A "$UA" -o sn.json -w "snapshot %{http_code}\n" "$T/api/public/reportCctv/snapshot/$sid"; head -c 300 sn.json; echo
