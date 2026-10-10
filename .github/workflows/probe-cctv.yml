@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# เปิดหน้า reportCctv ของกรมทรัพยากรน้ำใน Chrome แล้วจับคำขอ API (รันเองจากแท็บ Actions)
+# รายชื่อกล้องของกรมทรัพยากรน้ำทั้งหมด + พิกัด + ภาพ (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -11,38 +11,44 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
+      T: https://telemetry.dwr.go.th
     steps:
-      - name: Capture requests
+      - name: Full list
+        continue-on-error: true
         run: |
-          mkdir b && cd b && npm init -y >/dev/null && npm i playwright-core@1 >/dev/null 2>&1
-          cat > t.mjs <<'JS'
-          import { chromium } from 'playwright-core';
-          import { writeFileSync } from 'node:fs';
-          const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome' });
-          const p = await b.newPage();
-          p.on('request', (r) => { if (/\/api\/|\/cctv\//.test(r.url())) console.log('REQ', r.method(), r.url(), (r.postData() ?? '').slice(0, 600)); });
-          p.on('response', async (r) => {
-            if (!/listPaginate/.test(r.url())) return;
-            const t = await r.text().catch(() => '');
-            console.log('RESP', r.status(), t.slice(0, 2500));
-            writeFileSync('list.json', t);
-          });
-          await p.goto('https://telemetry.dwr.go.th/reportCctv', { waitUntil: 'networkidle', timeout: 60000 }).catch((e) => console.log('goto', e.message));
-          await p.waitForTimeout(8000);
-          await b.close();
-          JS
-          node t.mjs
+          curl -sS -m 30 -A "$UA" -X POST -H 'content-type: application/json' \
+            -d '{"paginate":{"page":1,"pageSize":500,"orders":[{"key":"MAIN_BASIN","desc":false}]},"search":{}}' -o l.json "$T/api/public/reportCctv/listPaginate"
           python3 - <<'PY'
           import json, collections
-          try:
-              d = json.load(open('list.json'))
-          except Exception as e:
-              print('no list', e); raise SystemExit
-          v = d.get('value', d)
-          items = v.get('content') or v.get('items') or v.get('data') or v.get('list') if isinstance(v, dict) else v
-          print('keys', list(v.keys()) if isinstance(v, dict) else type(v), 'items', len(items or []))
-          if items:
-              print(json.dumps(items[0], ensure_ascii=False)[:1500])
-              ay = [x for x in items if 'อยุธยา' in json.dumps(x, ensure_ascii=False)]
-              print('ayutthaya', len(ay))
+          r = json.load(open('l.json'))['value']['results']
+          print('stations', len(r))
+          print(collections.Counter(x['provinceNameTh'] for x in r).most_common(80))
+          want = {'พระนครศรีอยุธยา','กรุงเทพมหานคร','นนทบุรี','ปทุมธานี','สมุทรปราการ','นครปฐม','สมุทรสาคร','ชลบุรี','ฉะเชิงเทรา','ขอนแก่น'}
+          for x in r:
+              if x['provinceNameTh'] in want:
+                  e = x['entity']; print(' ', x['provinceNameTh'], e['stationCode'], e['stnNameTh'], e['id'], e['cctvOnline'], x['districtNameTh'])
+          json.dump(r, open('r.json','w'), ensure_ascii=False)
+          print('entity keys', list(r[0]['entity'].keys()))
           PY
+      - name: Coordinates and image
+        continue-on-error: true
+        run: |
+          code=$(python3 -c "import json; r=json.load(open('r.json')); a=[x for x in r if x['provinceNameTh']=='พระนครศรีอยุธยา'] or r; print(a[0]['entity']['stationCode'], a[0]['entity']['id'])")
+          set -- $code; C=$1; ID=$2; echo "station $C $ID"
+          for p in "api/public/station/$C" "api/public/station/code/$C" "api/public/station/getByCode/$C" "api/public/station/byCode/$C" "api/public/stationInfo/$C" "api/public/map/station" "api/public/station/list" "api/public/mapStation"; do
+            curl -sS -m 20 -A "$UA" -o r.bin -w "GET %{http_code} %{size_download} <- $p\n" "$T/$p"; head -c 300 r.bin | tr '\n' ' '; echo
+          done
+          curl -sS -m 20 -A "$UA" -o s.json "$T/api/public/reportCctv/snapshot/$ID"; echo; cat s.json; echo
+          path=$(python3 -c "import json; print(json.load(open('s.json')).get('value') or '')")
+          curl -sS -m 20 -A "$UA" -X POST -H 'content-type: application/json' -H 'Origin: https://dataanalytic.precare.workers.dev' -d "{\"path\":\"$path\"}" -D ih.txt -o img.bin "$T/api/file/image/cctv"
+          tr -d '\r' < ih.txt | grep -iE '^(HTTP|content-type|content-length|access-control|cache-control)'; file img.bin; head -c 120 img.bin; echo
+          curl -sS -m 6 -A "$UA" -H 'Origin: https://dataanalytic.precare.workers.dev' -D mh.txt -o m.bin "$T/cctv/mjpeg/$C" || true
+          tr -d '\r' < mh.txt | grep -iE '^(HTTP|content-type|access-control|cache-control)'; ls -l m.bin
+      - name: Station page chunk
+        continue-on-error: true
+        run: |
+          curl -sS -m 20 -A "$UA" -o bm.js "$T/_next/static/$(curl -sS -m 20 -A "$UA" "$T/reportCctv" | grep -oE 'static/[^/]+/_buildManifest.js' | head -1 | sed 's#static/##')"
+          f=$(grep -oE '"/station/\[stationCode\]":\[[^]]+\]' bm.js | grep -oE 'static/chunks/pages/station/[^"]+'); echo "chunk $f"
+          [ -n "$f" ] && curl -sS -m 20 -A "$UA" -o st.js "$T/_next/$f" && grep -oE '.{0,80}(latitude|lat"|"lat|/public/[A-Za-z/]+)[^;]{0,120}' st.js | sort -u | head -15
