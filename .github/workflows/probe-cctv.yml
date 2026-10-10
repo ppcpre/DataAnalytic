@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# ดูแหล่งรายชื่อกล้องของ Longdo/iTIC (รันเองจากแท็บ Actions)
+# เทียบกล้อง Longdo กับที่แอปแสดง (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -10,19 +10,24 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 6
     env:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
     steps:
-      - name: Fetch calls in Longdo script
-        continue-on-error: true
+      - name: Compare
         run: |
-          curl -sS -m 20 -A "$UA" -o s.js "https://traffic.longdo.com/sites/all/modules/traffic_camera/script.js?v=92"
-          grep -nE 'fetch\(|XMLHttpRequest|\$\.get|\.json|https?://' s.js | cut -c1-220 | head -40
-      - name: iTIC sites
-        continue-on-error: true
-        run: |
-          for u in https://iticfoundation.org/ https://www.iticfoundation.org/cctv https://camera.iticfoundation.org/ https://cctv.iticfoundation.org/ https://its.iticfoundation.org/ https://www.its.in.th/ ; do
-            curl -sS -m 15 -A "$UA" -L -o r.bin -w "%{http_code} %{content_type} %{size_download} <- $u\n" "$u" || true
-            [ -s r.bin ] && grep -oiE '.{0,80}(cctv|camera|กล้อง|m3u8)[^<"]{0,80}' r.bin | sort -u | head -6
-          done
+          curl -sS -m 30 -A "$UA" -o l.json https://traffic.longdo.com/camera.json
+          curl -sS -m 60 -o a.json https://dataanalytic.precare.workers.dev/api/cameras
+          python3 - <<'PY'
+          import json, collections
+          L = json.load(open('l.json'))['item']; A = json.load(open('a.json'))['data']
+          have = {c['id'] for c in A}
+          print('longdo', len(L), 'app longdo', sum(i.startswith('longdo-') for i in have))
+          miss = [x for x in L if 'longdo-' + x['camid'] not in have]
+          print('missing', len(miss), collections.Counter((x.get('geocode') or '')[:2] for x in miss))
+          for x in L:
+              if x['camid'] in ('ITICM_BMAMI0080', 'ITICM_BMAMI0081'):
+                  print(json.dumps({k: x.get(k) for k in ['camid','title','geocode','latitude','longitude','hls_url','link','vdourl','imgurl']}, ensure_ascii=False))
+                  print('  in app:', 'longdo-' + x['camid'] in have)
+          for x in miss[:15]: print('  miss', x['camid'], x.get('geocode'), x['title'][:60], x.get('latitude'), x.get('longitude'))
+          PY
