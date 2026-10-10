@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# ตรวจว่ากล้องจราจร กทม. ปิดอยู่ และ /api/cameras ตอบเร็ว (รันเองจากแท็บ Actions)
+# หาแหล่งกล้องย่านนนทบุรี-พุทธมณฑล-ปิ่นเกล้า-จรัญ (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -10,17 +10,31 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     env:
-      APP: https://dataanalytic.precare.workers.dev
+      UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
+      SB: https://app.streambridge.online
     steps:
-      - name: Live status
+      - name: StreamBridge discovery
+        continue-on-error: true
         run: |
-          for i in $(seq 1 20); do
-            out=$(curl -sS -m 60 "$APP/api/bma/status" || true); echo "try $i: $out"
-            echo "$out" | grep -q '"mode":"off"' && break; sleep 15
+          for p in robots.txt sitemap.xml api/public api/public/ api/public/sites api/public/organizations api/public/list p; do
+            curl -sS -m 15 -A "$UA" -o r.bin -w "%{http_code} %{content_type} %{size_download} <- $p\n" "$SB/$p"; head -c 300 r.bin | tr '\n' ' '; echo
           done
-          for i in 1 2; do
-            curl -sS -m 60 -o c.json -w "cameras %{http_code} in %{time_total}s\n" "$APP/api/cameras?nocache=$(date +%s%N)"
+          curl -sS -m 20 -A "$UA" -o home.html "$SB/p/bangkruai-city"
+          for s in $(grep -oE '/_next/static/[^"]+\.js|/assets/[^"]+\.js' home.html | sort -u); do
+            curl -sS -m 20 -o c.js "$SB$s" || continue
+            hits=$(grep -oE '.{0,60}(/api/public|/api/[a-z]+)[^"`]{0,60}' c.js | sort -u | head -15)
+            [ -n "$hits" ] && { echo "== $s"; echo "$hits"; }
           done
-          python3 -c "import json; d=json.load(open('c.json'))['data']; print('cameras', len(d))"
+          echo "-- slug guesses"
+          for s in bangyai bangyai-city bangbuathong bangbuathong-city bang-bua-thong sainoi bangsithong bangsrithong omkret om-kret plaibang nonthaburi nonthaburi-city nonthaburi-pao nont-pao pakkret pakkret-city bangkruai bangkruai-district salaya salaya-city phutthamonthon krathumlom krathum-lom omnoi omnoi-city nakhonpathom nakhonpathom-city talingchan bangphlat bangkoknoi thawiwatthana banglen bangmaenang sanambinnam bangkhenon mahasawat bangkhunkong watchalor bangkrang; do
+            code=$(curl -sS -m 10 -A "$UA" -o /dev/null -w "%{http_code}" "$SB/api/public/$s"); [ "$code" != "404" ] && echo "  $s -> $code"
+          done; echo "(done)"
+      - name: DOH / DRR / others
+        continue-on-error: true
+        run: |
+          for u in https://cctv.doh.go.th/ https://its.doh.go.th/ https://itsc.doh.go.th/ https://hdms.doh.go.th/ https://trafficinfo.doh.go.th/ https://www.doh.go.th/cctv https://cctv.drr.go.th/ https://its.drr.go.th/ https://traffic.drr.go.th/ https://www.drr.go.th/ https://cctv.nonthaburi.go.th/ https://www.nonthaburipao.go.th/ https://www.salaya.go.th/ https://bangyaicity.go.th/ https://www.bangbuathongcity.go.th/ https://traffic.longdo.com/api/json/traffic/camera https://traffic.longdo.com/camera ; do
+            curl -sS -m 15 -A "$UA" -L -o r.bin -w "%{http_code} %{content_type} %{size_download} <- $u\n" "$u" || true
+            [ -s r.bin ] && grep -oiE '.{0,60}(cctv|กล้อง|camera|m3u8|hls)[^<"]{0,60}' r.bin | head -4
+          done
