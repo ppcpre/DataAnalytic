@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# เทียบกล้อง Longdo กับที่แอปแสดง (รันเองจากแท็บ Actions)
+# หากล้องอยุธยา: ระบบเมขลา กรมทรัพยากรน้ำ / StreamBridge (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -10,24 +10,21 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 10
     env:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
     steps:
-      - name: Compare
+      - name: Mekhala
+        continue-on-error: true
         run: |
-          curl -sS -m 30 -A "$UA" -o l.json https://traffic.longdo.com/camera.json
-          curl -sS -m 60 -o a.json https://dataanalytic.precare.workers.dev/api/cameras
-          python3 - <<'PY'
-          import json, collections
-          L = json.load(open('l.json'))['item']; A = json.load(open('a.json'))['data']
-          have = {c['id'] for c in A}
-          print('longdo', len(L), 'app longdo', sum(i.startswith('longdo-') for i in have))
-          miss = [x for x in L if 'longdo-' + x['camid'] not in have]
-          print('missing', len(miss), collections.Counter((x.get('geocode') or '')[:2] for x in miss))
-          for x in L:
-              if x['camid'] in ('ITICM_BMAMI0080', 'ITICM_BMAMI0081'):
-                  print(json.dumps({k: x.get(k) for k in ['camid','title','geocode','latitude','longitude','hls_url','link','vdourl','imgurl']}, ensure_ascii=False))
-                  print('  in app:', 'longdo-' + x['camid'] in have)
-          for x in miss[:15]: print('  miss', x['camid'], x.get('geocode'), x['title'][:60], x.get('latitude'), x.get('longitude'))
-          PY
+          for u in https://mekhala.dwr.go.th/ https://oldmekhala.dwr.go.th/ https://oldmekhala.dwr.go.th/en/index.php https://mekhala.dwr.go.th/cctv https://oldmekhala.dwr.go.th/cctv.php https://www.dwr.go.th/ ; do
+            curl -sS -m 20 -A "$UA" -L -o r.bin -w "%{http_code} %{content_type} %{size_download} <- %{url_effective}\n" "$u" || true
+            [ -s r.bin ] && grep -oiE '(href|src)="[^"]*(cctv|camera|cam|snap|jpg|m3u8)[^"]*"' r.bin | sort -u | head -15
+            [ -s r.bin ] && grep -oiE '.{0,80}(อยุธยา|cctv|กล้อง)[^<"]{0,80}' r.bin | sort -u | head -8
+          done
+      - name: StreamBridge Ayutthaya guesses
+        continue-on-error: true
+        run: |
+          for s in ayutthaya ayutthaya-city ayutthaya-pao ayutthaya-province phranakhonsiayutthaya ayothaya ayothaya-city bangpain bang-pa-in bangban senna sena uthai lopburi pathumthani bangsai wangnoi pakkret-city nakhonluang; do
+            code=$(curl -sS -m 10 -A "$UA" -o /dev/null -w "%{http_code}" "https://app.streambridge.online/api/public/$s"); [ "$code" != "404" ] && echo "  $s -> $code"
+          done; echo "(done)"
