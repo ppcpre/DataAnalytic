@@ -86,3 +86,38 @@ const RANGSIT_FLIGHT =
   '{"code":"bad/../x","latitude":13.99,"longitude":100.62,"waterLevel":"KNEE","createdAt":"2026-10-08T00:00:00.000Z"}]}]}]\n';
 const half = Math.floor(RANGSIT_FLIGHT.length / 2);
 export const RANGSIT_HTML = `<!DOCTYPE html><html><body><script>self.__next_f.push([1,${JSON.stringify(RANGSIT_FLIGHT.slice(0, half))}])</script><script>self.__next_f.push([1,${JSON.stringify(RANGSIT_FLIGHT.slice(half))}])</script></body></html>`;
+
+/** รายชื่อสถานีที่มีกล้องของกรมทรัพยากรน้ำ (ย่อ) */
+export const DWR_LIST = {
+  value: {
+    totalCount: 4,
+    results: [
+      {
+        entity: { id: 'a', stationCode: 'TA100220', stnNameTh: 'สะพานพระพุทธยอดฟ้า', cctvOnline: true },
+        provinceNameTh: 'กรุงเทพมหานคร',
+        districtNameTh: 'ธนบุรี',
+      },
+      { entity: { id: 'b', stationCode: 'TC020106', stnNameTh: 'นอกพื้นที่', cctvOnline: true }, provinceNameTh: 'เชียงราย' },
+      { entity: { id: 'c', stationCode: 'TA100218', stnNameTh: 'บ้านป้อม', cctvOnline: false }, provinceNameTh: 'พระนครศรีอยุธยา' },
+      { entity: { id: 'd', stationCode: 'bad/../x', stnNameTh: 'รหัสผิด', cctvOnline: true }, provinceNameTh: 'นนทบุรี' },
+    ],
+  },
+};
+
+/** รายละเอียดสถานี TA100220 (ย่อ) */
+export const DWR_STATION = {
+  value: {
+    fullCon: {
+      entity: {
+        stationCode: 'TA100220',
+        stream: 'แม่น้ำเจ้าพระยา',
+        point: { lat: 13.738694, lon: 100.49633 },
+        wlFw: 1.2,
+        wlFc: 1.46,
+        wlEnabled: true,
+        cctvLatestSnapshotPath: '/TA100220/2026/10/10/7_30.jpg',
+      },
+    },
+    stationCurrentData: { wl: 1.68, wlTimeStamp: '2026-10-10T07:29:00+07:00' },
+  },
+};

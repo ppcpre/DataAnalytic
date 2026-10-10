@@ -70,6 +70,7 @@ export default defineConfig({
               !url.pathname.endsWith('/api/geocode') &&
               !url.pathname.endsWith('/api/nont/image') &&
               !url.pathname.endsWith('/api/bma/image') &&
+              !url.pathname.endsWith('/api/dwr/image') &&
               // ลิงก์ภาพสดมีอายุสั้น ห้ามใช้ค่าเก่าจาก cache
               !url.pathname.endsWith('/session'),
             handler: 'NetworkFirst',

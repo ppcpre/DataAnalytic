@@ -42,6 +42,8 @@ export interface Config {
      * ทั้ง fetch และ TCP socket จึงเปิดได้เฉพาะเมื่อรัน API บนเครื่องที่ต้นทางยอมให้เข้าถึง)
      */
     bmaTraffic: 'auto' | 'on' | 'off';
+    /** กล้องที่สถานีโทรมาตรของกรมทรัพยากรน้ำ (telemetry.dwr.go.th) — false = ปิด */
+    dwr: boolean;
   };
   floodhub: {
     /** API key ของ Google Flood Forecasting API — ว่าง = ปิดชั้นข้อมูลนี้ */
@@ -95,6 +97,7 @@ export function loadConfig(env: Env = process.env): Config {
         .filter(Boolean),
       rangsit: env.RANGSIT_LIVE !== 'false',
       bmaTraffic: env.BMA_TRAFFIC === 'on' || env.BMA_TRAFFIC === 'auto' ? env.BMA_TRAFFIC : 'off',
+      dwr: env.DWR_LIVE !== 'false',
     },
     floodhub: {
       apiKey: env.GOOGLE_FLOOD_API_KEY ?? '',

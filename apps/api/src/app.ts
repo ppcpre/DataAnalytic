@@ -12,6 +12,16 @@ import { parseLongdoCameras } from './adapters/longdo.js';
 import { PAKKRET_EON_URL, parsePakkretEon } from './adapters/pakkret.js';
 import { parseRangsit, RANGSIT_PAGE } from './adapters/rangsit.js';
 import {
+  DWR_CODE,
+  DWR_IMAGE_URL,
+  DWR_LIST_BODY,
+  DWR_LIST_URL,
+  dwrSnapshotPath,
+  dwrStationUrl,
+  parseDwrList,
+  parseDwrStation,
+} from './adapters/dwr.js';
+import {
   BMA_CAM_ID,
   BMA_TRAFFIC_BASE,
   bmaImagePath,
@@ -68,8 +78,12 @@ export interface FetchedImage {
   body: Uint8Array;
 }
 
-async function fetchImage(url: string): Promise<FetchedImage> {
-  const res = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0 PreMonitoring' }, signal: AbortSignal.timeout(10000) });
+async function fetchImage(url: string, body?: unknown): Promise<FetchedImage> {
+  const res = await fetch(url, {
+    ...(body === undefined ? {} : { method: 'POST', body: JSON.stringify(body) }),
+    headers: { 'user-agent': 'Mozilla/5.0 PreMonitoring', ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
+    signal: AbortSignal.timeout(10000),
+  });
   return { status: res.status, type: res.headers.get('content-type') ?? '', body: new Uint8Array(await res.arrayBuffer()) };
 }
 
@@ -82,7 +96,7 @@ export interface AppDeps {
   /** GET ไปที่เซิร์ฟเวอร์ของเทศบาลนครนนทบุรี (path เช่น /json.php?…) — ไม่มี = ใช้รายชื่อจุดที่บันทึกไว้ */
   nontGet?: (path: string) => Promise<RawResponse>;
   /** ดึงภาพ (ไบต์) — ค่าเริ่มต้นใช้ fetch */
-  getImage?: (url: string) => Promise<FetchedImage>;
+  getImage?: (url: string, body?: unknown) => Promise<FetchedImage>;
   /**
    * GET ไปที่ bmatraffic.com ตาม path — บน Workers ใช้ TCP socket (ต้นทางไม่ตอบ fetch() จาก Cloudflare)
    * ไม่ระบุ = ใช้ getText/getImage
@@ -241,6 +255,27 @@ export function createApp(
    * ดึงสดไม่ได้/ไม่ได้ตั้งค่า ใช้รายชื่อจุดที่บันทึกไว้ (ลิงก์ไปดูภาพในเว็บเทศบาล)
    */
   const getImage = deps.getImage ?? fetchImage;
+
+  /** กล้องที่สถานีโทรมาตรของกรมทรัพยากรน้ำ: รายชื่อ + รายละเอียดทีละสถานี (เฉพาะจังหวัดที่แอปแสดงกล้อง) */
+  const dwrCameras = async (): Promise<Camera[]> => {
+    const list = parseDwrList(await post(DWR_LIST_URL, DWR_LIST_BODY));
+    const out: Camera[] = [];
+    // ทีละ 4 สถานี เพื่อไม่ยิงต้นทางพร้อมกันมากเกินไป
+    for (let i = 0; i < list.length; i += 4) {
+      const batch = await Promise.all(
+        list.slice(i, i + 4).map((item) =>
+          getJson(dwrStationUrl(item.code))
+            .then((body) => parseDwrStation(item, body))
+            .catch((err: unknown) => {
+              console.error('[dwr] station', item.code, err);
+              return undefined;
+            }),
+        ),
+      );
+      out.push(...batch.filter((c): c is Camera => !!c));
+    }
+    return out;
+  };
   const bmaGet = deps.bmaGet;
   const bmaPage = async () => {
     if (!bmaGet) return getText(`${BMA_TRAFFIC_BASE}/`);
@@ -318,6 +353,25 @@ export function createApp(
     }
   });
 
+  /** ภาพนิ่งล่าสุดของกล้องกรมทรัพยากรน้ำ (ต้นทางให้ภาพผ่าน POST จึงต้องดึงแทนหน้าเว็บ) */
+  app.get('/api/dwr/image', async (c) => {
+    const code = c.req.query('code') ?? '';
+    if (!DWR_CODE.test(code)) return c.json({ error: 'รหัสสถานีไม่ถูกต้อง' }, 400);
+    if (!config.cameras.dwr) return c.json({ error: 'ปิดแหล่งภาพนี้อยู่' }, 404);
+    try {
+      const path = dwrSnapshotPath(await getJson(dwrStationUrl(code)));
+      if (!path) return c.json({ error: 'สถานีนี้ไม่มีภาพล่าสุด' }, 404);
+      const res = await getImage(DWR_IMAGE_URL, { path });
+      if (res.status !== 200 || !res.type.startsWith('image/') || res.body.byteLength === 0) {
+        return c.json({ error: 'กล้องนี้ไม่มีภาพขณะนี้' }, 502);
+      }
+      return c.body(new Uint8Array(res.body), 200, { 'content-type': res.type, 'cache-control': 'public, max-age=300' });
+    } catch (err) {
+      console.error('[dwr] image', err);
+      return c.json({ error: 'ดึงภาพจากกล้องไม่สำเร็จ' }, 502);
+    }
+  });
+
   /** สถานะกล้องจราจร กทม.: จำนวนกล้อง และต้นทางส่งภาพจริงแล้วหรือยัง (แอปแสดงกล้องชุดนี้เมื่อ show = true) */
   app.get('/api/bma/status', async (c) => {
     c.header('cache-control', 'no-store');
@@ -375,12 +429,12 @@ export function createApp(
     '/api/cameras',
     serve({
       key: 'cameras',
-      source: 'Longdo Traffic / มูลนิธิ iTIC / เทศบาลนครนนทบุรี / StreamBridge / เทศบาลนครรังสิต',
+      source: 'Longdo Traffic / มูลนิธิ iTIC / เทศบาลนครนนทบุรี / StreamBridge / เทศบาลนครรังสิต / กรมทรัพยากรน้ำ',
       enabled: () => true,
       load: async () => {
         const url = config.cameras.listUrl;
         // ดึงแต่ละแหล่งแยกกัน แหล่งใดล่ม ยังแสดงกล้อง/จุดวัดจากแหล่งอื่นได้
-        const [fromList, fromNont, fromPakkret, fromStreamBridge, fromRangsit, fromBma] = await Promise.all([
+        const [fromList, fromNont, fromPakkret, fromStreamBridge, fromRangsit, fromBma, fromDwr] = await Promise.all([
           (url ? cameraCache.get('longdo-cameras', () => getJson(url)) : Promise.resolve({ value: null }))
             .then((r) => parseLongdoCameras(r.value))
             .catch((err: unknown) => {
@@ -424,9 +478,23 @@ export function createApp(
             console.error('[cameras] bmatraffic', err);
             return [] as Camera[];
           }),
+          // กล้องที่สถานีโทรมาตรของกรมทรัพยากรน้ำ (ภาพสด + ระดับน้ำ) — เก็บประวัติระดับน้ำไว้ด้วย
+          (config.cameras.dwr
+            ? cache
+                .get('dwr-cctv', async () => {
+                  const list = await dwrCameras();
+                  await history.record(cameraReadings(list)).catch((err: unknown) => console.error('[history] dwr', err));
+                  return list;
+                })
+                .then((r) => r.value)
+            : Promise.resolve([] as Camera[])
+          ).catch((err: unknown) => {
+            console.error('[cameras] dwr', err);
+            return [] as Camera[];
+          }),
         ]);
         const own = new Set(CAMERAS.map((c) => c.id));
-        return [...CAMERAS, ...fromPakkret, ...fromNont, ...fromStreamBridge, ...fromRangsit, ...fromBma, ...fromList.filter((c) => !own.has(c.id))];
+        return [...CAMERAS, ...fromPakkret, ...fromNont, ...fromStreamBridge, ...fromRangsit, ...fromBma, ...fromDwr, ...fromList.filter((c) => !own.has(c.id))];
       },
       sample: sampleCameras,
     }),
