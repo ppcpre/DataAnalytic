@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# สำรวจ API กล้องของกรมทรัพยากรน้ำ (telemetry.dwr.go.th) (รันเองจากแท็บ Actions)
+# หา API รายชื่อสถานีกล้องของกรมทรัพยากรน้ำ (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -15,22 +15,19 @@ jobs:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
       T: https://telemetry.dwr.go.th
     steps:
-      - name: API client chunk
+      - name: API base in chunks
         continue-on-error: true
         run: |
-          curl -sS -m 20 -A "$UA" -o c.js "$T/_next/static/chunks/6964-1ce0128e2f013e4c.js"
-          python3 - <<'PY'
-          import re
-          s = open('c.js', encoding='utf-8', errors='replace').read()
-          print('len', len(s))
-          for k in ['streamUrl', 'imageCctv', 'https://', 'NEXT_PUBLIC', '"/station', '/cctv', 'stationList', 'getStation', 'mapStation', 'lat']:
-              idx = [m.start() for m in re.finditer(re.escape(k), s)]
-              print('==', k, len(idx))
-              for i in idx[:4]: print('   ', s[max(0, i-250):i+300].replace('\n', ' '))
-          print('ENDPOINTS', sorted(set(re.findall(r'concat\([a-z],"(/[A-Za-z0-9/_-]+)"', s)))[:200])
-          PY
-      - name: Report page chunk
+          curl -sS -m 20 -A "$UA" -o p.html "$T/reportCctv"
+          for s in $(grep -oE '/_next/static/chunks/[^"]+\.js' p.html | sort -u); do
+            curl -sS -m 20 -A "$UA" -o c.js "$T$s" || continue
+            hits=$(grep -oE '.{0,120}(\$8=|\$8:|x6=|x6:|baseURL|apiBase|API_BASE|NEXT_PUBLIC_API|"/api"|/api/v1|\.dwr\.go\.th)[^;]{0,160}' c.js | sort -u | head -6)
+            [ -n "$hits" ] && { echo "== $s"; echo "$hits"; }
+          done
+      - name: Candidate endpoints
         continue-on-error: true
         run: |
-          curl -sS -m 20 -A "$UA" -o r.js "$T/_next/static/chunks/pages/reportCctv-2314420cf5a39383.js"
-          grep -oE '.{0,200}(cctv|Cctv)[^;]{0,200}' r.js | head -12
+          for p in api/public/reportCctv api/public/reportCctv/search api/public/reportCctv/list api/public/reportCctv/summary api/public/reportCctv/page api/public/reportCctv/find api/v1/public/reportCctv/search public/reportCctv/search; do
+            curl -sS -m 20 -A "$UA" -X POST -H 'content-type: application/json' -d '{}' -o r.bin -w "POST %{http_code} %{content_type} %{size_download} <- $p\n" "$T/$p"; head -c 400 r.bin | tr '\n' ' '; echo
+          done
+          curl -sS -m 15 -A "$UA" -o r.bin -w "GET mjpeg %{http_code} %{content_type} %{size_download}\n" --max-time 8 "$T/cctv/mjpeg/AA000000" || true
