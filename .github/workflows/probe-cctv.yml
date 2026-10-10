@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# หา API รายชื่อสถานีกล้องของกรมทรัพยากรน้ำ (รันเองจากแท็บ Actions)
+# ดึงรายชื่อสถานีกล้องของกรมทรัพยากรน้ำ และทดสอบภาพสด (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -15,20 +15,40 @@ jobs:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
       T: https://telemetry.dwr.go.th
     steps:
-      - name: CRUD helper
+      - name: List
         continue-on-error: true
         run: |
-          curl -sS -m 20 -A "$UA" -o r.js "$T/_next/static/chunks/pages/reportCctv-2314420cf5a39383.js"
+          curl -sS -m 30 -A "$UA" -X POST -H 'content-type: application/json' -d '{}' -D h.txt -o l.json -w "list %{http_code} %{size_download}\n" "$T/api/public/reportCctv/listPaginate?page=0&size=500"
+          tr -d '\r' < h.txt | grep -iE '^(access-control|content-type)'
           python3 - <<'PY'
-          s = open('r.js', encoding='utf-8', errors='replace').read()
-          i = s.find('6551:(e,t,r)=>')
-          print(s[i:i+1500])
-          j = s.find('z=async e=>{try{var t')
-          print('---- z'); print(s[j:j+1200])
+          import json, collections
+          d = json.load(open('l.json'))
+          v = d.get('value', d)
+          print('top keys', list(d.keys())[:10], type(v).__name__, list(v.keys())[:10] if isinstance(v, dict) else len(v))
+          items = v.get('content') or v.get('data') or v.get('items') or v.get('list') if isinstance(v, dict) else v
+          print('items', len(items or []))
+          if items:
+              print(json.dumps(items[0], ensure_ascii=False)[:1500])
+              key = next((k for k in items[0] if 'province' in k.lower() and 'th' in k.lower()), None)
+              print('by province', collections.Counter(x.get(key) for x in items).most_common(40))
+              ay = [x for x in items if 'อยุธยา' in json.dumps(x, ensure_ascii=False)]
+              print('ayutthaya', len(ay))
+              for x in ay: print('  ', json.dumps(x, ensure_ascii=False)[:500])
+              json.dump(items, open('items.json', 'w'), ensure_ascii=False)
           PY
-      - name: Try list endpoints
+      - name: Stream and snapshot
         continue-on-error: true
         run: |
-          for p in "api/public/reportCctv/search?page=0&size=5" "api/public/reportCctv/query" "api/public/reportCctv/filter" "api/public/reportCctv/datatable" "api/public/reportCctv/all" "api/public/reportCctv/getAll" "api/public/reportCctv/table"; do
-            curl -sS -m 20 -A "$UA" -X POST -H 'content-type: application/json' -d '{}' -o r.bin -w "POST %{http_code} %{size_download} <- $p\n" "$T/$p"; head -c 300 r.bin | tr '\n' ' '; echo
-          done
+          python3 - > ids.txt <<'PY'
+          import json
+          it = json.load(open('items.json'))
+          ay = [x for x in it if 'อยุธยา' in json.dumps(x, ensure_ascii=False)] or it
+          x = ay[0]
+          code = next((x[k] for k in x if 'code' in k.lower() and isinstance(x[k], str) and len(x[k]) == 8), '')
+          sid = next((x[k] for k in ('stationId', 'id', 'station_id') if k in x), '')
+          print(code, sid)
+          PY
+          read code sid < ids.txt; echo "code=$code sid=$sid"
+          curl -sS -m 6 -A "$UA" -H 'Origin: https://dataanalytic.precare.workers.dev' -D sh.txt -o s.bin "$T/cctv/mjpeg/$code" || true
+          tr -d '\r' < sh.txt | grep -iE '^(HTTP|content-type|access-control|cache-control|x-)'; ls -l s.bin; head -c 200 s.bin | strings | head -5
+          curl -sS -m 20 -A "$UA" -o sn.json -w "snapshot %{http_code}\n" "$T/api/public/reportCctv/snapshot/$sid"; head -c 300 sn.json; echo
