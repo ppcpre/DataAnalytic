@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# หากล้องอยุธยา: ระบบเมขลา กรมทรัพยากรน้ำ / StreamBridge (รันเองจากแท็บ Actions)
+# สำรวจกล้องระดับน้ำของกรมทรัพยากรน้ำ (telemetry.dwr.go.th) (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -13,18 +13,29 @@ jobs:
     timeout-minutes: 10
     env:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
+      T: https://telemetry.dwr.go.th
     steps:
-      - name: Mekhala
+      - name: reportCctv page
         continue-on-error: true
         run: |
-          for u in https://mekhala.dwr.go.th/ https://oldmekhala.dwr.go.th/ https://oldmekhala.dwr.go.th/en/index.php https://mekhala.dwr.go.th/cctv https://oldmekhala.dwr.go.th/cctv.php https://www.dwr.go.th/ ; do
-            curl -sS -m 20 -A "$UA" -L -o r.bin -w "%{http_code} %{content_type} %{size_download} <- %{url_effective}\n" "$u" || true
-            [ -s r.bin ] && grep -oiE '(href|src)="[^"]*(cctv|camera|cam|snap|jpg|m3u8)[^"]*"' r.bin | sort -u | head -15
-            [ -s r.bin ] && grep -oiE '.{0,80}(อยุธยา|cctv|กล้อง)[^<"]{0,80}' r.bin | sort -u | head -8
+          curl -sS -m 30 -A "$UA" -L -D h.txt -o p.html -w "%{http_code} %{content_type} %{size_download} <- %{url_effective}\n" "$T/reportCctv"
+          tr -d '\r' < h.txt | grep -iE '^(HTTP|content-type|set-cookie|access-control|location)'
+          python3 - <<'PY'
+          import re
+          h = open('p.html', encoding='utf-8', errors='replace').read()
+          print('len', len(h))
+          print('scripts', re.findall(r'<script[^>]+src="([^"]+)"', h)[:15])
+          for k in ['อยุธยา', 'ajax', 'url:', '.json', 'api/', 'jpg', 'png', 'm3u8', 'img', 'lat', 'cctv']:
+              idx = [m.start() for m in re.finditer(re.escape(k), h, re.I)]
+              print('==', k, len(idx))
+              for i in idx[:3]: print('   ', h[max(0, i-200):i+250].replace('\n', ' '))
+          PY
+      - name: JS endpoints
+        continue-on-error: true
+        run: |
+          for s in $(grep -oE 'src="[^"]+\.js[^"]*"' p.html | sed -E 's/src="([^"]+)"/\1/' | grep -vE 'jquery|bootstrap|cdn' | sort -u | head -15); do
+            case "$s" in http*) u="$s";; /*) u="$T$s";; *) u="$T/$s";; esac
+            curl -sS -m 20 -A "$UA" -o c.js "$u" || continue
+            hits=$(grep -oE '.{0,100}(ajax|url ?:|fetch\(|\.json|/api/|cctv)[^;]{0,140}' c.js | sort -u | head -10)
+            [ -n "$hits" ] && { echo "== $u"; echo "$hits"; }
           done
-      - name: StreamBridge Ayutthaya guesses
-        continue-on-error: true
-        run: |
-          for s in ayutthaya ayutthaya-city ayutthaya-pao ayutthaya-province phranakhonsiayutthaya ayothaya ayothaya-city bangpain bang-pa-in bangban senna sena uthai lopburi pathumthani bangsai wangnoi pakkret-city nakhonluang; do
-            code=$(curl -sS -m 10 -A "$UA" -o /dev/null -w "%{http_code}" "https://app.streambridge.online/api/public/$s"); [ "$code" != "404" ] && echo "  $s -> $code"
-          done; echo "(done)"
