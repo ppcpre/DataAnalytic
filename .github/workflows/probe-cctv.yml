@@ -18,7 +18,11 @@ jobs:
       - name: List
         continue-on-error: true
         run: |
-          curl -sS -m 30 -A "$UA" -X POST -H 'content-type: application/json' -d '{}' -D h.txt -o l.json -w "list %{http_code} %{size_download}\n" "$T/api/public/reportCctv/listPaginate?page=0&size=500"
+          for q in "page=0&size=500" "page=1&size=500" "page=1&pageSize=500" "pageNumber=1&pageSize=500" "" "page=1&limit=500" "offset=0&limit=500"; do
+            curl -sS -m 30 -A "$UA" -X POST -H 'content-type: application/json' -d '{}' -D h.txt -o l.json -w "list[$q] %{http_code} %{size_download}\n" "$T/api/public/reportCctv/listPaginate?$q"
+            head -c 200 l.json; echo
+            grep -q '"messages"' l.json || break
+          done
           tr -d '\r' < h.txt | grep -iE '^(access-control|content-type)'
           python3 - <<'PY'
           import json, collections
