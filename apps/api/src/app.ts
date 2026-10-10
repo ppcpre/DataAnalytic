@@ -16,6 +16,7 @@ import {
   DWR_IMAGE_URL,
   DWR_LIST_BODY,
   DWR_LIST_URL,
+  dwrMjpegUrl,
   dwrSnapshotPath,
   dwrStationUrl,
   parseDwrList,
@@ -87,6 +88,11 @@ async function fetchImage(url: string, body?: unknown): Promise<FetchedImage> {
   return { status: res.status, type: res.headers.get('content-type') ?? '', body: new Uint8Array(await res.arrayBuffer()) };
 }
 
+/** เปิดสตรีม (เช่น MJPEG) — ยกเลิกเมื่อผู้ชมปิดการเชื่อมต่อ */
+function openStream(url: string, signal?: AbortSignal): Promise<Response> {
+  return fetch(url, { headers: { 'user-agent': 'Mozilla/5.0 PreMonitoring' }, ...(signal ? { signal } : {}) });
+}
+
 export interface AppDeps {
   history?: HistoryStore;
   /** ดึงหน้าเว็บแบบข้อความ (แทนได้ในการทดสอบ) */
@@ -102,6 +108,8 @@ export interface AppDeps {
    * ไม่ระบุ = ใช้ getText/getImage
    */
   bmaGet?: (path: string) => Promise<RawResponse>;
+  /** เปิดสตรีมภาพสด — ค่าเริ่มต้นใช้ fetch */
+  openStream?: (url: string, signal?: AbortSignal) => Promise<Response>;
 }
 
 export function createApp(
@@ -369,6 +377,30 @@ export function createApp(
     } catch (err) {
       console.error('[dwr] image', err);
       return c.json({ error: 'ดึงภาพจากกล้องไม่สำเร็จ' }, 502);
+    }
+  });
+
+  /**
+   * ภาพสด MJPEG ของกล้องกรมทรัพยากรน้ำ — ส่งต่อสตรีมจากต้นทาง
+   * (ต้นทางห้ามเว็บอื่นแสดงภาพด้วย Cross-Origin-Resource-Policy: same-origin)
+   */
+  app.get('/api/dwr/live', async (c) => {
+    const code = c.req.query('code') ?? '';
+    if (!DWR_CODE.test(code)) return c.json({ error: 'รหัสสถานีไม่ถูกต้อง' }, 400);
+    if (!config.cameras.dwr) return c.json({ error: 'ปิดแหล่งภาพนี้อยู่' }, 404);
+    try {
+      const res = await (deps.openStream ?? openStream)(dwrMjpegUrl(code), c.req.raw.signal);
+      const type = res.headers.get('content-type') ?? '';
+      if (!res.ok || !res.body || !type.startsWith('multipart/x-mixed-replace')) {
+        await res.body?.cancel().catch(() => {});
+        return c.json({ error: 'กล้องนี้ไม่มีภาพสดขณะนี้' }, 502);
+      }
+      return new Response(res.body, {
+        headers: { 'content-type': type, 'cache-control': 'no-store', 'cross-origin-resource-policy': 'cross-origin' },
+      });
+    } catch (err) {
+      console.error('[dwr] live', err);
+      return c.json({ error: 'เปิดภาพสดไม่สำเร็จ' }, 502);
     }
   });
 

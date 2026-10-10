@@ -16,8 +16,19 @@ export const DWR_IMAGE_URL = `${DWR_BASE}/api/file/image/cctv`;
 export const dwrStationUrl = (code: string) => `${DWR_BASE}/api/public/station/getByCode/${code}`;
 /** รหัสสถานี เช่น TA100220 */
 export const DWR_CODE = /^[A-Z]{2}\d{6}$/;
-/** path ของภาพล่าสุด เช่น /TA100220/2026/10/10/7_30.jpg */
-export const DWR_SNAPSHOT_PATH = /^\/[A-Z]{2}\d{6}\/\d{4}\/\d{2}\/\d{2}\/\d{1,2}_\d{1,2}\.jpg$/;
+/** path ของภาพล่าสุด เช่น /TA100220/2026/10/10/7_30.jpg (วันที่/ชั่วโมง_นาที เวลาไทย) */
+export const DWR_SNAPSHOT_PATH = /^\/[A-Z]{2}\d{6}\/(\d{4})\/(\d{2})\/(\d{2})\/(\d{1,2})_(\d{1,2})\.jpg$/;
+/** ภาพสด MJPEG ของต้นทาง — ต้นทางตั้ง Cross-Origin-Resource-Policy: same-origin จึงต้องส่งต่อผ่าน /api/dwr/live */
+export const dwrMjpegUrl = (code: string) => `${DWR_BASE}/cctv/mjpeg/${code}`;
+
+/** เวลาที่ถ่ายภาพ จาก path ของภาพล่าสุด */
+export function dwrSnapshotTime(path: string | undefined): string | undefined {
+  const m = path ? DWR_SNAPSHOT_PATH.exec(path) : null;
+  if (!m) return undefined;
+  const pad = (x: string) => x.padStart(2, '0');
+  const d = new Date(`${m[1]}-${m[2]}-${m[3]}T${pad(m[4])}:${pad(m[5])}:00+07:00`);
+  return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+}
 const OWNER = 'กรมทรัพยากรน้ำ';
 
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
@@ -76,7 +87,8 @@ export function parseDwrStation(item: DwrListItem, body: unknown): Camera | unde
             label: 'ระดับน้ำ (ม.รทก.)',
             value: wl,
             unit: 'ม.',
-            ...(num(e.wlFw) !== undefined ? { warning: num(e.wlFw) } : {}),
+            // เกณฑ์เฝ้าระวังของบางสถานีริมแม่น้ำช่วงน้ำขึ้นน้ำลงต่ำกว่าระดับทะเลปานกลาง (เช่น -2.93) ซึ่งทำให้ขึ้นเฝ้าระวังตลอดเวลา จึงไม่ใช้
+            ...(num(e.wlFw) !== undefined && num(e.wlFw)! >= 0 ? { warning: num(e.wlFw) } : {}),
             ...(num(e.wlFc) !== undefined ? { danger: num(e.wlFc) } : {}),
             historyId: `dwr-${item.code}`,
           },
@@ -90,8 +102,10 @@ export function parseDwrStation(item: DwrListItem, body: unknown): Camera | unde
     location: { lat, lng, province: item.province, provinceName: item.provinceName },
     owner: OWNER,
     url: `${DWR_BASE}/station/${item.code}`,
-    streamUrl: `${DWR_BASE}/cctv/mjpeg/${item.code}`,
+    streamUrl: `/api/dwr/live?code=${item.code}`,
     imageUrl: `/api/dwr/image?code=${item.code}`,
+    // ภาพนิ่งอัปเดตทุก ~15 นาที — บอกเวลาถ่ายแทนการโหลดซ้ำทุก 10 วินาที
+    ...(dwrSnapshotTime(str(e.cctvLatestSnapshotPath)) ? { imageTakenAt: dwrSnapshotTime(str(e.cctvLatestSnapshotPath)) } : {}),
     imageCredit: OWNER,
     kind: 'water',
     ...(readings.length ? { readings, observedAt } : {}),

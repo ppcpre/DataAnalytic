@@ -71,6 +71,8 @@ export default defineConfig({
               !url.pathname.endsWith('/api/nont/image') &&
               !url.pathname.endsWith('/api/bma/image') &&
               !url.pathname.endsWith('/api/dwr/image') &&
+              // ภาพสดเป็นสตรีมไม่สิ้นสุด ห้ามผ่าน cache
+              !url.pathname.endsWith('/api/dwr/live') &&
               // ลิงก์ภาพสดมีอายุสั้น ห้ามใช้ค่าเก่าจาก cache
               !url.pathname.endsWith('/session'),
             handler: 'NetworkFirst',

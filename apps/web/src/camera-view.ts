@@ -49,7 +49,7 @@ function sourcesOf(c: Camera): Source[] {
     const path = c.hlsSessionUrl;
     list.push({ kind: 'hls', url: '', resolve: () => hlsFromSession(path) });
   }
-  if (c.streamUrl) list.push({ kind: 'mjpeg', url: c.streamUrl });
+  if (c.streamUrl) list.push({ kind: 'mjpeg', url: apiUrl(c.streamUrl) });
   if (c.videoUrl?.startsWith('https://')) list.push({ kind: 'clip', url: c.videoUrl });
   if (c.imageUrl) list.push({ kind: 'still', url: apiUrl(c.imageUrl) });
   // หน้าเว็บของผู้ให้บริการ (ฝังได้เฉพาะ https)
