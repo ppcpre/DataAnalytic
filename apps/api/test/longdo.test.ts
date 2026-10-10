@@ -7,7 +7,7 @@ describe('longdo cameras', () => {
     expect(longdoCameraUrl('DOHBHS0016')).toBe('https://traffic.longdo.com/camera?vdo=DOHBHS0016');
   });
 
-  it('keeps cameras in the service provinces with valid coordinates', () => {
+  it('keeps cameras in the service and camera-only provinces with valid coordinates', () => {
     const out = parseLongdoCameras({
       item: [
         { camid: 'DOHBHS0016', title: '(กรุงเทพมหานคร) ถ.วิภาดีรังสิต ดอนเมือง  ขาออก', latitude: '13.92816', longitude: '100.60593', geocode: '103605', organization: 'กรมทางหลวง', link: 'https://camera1.iticfoundation.org/mjpeg.php?camid=PER-3-008_2', imgurl: 'https://camera1.iticfoundation.org/jpeg.cgi?camid=PER-3-008_2' },
@@ -15,13 +15,15 @@ describe('longdo cameras', () => {
         { camid: 'X1', title: 'ไม่มีพิกัด', latitude: '', longitude: '', geocode: '120101' },
         { camid: 'X2', title: 'นอกพื้นที่', latitude: '17.2', longitude: '102.3', geocode: '390113' },
         { camid: 'X3', title: '(นนทบุรี) สะพานพระนั่งเกล้า', latitude: '13.83', longitude: '100.49', geocode: '120101', sponsertext: 'มูลนิธิ iTIC', link: 'http://example.org/insecure' },
+        // จังหวัดที่แสดงเฉพาะกล้อง
+        { camid: 'ITICM_BMAMI0272', title: '(จ.ชลบุรี) ATC4-15 แยกปริญญา', latitude: '12.9497924', longitude: '100.8974633', geocode: '200408' },
       ],
     });
     expect(out).toEqual([
       {
         id: 'longdo-DOHBHS0016',
         name: 'ถ.วิภาดีรังสิต ดอนเมือง ขาออก',
-        location: { lat: 13.92816, lng: 100.60593, province: '10' },
+        location: { lat: 13.92816, lng: 100.60593, province: '10', provinceName: 'กรุงเทพมหานคร' },
         owner: 'กรมทางหลวง',
         url: 'https://traffic.longdo.com/camera?vdo=DOHBHS0016',
         via: 'Longdo Traffic',
@@ -30,6 +32,11 @@ describe('longdo cameras', () => {
         imageCredit: 'มูลนิธิ iTIC',
       },
       expect.objectContaining({ id: 'longdo-X3', name: 'สะพานพระนั่งเกล้า', owner: 'มูลนิธิ iTIC', streamUrl: undefined }),
+      expect.objectContaining({
+        id: 'longdo-ITICM_BMAMI0272',
+        name: 'ATC4-15 แยกปริญญา',
+        location: { lat: 12.9497924, lng: 100.8974633, province: '20', provinceName: 'ชลบุรี' },
+      }),
     ]);
   });
 

@@ -8,6 +8,17 @@ export const PROVINCES: Record<string, string> = {
   '74': 'สมุทรสาคร',
 };
 
+/**
+ * จังหวัดที่แสดงเฉพาะกล้อง CCTV (ไม่ดึงสถานีระดับน้ำ/ฝนของจังหวัดเหล่านี้)
+ * เพิ่มตามคำขอผู้ใช้ ต.ค. 2569 — กล้องมาจาก Longdo Traffic / มูลนิธิ iTIC
+ */
+export const CAMERA_ONLY_PROVINCES: Record<string, string> = {
+  '14': 'พระนครศรีอยุธยา',
+  '20': 'ชลบุรี',
+  '24': 'ฉะเชิงเทรา',
+  '40': 'ขอนแก่น',
+};
+
 export type Status = 'normal' | 'watch' | 'warning' | 'critical' | 'unknown';
 
 export const STATUS_LABEL_TH: Record<Status, string> = {
@@ -236,6 +247,16 @@ export function rainStatus(mm: number | null): Status {
 
 export function isServiceProvince(code: string | undefined | null): boolean {
   return !!code && code in PROVINCES;
+}
+
+/** จังหวัดที่ปักหมุดกล้องได้ = พื้นที่ให้บริการ + จังหวัดที่แสดงเฉพาะกล้อง */
+export function isCameraProvince(code: string | undefined | null): boolean {
+  return isServiceProvince(code) || (!!code && code in CAMERA_ONLY_PROVINCES);
+}
+
+/** ชื่อจังหวัดจากรหัส (รวมจังหวัดที่แสดงเฉพาะกล้อง) */
+export function provinceName(code: string | undefined | null): string | undefined {
+  return code ? (PROVINCES[code] ?? CAMERA_ONLY_PROVINCES[code]) : undefined;
 }
 
 export * from './thaiwater.js';

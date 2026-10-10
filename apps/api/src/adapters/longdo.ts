@@ -3,7 +3,7 @@
  * ภาพกล้องมาจากมูลนิธิ iTIC ซึ่งรวมกล้องของ กทม. และกรมทางหลวง
  * แอปนำเฉพาะชื่อ/พิกัดมาปักหมุด แล้วลิงก์ไปเปิดดูภาพของกล้องตัวนั้นในหน้าเว็บ Longdo Traffic
  */
-import { isServiceProvince, type Camera } from '@flood-watch/shared';
+import { isCameraProvince, provinceName, type Camera } from '@flood-watch/shared';
 
 type Rec = Record<string, unknown>;
 
@@ -40,12 +40,13 @@ export function parseLongdoCameras(body: unknown): Camera[] {
     const province = str(it.geocode)?.slice(0, 2);
     if (!camid || !title || seen.has(camid)) continue;
     if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat === 0 || lng === 0) continue;
-    if (!isServiceProvince(province)) continue;
+    // พื้นที่ให้บริการ + จังหวัดที่แสดงเฉพาะกล้อง (ชลบุรี ฉะเชิงเทรา ขอนแก่น อยุธยา)
+    if (!isCameraProvince(province)) continue;
     seen.add(camid);
     out.push({
       id: `longdo-${camid}`,
       name: cleanTitle(title),
-      location: { lat, lng, province: province! },
+      location: { lat, lng, province: province!, provinceName: provinceName(province) },
       owner: str(it.organization) ?? str(it.sponsertext) ?? 'ไม่ระบุหน่วยงาน',
       url: longdoCameraUrl(camid),
       via: 'Longdo Traffic',

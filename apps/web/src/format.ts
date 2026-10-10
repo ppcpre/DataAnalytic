@@ -1,4 +1,4 @@
-import { PROVINCES, type Status } from '@flood-watch/shared';
+import { provinceName as provinceNameOf, type Status } from '@flood-watch/shared';
 
 export const STATUS_ORDER: Record<Status, number> = {
   critical: 0,
@@ -61,7 +61,7 @@ export function formatAgo(iso: string | null | undefined, now = Date.now()): str
 }
 
 export function formatPlace(province: string, district?: string, provinceName?: string): string {
-  const p = PROVINCES[province] ?? provinceName ?? '';
+  const p = provinceNameOf(province) ?? provinceName ?? '';
   return [district, p].filter(Boolean).join(', ');
 }
 
