@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# ดูว่าหน้ากล้องของ Longdo Traffic ดึงรายชื่อกล้องจากที่ไหน (รันเองจากแท็บ Actions)
+# ดูแหล่งรายชื่อกล้องของ Longdo/iTIC (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -13,30 +13,16 @@ jobs:
     timeout-minutes: 8
     env:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
-      L: https://traffic.longdo.com
     steps:
-      - name: Longdo camera page
+      - name: Fetch calls in Longdo script
         continue-on-error: true
         run: |
-          curl -sS -m 20 -A "$UA" -o cam.html "$L/camera"
-          grep -oE '(src|href)="[^"]+"' cam.html | head -40
-          grep -oE '.{0,120}(\.json|/api/|ajax|fetch\(|getJSON)[^<]{0,160}' cam.html | head -20
-          for s in $(grep -oE 'src="[^"]+\.js[^"]*"' cam.html | sed -E 's/src="([^"]+)"/\1/' | grep -v '^http' | sort -u); do
-            curl -sS -m 20 -A "$UA" -o c.js "$L$s" || continue
-            hits=$(grep -oE '.{0,100}(\.json|/api/|camid|ajax)[^;]{0,140}' c.js | sort -u | head -12)
-            [ -n "$hits" ] && { echo "== $s"; echo "$hits"; }
-          done
-      - name: Longdo camera list variants
+          curl -sS -m 20 -A "$UA" -o s.js "https://traffic.longdo.com/sites/all/modules/traffic_camera/script.js?v=92"
+          grep -nE 'fetch\(|XMLHttpRequest|\$\.get|\.json|https?://' s.js | cut -c1-220 | head -40
+      - name: iTIC sites
         continue-on-error: true
         run: |
-          for p in "camera.json" "camera.json?all=1" "camera.json?type=all" "api/camera/list" "api/json/camera" "camera/list.json" "camera.json?org=bma" "camera.json?showall=1"; do
-            curl -sS -m 20 -A "$UA" -o r.bin -w "%{http_code} %{content_type} %{size_download} <- $p\n" "$L/$p"
-            python3 -c "
-          import json,collections
-          try:
-              d=json.load(open('r.bin')); it=d.get('item') if isinstance(d,dict) else d
-              print('  items', len(it), collections.Counter(x.get('organization') for x in it).most_common(12))
-              box=[x for x in it if 13.70<=float(x.get('latitude') or 0)<=13.95 and 100.25<=float(x.get('longitude') or 0)<=100.52]
-              print('  in west/nonthaburi box', len(box)); [print('   ', x.get('camid'), x.get('title')) for x in box[:20]]
-          except Exception as e: print('  not json', e)"
+          for u in https://iticfoundation.org/ https://www.iticfoundation.org/cctv https://camera.iticfoundation.org/ https://cctv.iticfoundation.org/ https://its.iticfoundation.org/ https://www.its.in.th/ ; do
+            curl -sS -m 15 -A "$UA" -L -o r.bin -w "%{http_code} %{content_type} %{size_download} <- $u\n" "$u" || true
+            [ -s r.bin ] && grep -oiE '.{0,80}(cctv|camera|กล้อง|m3u8)[^<"]{0,80}' r.bin | sort -u | head -6
           done
