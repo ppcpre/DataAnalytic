@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# ตรวจภาพสดกล้องกรมทรัพยากรน้ำบนเว็บจริง (รันเองจากแท็บ Actions)
+# ตรวจปุ่มสลับกล้องนนทบุรีและกราฟระดับน้ำบนเว็บจริง (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -17,28 +17,37 @@ jobs:
       - name: Wait for deploy
         run: |
           for i in $(seq 1 30); do
-            code=$(curl -sS -m 10 -o /dev/null -w "%{http_code}" "$APP/api/dwr/live?code=x" || true)
-            echo "try $i: $code"; [ "$code" = "400" ] && break; sleep 15
+            n=$(curl -sS -m 60 "$APP/api/cameras?ts=$(date +%s)" | python3 -c "import json,sys; d=json.load(sys.stdin)['data']; print(sum(1 for c in d if c.get('views')))" 2>/dev/null || echo 0)
+            echo "try $i: cameras with views=$n"; [ "$n" -gt 0 ] && break; sleep 20
           done
-          curl -sS -m 8 -D h.txt -o m.bin "$APP/api/dwr/live?code=TA100222" || true
-          tr -d '\r' < h.txt | grep -iE '^(HTTP|content-type|cross-origin)'; ls -l m.bin
+          curl -sS -m 30 "$APP/api/history/dwr-TA100222?hours=168" | python3 -c "
+          import json,sys; d=json.load(sys.stdin)['data']; print('dwr history points', len(d), d[0]['t'] if d else None, d[-1]['t'] if d else None)"
+          curl -sS -m 30 "$APP/api/history/nont-STN2:up?hours=168" | python3 -c "
+          import json,sys; d=json.load(sys.stdin)['data']; print('nont history points', len(d), d[0]['t'] if d else None)"
       - name: Chrome
         run: |
           mkdir b && cd b && npm init -y >/dev/null && npm i playwright-core@1 >/dev/null 2>&1
           cat > t.mjs <<'JS'
           import { chromium } from 'playwright-core';
           const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome' });
-          for (const id of ['dwr-TA100222', 'dwr-TA100220', 'dwr-TC100222']) {
-            const p = await b.newPage({ viewport: { width: 390, height: 844 } });
+          const p = await b.newPage({ viewport: { width: 390, height: 844 } });
+          await p.goto(`${process.env.APP}/?cam=nont-STN2`, { waitUntil: 'domcontentloaded' });
+          await p.waitForSelector('#sheet [data-cam-switch]', { timeout: 60000 });
+          await p.waitForTimeout(8000);
+          const img = () => p.evaluate(() => { const i = document.querySelector('#sheet .cam-media img'); return i ? [i.naturalWidth, decodeURIComponent(i.src).slice(-30)] : null; });
+          console.log('NONT before', JSON.stringify(await p.evaluate(() => [...document.querySelectorAll('#sheet [data-cam-switch]')].map((b) => b.textContent + ':' + b.getAttribute('aria-pressed')))), JSON.stringify(await img()));
+          await p.click('#sheet [data-cam-switch="1"]');
+          await p.waitForTimeout(8000);
+          console.log('NONT after', JSON.stringify(await img()));
+          for (const id of ['dwr-TA100222', 'nont-STN2']) {
             await p.goto(`${process.env.APP}/?cam=${id}`, { waitUntil: 'domcontentloaded' });
-            try { await p.waitForSelector('#sheet [data-cam-view]', { timeout: 60000 }); } catch { console.log('SHEET', id, 'no sheet'); await p.close(); continue; }
-            await p.waitForTimeout(15000);
-            console.log('SHEET', id, JSON.stringify(await p.evaluate(() => {
-              const s = document.getElementById('sheet');
-              const img = s.querySelector('.cam-media img');
-              return { title: s.querySelector('.sheet-title')?.textContent, mode: s.querySelector('.cam-view')?.dataset.mode, label: s.querySelector('[data-cam-label]')?.textContent, img: img ? [img.naturalWidth, img.src.slice(0, 70)] : null, tiles: [...s.querySelectorAll('.tile')].map((e) => e.textContent.replace(/\s+/g, ' ')) };
-            })));
-            await p.close();
+            await p.waitForSelector('#sheet [data-chart-hours="168"]', { timeout: 60000 });
+            await p.waitForTimeout(6000);
+            const chart = () => p.evaluate(() => { const s = document.querySelector('#sheet .chart-host svg'); return s ? [s.getAttribute('aria-label'), [...s.querySelectorAll('text.axis')].slice(-4).map((t) => t.textContent)] : document.querySelector('#sheet .chart-host')?.textContent?.trim(); });
+            console.log('CHART', id, '24h', JSON.stringify(await chart()));
+            await p.click('#sheet [data-chart-hours="168"]');
+            await p.waitForTimeout(6000);
+            console.log('CHART', id, '7d', JSON.stringify(await chart()));
           }
           await b.close();
           JS
