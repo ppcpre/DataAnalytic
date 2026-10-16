@@ -24,13 +24,19 @@ describe('nonthaburi stations', () => {
     });
     expect(a2).toMatchObject({
       name: 'วัดตำหนักใต้',
-      road: 'จุด A2 · กล้อง 2 ตัว (แสดงตัวแรก)',
+      road: 'จุด A2 · กล้อง 2 ตัว',
       location: { lat: 13.886683, lng: 100.488564, province: '12' },
       url: 'http://182.52.224.70/?page=cctv',
       imageUrl: `/api/nont/image?cam=${encodeURIComponent('A2-วัดตำหนักใต้ Cam1')}`,
       kind: 'water',
       observedAt: '2026-09-28T07:30:00.000Z',
     });
+    // จุดที่มีกล้องหลายตัว: สลับดูได้ทุกตัว
+    expect(a2.views).toEqual([
+      { label: 'กล้อง 1', imageUrl: `/api/nont/image?cam=${encodeURIComponent('A2-วัดตำหนักใต้ Cam1')}` },
+      { label: 'กล้อง 2', imageUrl: `/api/nont/image?cam=${encodeURIComponent('A2-วัดตำหนักใต้ Cam2')}` },
+    ]);
+    expect(a1.views).toBeUndefined();
     expect(a2.readings).toEqual([
       { label: 'ระดับน้ำด้านเหนือประตู', value: 1.12, unit: 'ม.', warning: 1.5, danger: 2, historyId: 'nont-STN2:up' },
       { label: 'ระดับน้ำด้านท้ายประตู', value: 1.84, unit: 'ม.', warning: 1.5, danger: 2.5, historyId: 'nont-STN2:down' },

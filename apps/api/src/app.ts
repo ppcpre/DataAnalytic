@@ -19,6 +19,7 @@ import {
   dwrMjpegUrl,
   dwrSnapshotPath,
   dwrStationUrl,
+  parseDwrLevelHistory,
   parseDwrList,
   parseDwrStation,
 } from './adapters/dwr.js';
@@ -552,9 +553,25 @@ export function createApp(
     c.header('cache-control', 'public, max-age=120');
     if (config.dataMode === 'sample') return c.json({ data: sampleHistory(id, hours), sample: true });
     try {
-      const rows = await history.series(id, Date.now() - hours * HOUR);
+      const since = Date.now() - hours * HOUR;
+      const rows = await history.series(id, since);
+      const data = rows.map((r) => ({ t: r.t, levelMsl: r.level as number | null, percent: r.percent }));
+      // สถานีกรมทรัพยากรน้ำ: เติมช่วงที่ระบบยังไม่ได้เก็บ ด้วยกราฟย้อนหลังของต้นทาง (ราย ชม. ~5 วัน)
+      const dwr = /^dwr-([A-Z]{2}\d{6})$/.exec(id);
+      if (dwr && config.cameras.dwr) {
+        const past = await cache
+          .get(`dwr-history:${dwr[1]}`, async () => parseDwrLevelHistory(await getJson(dwrStationUrl(dwr[1]))))
+          .then((r) => r.value)
+          .catch((err: unknown) => {
+            console.error('[history] dwr', err);
+            return [];
+          });
+        const first = data.length ? data[0].t : Infinity;
+        for (const p of past) if (p.t >= since && p.t < first) data.push({ t: p.t, levelMsl: p.level, percent: null });
+        data.sort((a, b) => a.t - b.t);
+      }
       return c.json({
-        data: rows.map((r) => ({ t: new Date(r.t).toISOString(), levelMsl: r.level, percent: r.percent })),
+        data: data.map((r) => ({ ...r, t: new Date(r.t).toISOString() })),
         sample: false,
       });
     } catch (err) {

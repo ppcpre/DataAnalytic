@@ -118,3 +118,19 @@ export function dwrSnapshotPath(body: unknown): string | undefined {
   const p = str(e?.cctvLatestSnapshotPath);
   return p && DWR_SNAPSHOT_PATH.test(p) ? p : undefined;
 }
+
+/**
+ * กราฟระดับน้ำย้อนหลังของสถานี (ต้นทางให้ราย ชม. ประมาณ 5 วัน) จาก getByCode
+ * ใช้เติมกราฟของแอปก่อนที่ระบบจะเก็บประวัติเองได้ครบ
+ */
+export function parseDwrLevelHistory(body: unknown): Array<{ t: number; level: number }> {
+  const past = ((((body as Rec | null)?.value as Rec | null)?.wlChart as Rec | null)?.past ?? null) as unknown;
+  if (!Array.isArray(past)) return [];
+  const out: Array<{ t: number; level: number }> = [];
+  for (const p of past as Rec[]) {
+    const t = iso(p?.date);
+    const level = num(p?.value);
+    if (t && level !== undefined) out.push({ t: new Date(t).getTime(), level });
+  }
+  return out;
+}

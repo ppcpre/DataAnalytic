@@ -1,5 +1,7 @@
 import type { HistoryPoint, Trend } from '@flood-watch/shared';
-import { escapeHtml, formatClock, formatNum } from './format';
+import { escapeHtml, formatClock, formatNum, formatTime } from './format';
+
+const dayFmt = new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' });
 
 /** ข้อความแนวโน้ม เช่น "↑ สูงขึ้น 20 ซม. ใน 3 ชม." */
 export function trendText(t: Trend | null | undefined, short = false): string {
@@ -85,10 +87,15 @@ export function renderHistoryChart(host: HTMLElement, raw: HistoryPoint[], hours
   const unit = meters ? ' ม.' : '%';
   const fmt = (v: number) => (meters ? formatNum(v, 2) : formatNum(v, 1));
   const xTicks = [0, 1, 2, 3].map((i) => tStart + ((tEnd - tStart) * i) / 3);
+  // ช่วงหลายวัน: แกนบอกวันที่ และ tooltip/ตารางบอกวันที่พร้อมเวลา
+  const multiDay = tEnd - tStart > 30 * 3600_000;
+  const tickText = (t: number) => (multiDay ? dayFmt.format(new Date(t)) : formatClock(new Date(t).toISOString()).replace(' น.', ''));
+  const when = (t: number) => (multiDay ? formatTime(new Date(t).toISOString()) : formatClock(new Date(t).toISOString()));
+  const span = hours >= 48 ? `${formatNum(hours / 24, 0)} วัน` : `${hours} ชั่วโมง`;
 
   const min = Math.min(...vals);
   const max = Math.max(...vals);
-  const label = `${opts.title ?? (meters ? 'กราฟระดับน้ำ' : 'กราฟระดับน้ำเทียบตลิ่ง')} ${hours} ชั่วโมง: ต่ำสุด ${fmt(min)}${unit} สูงสุด ${fmt(max)}${unit} ล่าสุด ${fmt(last.v)}${unit}`;
+  const label = `${opts.title ?? (meters ? 'กราฟระดับน้ำ' : 'กราฟระดับน้ำเทียบตลิ่ง')} ${span}: ต่ำสุด ${fmt(min)}${unit} สูงสุด ${fmt(max)}${unit} ล่าสุด ${fmt(last.v)}${unit}`;
 
   host.innerHTML = `
     <div class="chart-wrap">
@@ -108,9 +115,7 @@ export function renderHistoryChart(host: HTMLElement, raw: HistoryPoint[], hours
         ${xTicks
           .map(
             (t, i) =>
-              `<text class="axis" x="${x(t)}" y="${H - 6}" text-anchor="${i === 0 ? 'start' : i === 3 ? 'end' : 'middle'}">${formatClock(
-                new Date(t).toISOString(),
-              ).replace(' น.', '')}</text>`,
+              `<text class="axis" x="${x(t)}" y="${H - 6}" text-anchor="${i === 0 ? 'start' : i === 3 ? 'end' : 'middle'}">${tickText(t)}</text>`,
           )
           .join('')}
         <path class="line" d="${path}"/>
@@ -132,7 +137,7 @@ export function renderHistoryChart(host: HTMLElement, raw: HistoryPoint[], hours
           .reverse()
           .map(
             (p) =>
-              `<tr><td>${formatClock(new Date(p.t).toISOString())}</td><td>${fmt(p.v)}</td>${meters ? '' : `<td>${formatNum(p.level)}</td>`}</tr>`,
+              `<tr><td>${when(p.t)}</td><td>${fmt(p.v)}</td>${meters ? '' : `<td>${formatNum(p.level)}</td>`}</tr>`,
           )
           .join('')}</tbody>
       </table>
@@ -156,9 +161,7 @@ export function renderHistoryChart(host: HTMLElement, raw: HistoryPoint[], hours
     dot.setAttribute('cy', String(y(best.v)));
     hover.setAttribute('visibility', 'visible');
     tip.hidden = false;
-    tip.innerHTML = `<strong>${fmt(best.v)}${unit}</strong> ${!meters && best.level !== null ? `· ${formatNum(best.level)} ม.รทก.` : ''}<br><span>${formatClock(
-      new Date(best.t).toISOString(),
-    )}</span>`;
+    tip.innerHTML = `<strong>${fmt(best.v)}${unit}</strong> ${!meters && best.level !== null ? `· ${formatNum(best.level)} ม.รทก.` : ''}<br><span>${when(best.t)}</span>`;
     const left = (cx / W) * rect.width;
     tip.style.left = `${Math.min(Math.max(left, 60), rect.width - 60)}px`;
   };

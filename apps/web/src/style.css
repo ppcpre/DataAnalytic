@@ -618,7 +618,10 @@ button.link-card { width: 100%; text-align: left; font: inherit; color: inherit;
 .trend { font-size: 0.85rem; font-weight: 500; color: var(--ink); }
 .trend-muted { color: var(--muted); font-weight: 400; }
 .chart-block { display: flex; flex-direction: column; gap: 6px; }
-.chart-title { font-size: 0.8rem; color: var(--muted); display: flex; justify-content: space-between; }
+.chart-title { font-size: 0.8rem; color: var(--muted); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.chart-range { flex: 0 0 auto; }
+.chart-range button { height: 28px; padding: 0 10px; font-size: 0.78rem; }
+.cam-switch { margin-top: 8px; }
 .chart-wrap { position: relative; }
 .chart-svg { display: block; width: 100%; height: auto; touch-action: pan-y; }
 .chart-svg .grid { stroke: var(--line-soft); stroke-width: 1; }

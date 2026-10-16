@@ -265,6 +265,18 @@ function cameraAlert(c: Camera): 'critical' | 'watch' | null {
   return levels.includes('critical') ? 'critical' : levels.includes('watch') ? 'watch' : null;
 }
 
+/** ปุ่มสลับมุมกล้อง สำหรับจุดที่มีกล้องหลายตัว (เช่น จุดเฝ้าระวังของเทศบาลนครนนทบุรี) */
+function cameraSwitch(c: Camera): string {
+  if (!c.views || c.views.length < 2) return '';
+  const current = camView.id === c.id ? camView.index : 0;
+  return `<div class="seg seg-small cam-switch" role="group" aria-label="เลือกกล้อง">${c.views
+    .map((v, i) => `<button type="button" data-cam-switch="${i}" aria-pressed="${i === current}">${escapeHtml(v.label)}</button>`)
+    .join('')}</div>`;
+}
+
+/** มุมกล้องที่เลือกไว้ของกล้องที่เปิดอยู่ */
+const camView = { id: '', index: 0 };
+
 /** ระดับเตือนภัยจากต้นทาง เช่น ระบบอ่านป้ายระดับน้ำจากภาพกล้อง หรือระดับน้ำที่ประชาชนแจ้ง */
 function cameraAlertTile(c: Camera): string {
   const a = c.alert;
@@ -302,8 +314,10 @@ function historyCharts(c: Camera): string {
       if (r.danger !== undefined) refs.push([r.danger, `วิกฤต ${formatNum(r.danger)} ม.`]);
       return `
     <div class="chart-block">
-      <div class="chart-title"><span>${escapeHtml(r.label)} 24 ชม.</span></div>
-      <div class="chart-host" data-history="${escapeHtml(r.historyId!)}" data-chart="level" data-refs="${escapeHtml(JSON.stringify(refs))}" data-title="${escapeHtml(r.label)}"><p class="chart-loading">กำลังโหลดข้อมูลย้อนหลัง…</p></div>
+      <div class="chart-title"><span>${escapeHtml(r.label)}</span>
+        <span class="seg seg-small chart-range" role="group" aria-label="ช่วงเวลาของกราฟ"><button type="button" data-chart-hours="24" aria-pressed="true">24 ชม.</button><button type="button" data-chart-hours="168" aria-pressed="false">7 วัน</button></span>
+      </div>
+      <div class="chart-host" data-history="${escapeHtml(r.historyId!)}" data-chart="level" data-hours="24" data-refs="${escapeHtml(JSON.stringify(refs))}" data-title="${escapeHtml(r.label)}"><p class="chart-loading">กำลังโหลดข้อมูลย้อนหลัง…</p></div>
     </div>`;
     })
     .join('');
@@ -630,6 +644,7 @@ function cameraSheet(c: Camera): string {
       shareButton(c.id) + favButton(c.id),
     )}
     ${cameraViewHtml(c)}
+    ${cameraSwitch(c)}
     ${cameraAlertTile(c)}
     ${cameraReadings(c)}
     ${c.kind === 'water' ? nearWaterDiagram(c) : ''}
@@ -750,8 +765,10 @@ export /** เริ่มแสดงภาพกล้อง (ตัวที�
 function startSheetCamera(fresh = false) {
   const id = sheetEl.querySelector<HTMLElement>('[data-cam-view]')?.dataset.camId;
   const cam = id ? state.cameras?.data.find((c) => c.id === id) : undefined;
-  if (cam) startCameraView(sheetEl, cam, fresh);
-  else stopCameraView();
+  if (!cam) return stopCameraView();
+  if (camView.id !== cam.id) Object.assign(camView, { id: cam.id, index: 0 });
+  const view = cam.views?.[camView.index];
+  startCameraView(sheetEl, view ? { ...cam, imageUrl: view.imageUrl } : cam, fresh);
 }
 
 function openEntity(kind: LayerKey, id: string, pan = true) {
@@ -780,14 +797,16 @@ async function loadHistoryChart() {
 async function loadOneHistory(host: HTMLElement) {
   const id = host.dataset.history!;
   const meters = host.dataset.chart === 'level';
+  const hours = Math.min(168, Math.max(1, Number(host.dataset.hours) || 24));
+  const key = `${id}:${hours}`;
   try {
-    let entry = historyCache.get(id);
+    let entry = historyCache.get(key);
     if (!entry || Date.now() - entry.at > 2 * 60_000) {
-      let data = await api.history(id, 24).then((r) => r.data, () => []);
+      let data = await api.history(id, hours).then((r) => r.data, () => []);
       // API ยังเก็บประวัติไม่พอ (หรือดึงไม่ได้) → ใช้กราฟย้อนหลังของ ThaiWater โดยตรง (เฉพาะสถานี ThaiWater)
-      if (!meters && data.filter((p) => p.percent !== null).length < 2) data = await thaiWaterHistory(id, 24).catch(() => data);
+      if (!meters && data.filter((p) => p.percent !== null).length < 2) data = await thaiWaterHistory(id, hours).catch(() => data);
       entry = { at: Date.now(), data };
-      historyCache.set(id, entry);
+      historyCache.set(key, entry);
     }
     // ผู้ใช้อาจเปิดจุดอื่นระหว่างรอ
     if (!host.isConnected) return;
@@ -798,8 +817,8 @@ async function loadOneHistory(host: HTMLElement) {
       } catch {
         /* ไม่มีเส้นอ้างอิง */
       }
-      renderHistoryChart(host, entry.data, 24, { value: 'level', refs, title: host.dataset.title });
-    } else renderHistoryChart(host, entry.data, 24);
+      renderHistoryChart(host, entry.data, hours, { value: 'level', refs, title: host.dataset.title });
+    } else renderHistoryChart(host, entry.data, hours);
   } catch {
     if (host.isConnected) host.innerHTML = '<p class="chart-empty">โหลดข้อมูลย้อนหลังไม่สำเร็จ</p>';
   }
@@ -847,9 +866,24 @@ function closeSheet() {
 
 sheetEl.addEventListener('click', (ev) => {
   const t = (ev.target as HTMLElement).closest<HTMLElement>(
-    '[data-close],[data-open],[data-goto],[data-label],[data-save-place],[data-remove-place],[data-cam-refresh],[data-fav-toggle],[data-share]',
+    '[data-close],[data-open],[data-goto],[data-label],[data-save-place],[data-remove-place],[data-cam-refresh],[data-fav-toggle],[data-share],[data-cam-switch],[data-chart-hours]',
   );
   if (!t) return;
+  if (t.dataset.camSwitch !== undefined) {
+    camView.index = Number(t.dataset.camSwitch) || 0;
+    t.parentElement?.querySelectorAll('[data-cam-switch]').forEach((b) => b.setAttribute('aria-pressed', String(b === t)));
+    startSheetCamera(true);
+    return;
+  }
+  if (t.dataset.chartHours) {
+    const host = t.closest('.chart-block')?.querySelector<HTMLElement>('[data-history]');
+    if (!host) return;
+    host.dataset.hours = t.dataset.chartHours;
+    t.parentElement?.querySelectorAll('[data-chart-hours]').forEach((b) => b.setAttribute('aria-pressed', String(b === t)));
+    host.innerHTML = '<p class="chart-loading">กำลังโหลดข้อมูลย้อนหลัง…</p>';
+    void loadOneHistory(host);
+    return;
+  }
   if (t.dataset.share) {
     void shareCamera(t.dataset.share);
     return;

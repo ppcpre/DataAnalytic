@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { dwrSnapshotPath, parseDwrList, parseDwrStation } from '../src/adapters/dwr.js';
+import { dwrSnapshotPath, parseDwrLevelHistory, parseDwrList, parseDwrStation } from '../src/adapters/dwr.js';
 import { createApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
+import { MemoryHistoryStore } from '../src/history.js';
 import { DWR_LIST, DWR_STATION } from './fixtures.js';
 
 describe('dwr telemetry cameras', () => {
@@ -72,5 +73,20 @@ describe('dwr telemetry cameras', () => {
       openStream: async () => new Response('{}', { status: 404, headers: { 'content-type': 'application/json' } }),
     });
     expect((await off.request('/api/dwr/live?code=TA100222')).status).toBe(502);
+  });
+
+  it('fills the level chart with the source history before the app started recording', async () => {
+    const now = Date.now();
+    const at = (h: number) => new Date(now - h * 3600_000).toISOString();
+    const station = { value: { ...DWR_STATION.value, wlChart: { past: [{ date: at(30), value: 1.1 }, { date: at(10), value: 1.3 }, { date: at(2), value: 9 }, { date: 'x', value: 1 }] } } };
+    expect(parseDwrLevelHistory(station)).toHaveLength(3);
+    const history = new MemoryHistoryStore();
+    await history.record([{ stationId: 'dwr-TA100220', t: now - 5 * 3600_000, level: 1.5, percent: null }]);
+    const app = createApp(loadConfig({}), async () => station, undefined, { history });
+    const body = await (await app.request('/api/history/dwr-TA100220?hours=24')).json();
+    // ต้นทางเติมเฉพาะช่วงก่อนค่าแรกที่เก็บเอง และอยู่ในช่วงเวลาที่ขอ (30 ชม. ก่อนเกิน 24 ชม.)
+    expect(body.data.map((p: { levelMsl: number }) => p.levelMsl)).toEqual([1.3, 1.5]);
+    const other = await (await app.request('/api/history/nont-STN2:up')).json();
+    expect(other.data).toEqual([]);
   });
 });

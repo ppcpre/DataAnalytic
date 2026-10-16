@@ -156,6 +156,8 @@ export interface Camera {
   imageUrl?: string;
   /** คลิปวิดีโอสั้น (mp4, https) เช่น คลิปที่ประชาชนแจ้งน้ำท่วม */
   videoUrl?: string;
+  /** มุมกล้องทั้งหมดของจุดนี้ (เมื่อมีกล้องมากกว่าหนึ่งตัว) — ตัวแรกตรงกับ imageUrl */
+  views?: CameraView[];
   /** ผู้ให้บริการภาพ เช่น "มูลนิธิ iTIC" */
   imageCredit?: string;
   /** เวลาที่ถ่ายภาพนิ่ง (ISO) — มีเมื่อภาพไม่ได้อัปเดตตลอดเวลา เช่น ภาพล่าสุดที่ระบบต้นทางเก็บไว้ */
@@ -172,6 +174,12 @@ export interface Camera {
   observedAt?: string;
   /** ระดับเตือนภัยที่ต้นทางประเมิน (เช่น ระบบอ่านป้ายระดับน้ำจากภาพกล้อง หรือระดับน้ำที่ประชาชนแจ้ง) */
   alert?: CameraAlert;
+}
+
+/** มุมกล้องหนึ่งตัวของจุดที่มีหลายกล้อง */
+export interface CameraView {
+  label: string;
+  imageUrl: string;
 }
 
 export interface CameraAlert {

@@ -63,6 +63,14 @@ function reading(label: string, v: unknown, unit: string, key = 'now', historyId
   return { label, value: now, unit, warning: num(value?.warning), danger: num(value?.danger), ...(historyId ? { historyId } : {}) };
 }
 
+const nontImageUrl = (cam: string) => `/api/nont/image?cam=${encodeURIComponent(cam)}`;
+
+/** ชื่อปุ่มสลับกล้อง: "A1-คลองท่าทราย Cam2" → "กล้อง 2" (ใช้ลำดับถ้าชื่อไม่มีเลขกล้อง) */
+function cameraLabel(cam: string, i: number): string {
+  const n = /cam\s*(\d+)\s*$/i.exec(cam)?.[1];
+  return `กล้อง ${n ?? i + 1}`;
+}
+
 /** รหัสชุดข้อมูลย้อนหลังของค่าวัด เช่น nont-STN2:down */
 export const nontHistoryId = (stationId: string, side: 'up' | 'down') => `nont-${stationId}:${side}`;
 
@@ -113,11 +121,12 @@ export function parseNonthaburiStations(body: unknown, now = Date.now()): Camera
     out.push({
       id: `nont-${id}`,
       name: name.replace(/\s+/g, ' '),
-      road: `จุด ${code ?? id}${cams.length > 1 ? ` · กล้อง ${cams.length} ตัว (แสดงตัวแรก)` : ''}`,
+      road: `จุด ${code ?? id}${cams.length > 1 ? ` · กล้อง ${cams.length} ตัว` : ''}`,
       location: { lat, lng, province: '12', provinceName: 'นนทบุรี' },
       owner: NONT_OWNER,
       url: NONT_CCTV_PAGE,
-      imageUrl: `/api/nont/image?cam=${encodeURIComponent(cams[0])}`,
+      imageUrl: nontImageUrl(cams[0]),
+      ...(cams.length > 1 ? { views: cams.map((cam, i) => ({ label: cameraLabel(cam, i), imageUrl: nontImageUrl(cam) })) } : {}),
       imageCredit: NONT_OWNER,
       kind: 'water',
       ...(readings.length ? { readings, observedAt } : {}),
