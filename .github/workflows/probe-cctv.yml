@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# ตรวจปุ่มสลับกล้องนนทบุรีและกราฟระดับน้ำบนเว็บจริง (รันเองจากแท็บ Actions)
+# ตรวจว่าเว็บดูกล้องในกรุงเทพฯ และปริมณฑลยังเปิดได้ (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -10,45 +10,28 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 10
     env:
-      APP: https://dataanalytic.precare.workers.dev
+      UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
     steps:
-      - name: Wait for deploy
+      - name: Reachability
+        continue-on-error: true
         run: |
-          for i in $(seq 1 30); do
-            n=$(curl -sS -m 60 "$APP/api/cameras?ts=$(date +%s)" | python3 -c "import json,sys; d=json.load(sys.stdin)['data']; print(sum(1 for c in d if c.get('views')))" 2>/dev/null || echo 0)
-            echo "try $i: cameras with views=$n"; [ "$n" -gt 0 ] && break; sleep 20
+          for u in \
+            https://traffic.longdo.com/camera https://cpudapp.bangkok.go.th/bmatraffic http://www.bmatraffic.com/ https://weather.bangkok.go.th/flood https://dds.bangkok.go.th/ \
+            https://www.thaiclouderp.com/CCTV_MONITOR/web/pakkred https://www.pakkretconnect.com/ https://www.pakkretconnect.com/liffwater/eon http://182.52.224.70/?page=cctv \
+            https://telemetry.dwr.go.th/reportCctv https://cdp.rangsitcity.go.th/ https://app.streambridge.online/p/bangkruai-city https://hdms.doh.go.th/dashboard \
+            https://www.thaiwater.net/new4all https://www.exat.co.th/ https://www.iticfoundation.org/ https://flood.gistda.or.th/ ; do
+            r=$(curl -sS -m 20 -A "$UA" -L -o p.bin -w "%{http_code} %{size_download} %{url_effective}" "$u" 2>&1 | tail -1)
+            t=$(grep -oiE '<title>[^<]{0,100}' p.bin 2>/dev/null | head -1 | sed 's/<title>//I')
+            c=$(grep -ciE 'cctv|กล้อง|camera' p.bin 2>/dev/null)
+            echo "$r | title=$t | cctv-mentions=$c"
           done
-          curl -sS -m 30 "$APP/api/history/dwr-TA100222?hours=168" | python3 -c "
-          import json,sys; d=json.load(sys.stdin)['data']; print('dwr history points', len(d), d[0]['t'] if d else None, d[-1]['t'] if d else None)"
-          curl -sS -m 30 "$APP/api/history/nont-STN2:up?hours=168" | python3 -c "
-          import json,sys; d=json.load(sys.stdin)['data']; print('nont history points', len(d), d[0]['t'] if d else None)"
-      - name: Chrome
+      - name: Pakkret CCTV links
+        continue-on-error: true
         run: |
-          mkdir b && cd b && npm init -y >/dev/null && npm i playwright-core@1 >/dev/null 2>&1
-          cat > t.mjs <<'JS'
-          import { chromium } from 'playwright-core';
-          const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome' });
-          const p = await b.newPage({ viewport: { width: 390, height: 844 } });
-          await p.goto(`${process.env.APP}/?cam=nont-STN2`, { waitUntil: 'domcontentloaded' });
-          await p.waitForSelector('#sheet [data-cam-switch]', { timeout: 60000 });
-          await p.waitForTimeout(8000);
-          const img = () => p.evaluate(() => { const i = document.querySelector('#sheet .cam-media img'); return i ? [i.naturalWidth, decodeURIComponent(i.src).slice(-30)] : null; });
-          console.log('NONT before', JSON.stringify(await p.evaluate(() => [...document.querySelectorAll('#sheet [data-cam-switch]')].map((b) => b.textContent + ':' + b.getAttribute('aria-pressed')))), JSON.stringify(await img()));
-          await p.click('#sheet [data-cam-switch="1"]');
-          await p.waitForTimeout(8000);
-          console.log('NONT after', JSON.stringify(await img()));
-          for (const id of ['dwr-TA100222', 'nont-STN2']) {
-            await p.goto(`${process.env.APP}/?cam=${id}`, { waitUntil: 'domcontentloaded' });
-            await p.waitForSelector('#sheet [data-chart-hours="168"]', { timeout: 60000 });
-            await p.waitForTimeout(6000);
-            const chart = () => p.evaluate(() => { const s = document.querySelector('#sheet .chart-host svg'); return s ? [s.getAttribute('aria-label'), [...s.querySelectorAll('text.axis')].slice(-4).map((t) => t.textContent)] : document.querySelector('#sheet .chart-host')?.textContent?.trim(); });
-            console.log('CHART', id, '24h', JSON.stringify(await chart()));
-            await p.click('#sheet [data-chart-hours="168"]');
-            await p.waitForTimeout(6000);
-            console.log('CHART', id, '7d', JSON.stringify(await chart()));
-          }
-          await b.close();
-          JS
-          node t.mjs
+          curl -sS -m 20 -A "$UA" -L -o pk.html https://www.pakkretconnect.com/
+          grep -oiE 'href="[^"]*"' pk.html | grep -iE 'cctv|camera|กล้อง|water|flood|liff' | sort -u | head -20
+          grep -oiE '.{0,80}(cctv|กล้อง)[^<]{0,80}' pk.html | sort -u | head -10
+          curl -sS -m 20 -A "$UA" -L -o ex.html https://www.exat.co.th/
+          grep -oiE 'href="[^"]*"' ex.html | grep -iE 'cctv|camera|traffic|จราจร' | sort -u | head -10
