@@ -17,6 +17,7 @@ jobs:
       - name: Reachability
         continue-on-error: true
         run: |
+          set +e
           for u in \
             https://traffic.longdo.com/camera https://cpudapp.bangkok.go.th/bmatraffic http://www.bmatraffic.com/ https://weather.bangkok.go.th/flood https://dds.bangkok.go.th/ \
             https://www.thaiclouderp.com/CCTV_MONITOR/web/pakkred https://www.pakkretconnect.com/ https://www.pakkretconnect.com/liffwater/eon http://182.52.224.70/?page=cctv \
@@ -30,6 +31,7 @@ jobs:
       - name: Pakkret CCTV links
         continue-on-error: true
         run: |
+          set +e
           curl -sS -m 20 -A "$UA" -L -o pk.html https://www.pakkretconnect.com/
           grep -oiE 'href="[^"]*"' pk.html | grep -iE 'cctv|camera|กล้อง|water|flood|liff' | sort -u | head -20
           grep -oiE '.{0,80}(cctv|กล้อง)[^<]{0,80}' pk.html | sort -u | head -10
