@@ -34,6 +34,20 @@ export const CAMERA_LINKS: CameraLink[] = [
     area: 'นนทบุรี',
   },
   {
+    id: 'bangkruai-streambridge',
+    name: 'กล้อง CCTV เทศบาลเมืองบางกรวย',
+    description: 'ภาพสดกล้องจราจรในเขตเทศบาลเมืองบางกรวย ผ่าน StreamBridge (แสดงเป็นหมุดบนแผนที่ด้วย)',
+    url: 'https://app.streambridge.online/p/bangkruai-city',
+    area: 'นนทบุรี',
+  },
+  {
+    id: 'pakkret-eon',
+    name: 'ระดับน้ำท่าน้ำปากเกร็ด',
+    description: 'เซนเซอร์ระดับน้ำแม่น้ำเจ้าพระยาพร้อมภาพกล้อง ของเทศบาลนครปากเกร็ด (แสดงเป็นหมุดบนแผนที่ด้วย)',
+    url: 'https://www.pakkretconnect.com/liffwater/eon',
+    area: 'นนทบุรี',
+  },
+  {
     id: 'nont-flood-center',
     name: 'ศูนย์ป้องกันน้ำท่วม เทศบาลนครนนทบุรี',
     description: 'ภาพกล้องและระดับน้ำตามคลองในเขตเทศบาลนครนนทบุรี (แสดงเป็นหมุดบนแผนที่ด้วย)',
