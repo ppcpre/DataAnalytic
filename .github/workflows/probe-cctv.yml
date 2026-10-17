@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# ตรวจว่าเว็บดูกล้องในกรุงเทพฯ และปริมณฑลยังเปิดได้ (รันเองจากแท็บ Actions)
+# นับกล้องบนเว็บจริงแยกตามจังหวัด (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -10,30 +10,25 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     env:
-      UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
+      APP: https://dataanalytic.precare.workers.dev
     steps:
-      - name: Reachability
-        continue-on-error: true
+      - name: Count
         run: |
-          set +e
-          for u in \
-            https://traffic.longdo.com/camera https://cpudapp.bangkok.go.th/bmatraffic http://www.bmatraffic.com/ https://weather.bangkok.go.th/flood https://dds.bangkok.go.th/ \
-            https://www.thaiclouderp.com/CCTV_MONITOR/web/pakkred https://www.pakkretconnect.com/ https://www.pakkretconnect.com/liffwater/eon http://182.52.224.70/?page=cctv \
-            https://telemetry.dwr.go.th/reportCctv https://cdp.rangsitcity.go.th/ https://app.streambridge.online/p/bangkruai-city https://hdms.doh.go.th/dashboard \
-            https://www.thaiwater.net/new4all https://www.exat.co.th/ https://www.iticfoundation.org/ https://flood.gistda.or.th/ ; do
-            r=$(curl -sS -m 20 -A "$UA" -L -o p.bin -w "%{http_code} %{size_download} %{url_effective}" "$u" 2>&1 | tail -1)
-            t=$(grep -oiE '<title>[^<]{0,100}' p.bin 2>/dev/null | head -1 | sed 's/<title>//I')
-            c=$(grep -ciE 'cctv|กล้อง|camera' p.bin 2>/dev/null)
-            echo "$r | title=$t | cctv-mentions=$c"
+          for i in $(seq 1 30); do
+            curl -sS -m 90 -o c.json "$APP/api/cameras?ts=$(date +%s)" || true
+            n=$(python3 -c "import json; d=json.load(open('c.json'))['data']; print(sum(c['location']['province'] in ('15','16','17','18','19','60','72') for c in d))" 2>/dev/null || echo 0)
+            echo "try $i: upstream=$n"; [ "$n" -gt 0 ] && break; sleep 20
           done
-      - name: Pakkret CCTV links
-        continue-on-error: true
-        run: |
-          set +e
-          curl -sS -m 20 -A "$UA" -L -o pk.html https://www.pakkretconnect.com/
-          grep -oiE 'href="[^"]*"' pk.html | grep -iE 'cctv|camera|กล้อง|water|flood|liff' | sort -u | head -20
-          grep -oiE '.{0,80}(cctv|กล้อง)[^<]{0,80}' pk.html | sort -u | head -10
-          curl -sS -m 20 -A "$UA" -L -o ex.html https://www.exat.co.th/
-          grep -oiE 'href="[^"]*"' ex.html | grep -iE 'cctv|camera|traffic|จราจร' | sort -u | head -10
+          python3 - <<'PY'
+          import json, collections
+          d = json.load(open('c.json'))['data']
+          print('total', len(d))
+          print(collections.Counter(c['location'].get('provinceName') or c['location']['province'] for c in d).most_common())
+          for c in d:
+              if c['location']['province'] in ('15','16','17','18','19','60','72'):
+                  r = (c.get('readings') or [{}])[0]
+                  print(' ', c['id'], c['name'], '|', c['location'].get('provinceName'), '|', c.get('road'), '|', r.get('value'), r.get('warning'), r.get('danger'))
+          PY
+          curl -sS -m 30 "$APP/api/links" | python3 -c "import json,sys; d=json.load(sys.stdin); print('links', [x['id'] for x in d['cameras']])"
