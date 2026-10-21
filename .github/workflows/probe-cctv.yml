@@ -18,23 +18,27 @@ jobs:
         run: |
           curl -sS -m 30 -A "$UA" -o ov.json https://flood.pop.in.th/api_overview.php
           curl -sS -m 30 -A "$UA" -o rd.json https://flood.pop.in.th/api_roads.php
-          curl -sS -m 60 -o wl.json https://dataanalytic.precare.workers.dev/api/water-level
+          curl -sS -m 60 -A "$UA" -H 'Origin: https://dataanalytic.precare.workers.dev' -o wl.json https://api-v3.thaiwater.net/api/v1/thaiwater30/public/waterlevel_load
           curl -sS -m 60 -o cam.json https://dataanalytic.precare.workers.dev/api/cameras
           python3 - <<'PY'
           import json, math, collections
           ov = json.load(open('ov.json'))['stations']; rd = json.load(open('rd.json'))['roads']
-          wl = json.load(open('wl.json'))['data']; cams = json.load(open('cam.json'))['data']
+          raw = json.load(open('wl.json')); wl = raw.get('waterlevel_data', raw).get('data') if isinstance(raw.get('waterlevel_data', raw), dict) else raw.get('data'); cams = json.load(open('cam.json'))['data']
           print('popnix canal', len(ov), 'roads', len(rd), '| app water', len(wl), 'cams', len(cams))
           print('canal keys', list(ov[0].keys())); print(json.dumps(ov[0], ensure_ascii=False)[:500])
           print('road levels', collections.Counter(r['level'] for r in rd))
           print('canal levels', collections.Counter(s.get('level') for s in ov), 'online', sum(1 for s in ov if s.get('online')))
           def d(a, b, c, e): return math.hypot((a - c) * 111, (b - e) * 108)
-          pts = [(s['location']['lat'], s['location']['lng'], s['name']) for s in wl]
+          pts = []
+          for s in wl:
+              st = s.get('station') or {}
+              try: pts.append((float(st.get('tele_station_lat')), float(st.get('tele_station_long')), str(st.get('tele_station_name'))[:40], str((s.get('agency') or {}).get('agency_shortname'))[:40], (s.get('geocode') or {}).get('province_code')))
+              except Exception: pass
+          pts = [p for p in pts if p[4] == '10']
+          print('thaiwater bkk stations', len(pts), collections.Counter(p[3] for p in pts).most_common(6))
           near = 0
           for s in ov:
-              m = min((d(s['lat'], s['lng'], a, b), n) for a, b, n in pts) if pts else (99, '')
+              m = min((d(s['lat'], s['lng'], a, b), n) for a, b, n, _, _ in pts) if pts else (99, '')
               if m[0] < 0.15: near += 1
           print('canal stations within 150 m of an app water station', near)
-          print('app water by agency', collections.Counter(s.get('agency') or s.get('owner') or '?' for s in wl).most_common(8))
-          print('sample app station', json.dumps(wl[0], ensure_ascii=False)[:300])
           PY
