@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# รอบ 2: ดูว่าเว็บรวมกล้อง (POPNIX Flood, cctv.maholan.net) ดึงข้อมูลจากที่ไหน (รันเองจากแท็บ Actions)
+# รอบ 2: ดูว่า POPNIX Flood (flood.pop.in.th) ดึงข้อมูลกล้องจากที่ไหน (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -19,12 +19,7 @@ jobs:
           import { chromium } from 'playwright-core';
           const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome' });
           // หา URL ของ POPNIX Flood จากบทความข่าว
-          const a = await b.newPage();
-          await a.goto('https://www.kaohoon.com/news/general/868635', { waitUntil: 'domcontentloaded', timeout: 60000 }).catch((e) => console.log('kaohoon', e.message));
-          const links = await a.evaluate(() => [...document.querySelectorAll('a')].map((x) => x.href).filter((h) => /popnix|flood/i.test(h)));
-          console.log('POPNIX links', JSON.stringify([...new Set(links)].slice(0, 15)));
-          await a.close();
-          for (const url of ['https://cctv.maholan.net/', ...new Set(links.filter((h) => /popnix/i.test(h) && !/kaohoon/.test(h)))].slice(0, 3)) {
+          for (const url of ['https://flood.pop.in.th/']) {
             const p = await b.newPage();
             const seen = new Map();
             p.on('response', async (r) => {
@@ -34,13 +29,14 @@ jobs:
                 if (seen.has(u)) return;
                 const body = await r.text().catch(() => '');
                 seen.set(u, body.length);
-                console.log('RESP', r.status(), t.slice(0, 30), body.length, u.slice(0, 150), '|', body.slice(0, 250).replace(/\s+/g, ' '));
+                console.log('RESP', r.status(), t.slice(0, 30), body.length, u.slice(0, 200), '|', body.slice(0, 600).replace(/\s+/g, ' '));
               }
             });
             p.on('request', (r) => { if (/m3u8|mjpe?g|jpg|jpeg|snapshot|image/i.test(r.url()) && !/\.(png|svg|ico)$/.test(r.url())) console.log('MEDIA', r.url().slice(0, 150)); });
             console.log('=== OPEN', url);
             await p.goto(url, { waitUntil: 'networkidle', timeout: 60000 }).catch((e) => console.log('goto', e.message));
-            await p.waitForTimeout(8000);
+            await p.waitForTimeout(10000);
+            console.log('CCTV words', await p.evaluate(() => (document.body.innerText.match(/CCTV[^\n]{0,60}|กล้อง[^\n]{0,60}/g) || []).slice(0, 10)));
             console.log('TITLE', await p.title());
             await p.close();
           }
