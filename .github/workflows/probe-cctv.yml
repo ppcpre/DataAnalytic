@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# รอบ 2: ทดสอบลิงก์ภาพกล้องของ ThaiWater ในจังหวัดที่แอปแสดง (รันเองจากแท็บ Actions)
+# รอบ 2: ดูว่าเว็บรวมกล้อง (POPNIX Flood, cctv.maholan.net) ดึงข้อมูลจากที่ไหน (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -10,46 +10,40 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    env:
-      UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
+    timeout-minutes: 12
     steps:
-      - name: Test camera URLs
+      - name: Capture requests in Chrome
         run: |
-          set +e
-          curl -sS -m 30 -A "$UA" -H 'Origin: https://www.thaiwater.net' -o t.json https://api-v3.thaiwater.net/api/v1/thaiwater30/analyst/cctv
-          python3 - <<'PY' > list.tsv
-          import json
-          d = json.load(open('t.json'))
-          def find_list(o, depth=0):
-              if isinstance(o, list) and o and isinstance(o[0], dict): return o
-              if isinstance(o, dict) and depth < 4:
-                  for v in o.values():
-                      r = find_list(v, depth + 1)
-                      if r: return r
-          want = {'10','11','12','13','14','15','16','17','18','19','20','24','40','60','72','73','74'}
-          for x in find_list(d):
-              p = (x.get('geocode') or {}).get('province_code')
-              if p in want:
-                  ag = (x.get('agency') or {})
-                  name = (ag.get('agency_shortname') or {}).get('th') if isinstance(ag.get('agency_shortname'), dict) else ag.get('agency_shortname')
-                  print('\t'.join([str(x['id']), p, x.get('title') or '', x.get('media_type') or '', x.get('cctv_url') or '', str(x.get('is_active')), str(name or ag.get('agency_name', {}).get('th') if isinstance(ag.get('agency_name'), dict) else name)]))
-          PY
-          wc -l list.tsv
-          while IFS=$'\t' read -r id p title mt url act ag; do
-            r=$(curl -sS -m 12 -A "$UA" -o img.bin -w "%{http_code} %{content_type} %{size_download}" "$url" 2>&1 | tail -1)
-            f=$(file -b img.bin 2>/dev/null | cut -c1-40)
-            echo "$id | $p | $title | $mt | $act | $ag | $r | $f | ${url:0:90}"
-          done < list.tsv
-          echo "== sample full record"
-          python3 -c "
-          import json
-          d=json.load(open('t.json'))
-          import itertools
-          def f(o,dep=0):
-              if isinstance(o,list) and o and isinstance(o[0],dict): return o
-              if isinstance(o,dict) and dep<4:
-                  for v in o.values():
-                      r=f(v,dep+1)
-                      if r: return r
-          L=f(d); x=[i for i in L if (i.get('geocode') or {}).get('province_code')=='14'][0]; print(json.dumps(x,ensure_ascii=False)[:1500])"
+          mkdir b && cd b && npm init -y >/dev/null && npm i playwright-core@1 >/dev/null 2>&1
+          cat > t.mjs <<'JS'
+          import { chromium } from 'playwright-core';
+          const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome' });
+          // หา URL ของ POPNIX Flood จากบทความข่าว
+          const a = await b.newPage();
+          await a.goto('https://www.kaohoon.com/news/general/868635', { waitUntil: 'domcontentloaded', timeout: 60000 }).catch((e) => console.log('kaohoon', e.message));
+          const links = await a.evaluate(() => [...document.querySelectorAll('a')].map((x) => x.href).filter((h) => /popnix|flood/i.test(h)));
+          console.log('POPNIX links', JSON.stringify([...new Set(links)].slice(0, 15)));
+          await a.close();
+          for (const url of ['https://cctv.maholan.net/', ...new Set(links.filter((h) => /popnix/i.test(h) && !/kaohoon/.test(h)))].slice(0, 3)) {
+            const p = await b.newPage();
+            const seen = new Map();
+            p.on('response', async (r) => {
+              const u = r.url();
+              const t = r.headers()['content-type'] ?? '';
+              if (/json|javascript-json|text\/plain/.test(t) || /\/api\/|\.json/.test(u)) {
+                if (seen.has(u)) return;
+                const body = await r.text().catch(() => '');
+                seen.set(u, body.length);
+                console.log('RESP', r.status(), t.slice(0, 30), body.length, u.slice(0, 150), '|', body.slice(0, 250).replace(/\s+/g, ' '));
+              }
+            });
+            p.on('request', (r) => { if (/m3u8|mjpe?g|jpg|jpeg|snapshot|image/i.test(r.url()) && !/\.(png|svg|ico)$/.test(r.url())) console.log('MEDIA', r.url().slice(0, 150)); });
+            console.log('=== OPEN', url);
+            await p.goto(url, { waitUntil: 'networkidle', timeout: 60000 }).catch((e) => console.log('goto', e.message));
+            await p.waitForTimeout(8000);
+            console.log('TITLE', await p.title());
+            await p.close();
+          }
+          await b.close();
+          JS
+          node t.mjs 2>&1 | head -150
