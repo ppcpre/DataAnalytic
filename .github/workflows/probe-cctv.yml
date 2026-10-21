@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# นับกล้องบนเว็บจริงแยกตามจังหวัด (รันเองจากแท็บ Actions)
+# รอบ 2: หาหน่วยงานอื่นบน StreamBridge และรายชื่อกล้องของ ThaiWater (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -12,23 +12,60 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
-      APP: https://dataanalytic.precare.workers.dev
+      UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
+      SB: https://app.streambridge.online
     steps:
-      - name: Count
+      - name: StreamBridge home and JS
+        continue-on-error: true
         run: |
-          for i in $(seq 1 30); do
-            curl -sS -m 90 -o c.json "$APP/api/cameras?ts=$(date +%s)" || true
-            n=$(python3 -c "import json; d=json.load(open('c.json'))['data']; print(sum(c['location']['province'] in ('15','16','17','18','19','60','72') for c in d))" 2>/dev/null || echo 0)
-            echo "try $i: upstream=$n"; [ "$n" -gt 0 ] && break; sleep 20
+          set +e
+          for p in "" "p" "login" "explore" "public" "map" "api/public/bangkruai-city"; do
+            curl -sS -m 15 -A "$UA" -o r.bin -w "%{http_code} %{size_download} <- /$p\n" "$SB/$p"
           done
-          python3 - <<'PY'
+          curl -sS -m 20 -A "$UA" -o home.html "$SB/"
+          curl -sS -m 20 -A "$UA" -o bk.html "$SB/p/bangkruai-city"
+          python3 -c "
+          import json; d=json.load(open('r.bin')); print('keys', list(d.keys())); print({k: d[k] for k in d if k!='cameras'})"
+          for s in $(cat home.html bk.html | grep -oE '/_next/static/chunks/[^"]+\.js' | sort -u); do
+            curl -sS -m 20 -A "$UA" -o c.js "$SB$s" || continue
+            hits=$(grep -oE '.{0,80}(/p/|/api/public|publication|organization|tenant)[^"`]{0,80}' c.js | sort -u | head -8)
+            [ -n "$hits" ] && { echo "== $s"; echo "$hits"; }
+          done
+      - name: StreamBridge slug guesses
+        continue-on-error: true
+        run: |
+          set +e
+          for s in bangkruai bangkruai-district bangkruai-municipality bangbuathong-city bangbuathong bangyai-city bangyai sainoi sainoi-city pakkret pakkret-city nonthaburi-city nonthaburi omkret bangsrimuang bangkhunkong plaibang sanambinnam bangmaenang mahasawat salaya-city salaya krathumlom omnoi omnoi-city samutprakan samutprakan-city bangphli bangphli-city bangbo phrapradaeng phrapradaeng-city lamlukka lamlukka-city khlongluang thanyaburi rangsit-city bueng-yitho buengyitho klongsam pathumthani-city nakhonpathom-city samutsakhon-city krathumbaen omyai bangkok bma demo test thailand; do
+            code=$(curl -sS -m 10 -A "$UA" -o /dev/null -w "%{http_code}" "$SB/api/public/$s"); [ "$code" != "404" ] && echo "  $s -> $code"
+          done; echo "(done)"
+      - name: ThaiWater CCTV
+        continue-on-error: true
+        run: |
+          set +e
+          T=https://api-v3.thaiwater.net/api/v1/thaiwater30
+          for p in "analyst/cctv" "public/cctv" "analyst/cctv_list" "public/cctv_list" "analyst/cctv?agency_id=" "public/waterlevel_cctv"; do
+            curl -sS -m 30 -A "$UA" -H 'Origin: https://www.thaiwater.net' -o t.json -w "%{http_code} %{size_download} <- $p\n" "$T/$p"
+            python3 - <<'PY'
           import json, collections
-          d = json.load(open('c.json'))['data']
-          print('total', len(d))
-          print(collections.Counter(c['location'].get('provinceName') or c['location']['province'] for c in d).most_common())
-          for c in d:
-              if c['location']['province'] in ('15','16','17','18','19','60','72'):
-                  r = (c.get('readings') or [{}])[0]
-                  print(' ', c['id'], c['name'], '|', c['location'].get('provinceName'), '|', c.get('road'), '|', r.get('value'), r.get('warning'), r.get('danger'))
+          try:
+              d = json.load(open('t.json'))
+          except Exception as e:
+              print('  not json'); raise SystemExit
+          def find_list(o, depth=0):
+              if isinstance(o, list) and o and isinstance(o[0], dict): return o
+              if isinstance(o, dict) and depth < 4:
+                  for v in o.values():
+                      r = find_list(v, depth + 1)
+                      if r: return r
+              return None
+          L = find_list(d)
+          if not L: print('  keys', list(d.keys())[:10] if isinstance(d, dict) else type(d)); raise SystemExit
+          print('  items', len(L), 'keys', list(L[0].keys())[:25])
+          txt = json.dumps(L, ensure_ascii=False)
+          print('  sample', json.dumps(L[0], ensure_ascii=False)[:700])
+          prov = [x.get('province_code') or (x.get('geocode') or {}).get('province_code') for x in L]
+          print('  provinces', collections.Counter(prov).most_common(15))
+          import re
+          print('  url hosts', collections.Counter(re.findall(r'https?://([^/"\\:]+)', txt)).most_common(15))
           PY
-          curl -sS -m 30 "$APP/api/links" | python3 -c "import json,sys; d=json.load(sys.stdin); print('links', [x['id'] for x in d['cameras']])"
+          done
