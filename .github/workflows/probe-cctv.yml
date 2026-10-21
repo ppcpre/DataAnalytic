@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# รอบ 2: เทียบจุดวัดคลอง/ถนนของ POPNIX Flood กับสถานีที่แอปมีอยู่ (รันเองจากแท็บ Actions)
+# ตรวจจุดวัดคลอง กทม. (POPNIX Flood) บนเว็บจริง (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -10,35 +10,44 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 12
     env:
-      UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
+      APP: https://dataanalytic.precare.workers.dev
     steps:
-      - name: Compare
+      - name: Live API
         run: |
-          curl -sS -m 30 -A "$UA" -o ov.json https://flood.pop.in.th/api_overview.php
-          curl -sS -m 30 -A "$UA" -o rd.json https://flood.pop.in.th/api_roads.php
-          curl -sS -m 60 -A "$UA" -H 'Origin: https://dataanalytic.precare.workers.dev' -o wl.json https://api-v3.thaiwater.net/api/v1/thaiwater30/public/waterlevel_load
-          curl -sS -m 60 -o cam.json https://dataanalytic.precare.workers.dev/api/cameras
+          for i in $(seq 1 30); do
+            curl -sS -m 90 -o c.json "$APP/api/cameras?ts=$(date +%s)" || true
+            n=$(python3 -c "import json; d=json.load(open('c.json'))['data']; print(sum(c['id'].startswith('pop-') for c in d))" 2>/dev/null || echo 0)
+            echo "try $i: popnix=$n"; [ "$n" -gt 0 ] && break; sleep 20
+          done
           python3 - <<'PY'
-          import json, math, collections
-          ov = json.load(open('ov.json'))['stations']; rd = json.load(open('rd.json'))['roads']
-          raw = json.load(open('wl.json')); wl = raw.get('waterlevel_data', raw).get('data') if isinstance(raw.get('waterlevel_data', raw), dict) else raw.get('data'); cams = json.load(open('cam.json'))['data']
-          print('popnix canal', len(ov), 'roads', len(rd), '| app water', len(wl), 'cams', len(cams))
-          print('canal keys', list(ov[0].keys())); print(json.dumps(ov[0], ensure_ascii=False)[:500])
-          print('road levels', collections.Counter(r['level'] for r in rd))
-          print('canal levels', collections.Counter(s.get('level') for s in ov), 'online', sum(1 for s in ov if s.get('online')))
-          def d(a, b, c, e): return math.hypot((a - c) * 111, (b - e) * 108)
-          pts = []
-          for s in wl:
-              st = s.get('station') or {}
-              try: pts.append((float(st.get('tele_station_lat')), float(st.get('tele_station_long')), str(st.get('tele_station_name'))[:40], str((s.get('agency') or {}).get('agency_shortname'))[:40], (s.get('geocode') or {}).get('province_code')))
-              except Exception: pass
-          pts = [p for p in pts if p[4] == '10']
-          print('thaiwater bkk stations', len(pts), collections.Counter(p[3] for p in pts).most_common(6))
-          near = 0
-          for s in ov:
-              m = min((d(s['lat'], s['lng'], a, b), n) for a, b, n, _, _ in pts) if pts else (99, '')
-              if m[0] < 0.15: near += 1
-          print('canal stations within 150 m of an app water station', near)
+          import json, collections
+          d = json.load(open('c.json'))['data']
+          p = [c for c in d if c['id'].startswith('pop-')]
+          print('total', len(d), 'popnix', len(p), 'canals', sum(c['id'].startswith('pop-c') for c in p), 'roads', sum(c['id'].startswith('pop-r') for c in p))
+          def lv(c):
+              r = c['readings'][0]
+              return 'critical' if r.get('danger') is not None and r['value'] >= r['danger'] else 'watch' if r.get('warning') is not None and r['value'] >= r['warning'] else 'normal'
+          print('levels', collections.Counter(lv(c) for c in p))
+          for c in [c for c in p if lv(c) == 'critical'][:8]: print('  crit', c['id'], c['name'], c['readings'][0])
           PY
+      - name: Chrome sheet
+        run: |
+          mkdir b && cd b && npm init -y >/dev/null && npm i playwright-core@1 >/dev/null 2>&1
+          id=$(python3 -c "import json; d=json.load(open('../c.json'))['data']; print(next(c['id'] for c in d if c['id'].startswith('pop-c')))")
+          cat > t.mjs <<'JS'
+          import { chromium } from 'playwright-core';
+          const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome' });
+          const p = await b.newPage({ viewport: { width: 390, height: 844 } });
+          await p.goto(`${process.env.APP}/?cam=${process.env.ID}`, { waitUntil: 'domcontentloaded' });
+          await p.waitForSelector('#sheet [data-chart-hours="168"]', { timeout: 60000 });
+          await p.waitForTimeout(6000);
+          const info = () => p.evaluate(() => { const s = document.getElementById('sheet'); const svg = s.querySelector('.chart-host svg'); return { title: s.querySelector('.sheet-title')?.textContent, tiles: [...s.querySelectorAll('.tile')].map((e) => e.textContent.replace(/\s+/g, ' ')), chart: svg ? svg.getAttribute('aria-label') : s.querySelector('.chart-host')?.textContent?.trim(), captions: [...s.querySelectorAll('.btn-caption')].map((e) => e.textContent) }; });
+          console.log('SHEET 24h', JSON.stringify(await info()));
+          await p.click('#sheet [data-chart-hours="168"]');
+          await p.waitForTimeout(6000);
+          console.log('SHEET 7d', JSON.stringify((await info()).chart));
+          await b.close();
+          JS
+          ID=$id node t.mjs
