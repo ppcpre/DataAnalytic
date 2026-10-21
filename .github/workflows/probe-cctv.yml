@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# รอบ 2: อ่านหน้า "ข้อมูลเปิดและ API" ของ POPNIX Flood (รันเองจากแท็บ Actions)
+# รอบ 2: เทียบจุดวัดคลอง/ถนนของ POPNIX Flood กับสถานีที่แอปมีอยู่ (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -13,24 +13,28 @@ jobs:
     timeout-minutes: 8
     env:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
-      P: https://flood.pop.in.th
     steps:
-      - name: API page text
+      - name: Compare
         run: |
-          set +e
-          curl -sS -m 30 -A "$UA" -L -o api.html "$P/api/"
+          curl -sS -m 30 -A "$UA" -o ov.json https://flood.pop.in.th/api_overview.php
+          curl -sS -m 30 -A "$UA" -o rd.json https://flood.pop.in.th/api_roads.php
+          curl -sS -m 60 -o wl.json https://dataanalytic.precare.workers.dev/api/water-level
+          curl -sS -m 60 -o cam.json https://dataanalytic.precare.workers.dev/api/cameras
           python3 - <<'PY'
-          import re, html
-          h = open('api.html', encoding='utf-8', errors='replace').read()
-          h = re.sub(r'<(script|style)[^>]*>.*?</\1>', ' ', h, flags=re.S)
-          t = html.unescape(re.sub(r'<[^>]+>', '\n', h))
-          t = re.sub(r'\n\s*\n+', '\n', t)
-          print(t[:9000])
+          import json, math, collections
+          ov = json.load(open('ov.json'))['stations']; rd = json.load(open('rd.json'))['roads']
+          wl = json.load(open('wl.json'))['data']; cams = json.load(open('cam.json'))['data']
+          print('popnix canal', len(ov), 'roads', len(rd), '| app water', len(wl), 'cams', len(cams))
+          print('canal keys', list(ov[0].keys())); print(json.dumps(ov[0], ensure_ascii=False)[:500])
+          print('road levels', collections.Counter(r['level'] for r in rd))
+          print('canal levels', collections.Counter(s.get('level') for s in ov), 'online', sum(1 for s in ov if s.get('online')))
+          def d(a, b, c, e): return math.hypot((a - c) * 111, (b - e) * 108)
+          pts = [(s['location']['lat'], s['location']['lng'], s['name']) for s in wl]
+          near = 0
+          for s in ov:
+              m = min((d(s['lat'], s['lng'], a, b), n) for a, b, n in pts) if pts else (99, '')
+              if m[0] < 0.15: near += 1
+          print('canal stations within 150 m of an app water station', near)
+          print('app water by agency', collections.Counter(s.get('agency') or s.get('owner') or '?' for s in wl).most_common(8))
+          print('sample app station', json.dumps(wl[0], ensure_ascii=False)[:300])
           PY
-          for f in dds pkk doh; do
-            curl -sS -m 30 -A "$UA" -o $f.json "$P/cctv/$f.json"
-            python3 -c "
-          import json,collections; d=json.load(open('$f.json')); c=d['cams']
-          box=[x for x in c if 13.4<=x['lat']<=14.3 and 100.1<=x['lng']<=100.95]
-          print('$f', 'total', len(c), 'bkk-area', len(box), 'with img', sum(1 for x in box if x.get('img')))"
-          done
