@@ -44,6 +44,8 @@ export interface Config {
     bmaTraffic: 'auto' | 'on' | 'off';
     /** กล้องที่สถานีโทรมาตรของกรมทรัพยากรน้ำ (telemetry.dwr.go.th) — false = ปิด */
     dwr: boolean;
+    /** ระดับน้ำคลองและน้ำท่วมถนน กทม. ผ่าน POPNIX Flood — false = ปิด */
+    popnix: boolean;
   };
   floodhub: {
     /** API key ของ Google Flood Forecasting API — ว่าง = ปิดชั้นข้อมูลนี้ */
@@ -98,6 +100,7 @@ export function loadConfig(env: Env = process.env): Config {
       rangsit: env.RANGSIT_LIVE !== 'false',
       bmaTraffic: env.BMA_TRAFFIC === 'on' || env.BMA_TRAFFIC === 'auto' ? env.BMA_TRAFFIC : 'off',
       dwr: env.DWR_LIVE !== 'false',
+      popnix: env.POPNIX_LIVE !== 'false',
     },
     floodhub: {
       apiKey: env.GOOGLE_FLOOD_API_KEY ?? '',

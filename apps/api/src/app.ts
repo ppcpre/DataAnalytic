@@ -12,6 +12,15 @@ import { parseLongdoCameras } from './adapters/longdo.js';
 import { PAKKRET_EON_URL, parsePakkretEon } from './adapters/pakkret.js';
 import { parseRangsit, RANGSIT_PAGE } from './adapters/rangsit.js';
 import {
+  parsePopnixCanals,
+  parsePopnixHistory,
+  parsePopnixRoads,
+  POPNIX_CANAL_ID,
+  POPNIX_CANALS_URL,
+  POPNIX_ROADS_URL,
+  popnixHistoryUrl,
+} from './adapters/popnix.js';
+import {
   DWR_CODE,
   DWR_IMAGE_URL,
   DWR_LIST_BODY,
@@ -462,12 +471,12 @@ export function createApp(
     '/api/cameras',
     serve({
       key: 'cameras',
-      source: 'Longdo Traffic / มูลนิธิ iTIC / เทศบาลนครนนทบุรี / StreamBridge / เทศบาลนครรังสิต / กรมทรัพยากรน้ำ',
+      source: 'Longdo Traffic / มูลนิธิ iTIC / เทศบาลนครนนทบุรี / StreamBridge / เทศบาลนครรังสิต / กรมทรัพยากรน้ำ / สำนักการระบายน้ำ กทม. (POPNIX Flood)',
       enabled: () => true,
       load: async () => {
         const url = config.cameras.listUrl;
         // ดึงแต่ละแหล่งแยกกัน แหล่งใดล่ม ยังแสดงกล้อง/จุดวัดจากแหล่งอื่นได้
-        const [fromList, fromNont, fromPakkret, fromStreamBridge, fromRangsit, fromBma, fromDwr] = await Promise.all([
+        const [fromList, fromNont, fromPakkret, fromStreamBridge, fromRangsit, fromBma, fromDwr, fromPopnix] = await Promise.all([
           (url ? cameraCache.get('longdo-cameras', () => getJson(url)) : Promise.resolve({ value: null }))
             .then((r) => parseLongdoCameras(r.value))
             .catch((err: unknown) => {
@@ -525,9 +534,26 @@ export function createApp(
             console.error('[cameras] dwr', err);
             return [] as Camera[];
           }),
+          // ระดับน้ำคลองและน้ำท่วมถนน กทม. (สำนักการระบายน้ำ ผ่าน POPNIX Flood) — กราฟย้อนหลังดึงจากต้นทาง ไม่เก็บลง D1
+          (config.cameras.popnix
+            ? Promise.all([
+                cache.get('popnix-canals', async () => parsePopnixCanals(await getJson(POPNIX_CANALS_URL))).then((r) => r.value),
+                cache
+                  .get('popnix-roads', async () => parsePopnixRoads(await getJson(POPNIX_ROADS_URL)))
+                  .then((r) => r.value)
+                  .catch((err: unknown) => {
+                    console.error('[cameras] popnix roads', err);
+                    return [] as Camera[];
+                  }),
+              ]).then(([canals, roads]) => [...roads, ...canals])
+            : Promise.resolve([] as Camera[])
+          ).catch((err: unknown) => {
+            console.error('[cameras] popnix', err);
+            return [] as Camera[];
+          }),
         ]);
         const own = new Set(CAMERAS.map((c) => c.id));
-        return [...CAMERAS, ...fromPakkret, ...fromNont, ...fromStreamBridge, ...fromRangsit, ...fromBma, ...fromDwr, ...fromList.filter((c) => !own.has(c.id))];
+        return [...CAMERAS, ...fromPakkret, ...fromNont, ...fromStreamBridge, ...fromRangsit, ...fromBma, ...fromDwr, ...fromPopnix, ...fromList.filter((c) => !own.has(c.id))];
       },
       sample: sampleCameras,
     }),
@@ -569,6 +595,18 @@ export function createApp(
         const first = data.length ? data[0].t : Infinity;
         for (const p of past) if (p.t >= since && p.t < first) data.push({ t: p.t, levelMsl: p.level, percent: null });
         data.sort((a, b) => a.t - b.t);
+      }
+      // จุดวัดคลอง กทม.: ใช้ประวัติจาก POPNIX Flood (ไม่ได้เก็บเอง)
+      const pop = /^pop-c(\d+)$/.exec(id);
+      if (pop && POPNIX_CANAL_ID.test(pop[1]) && config.cameras.popnix) {
+        const past = await cache
+          .get(`popnix-history:${pop[1]}:${hours}`, async () => parsePopnixHistory(await getJson(popnixHistoryUrl(pop[1], hours))))
+          .then((r) => r.value)
+          .catch((err: unknown) => {
+            console.error('[history] popnix', err);
+            return [];
+          });
+        for (const p of past) if (p.t >= since) data.push({ t: p.t, levelMsl: p.level, percent: null });
       }
       return c.json({
         data: data.map((r) => ({ ...r, t: new Date(r.t).toISOString() })),

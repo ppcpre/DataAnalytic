@@ -655,7 +655,13 @@ function cameraSheet(c: Camera): string {
     <a class="btn-primary" href="${escapeHtml(c.url)}" target="_blank" rel="noopener noreferrer">${
       hasCameraMedia(c) || c.kind === 'water' ? 'เปิดดูในเว็บต้นทาง' : 'ดูภาพกล้องนี้'
     } ${icons.external()}</a>
-    <span class="btn-caption">${c.via ? `เปิดใน ${escapeHtml(c.via)} · กล้องของ ${escapeHtml(c.owner)}` : `เปิดในเว็บของ ${escapeHtml(c.owner)}`}</span>`;
+    <span class="btn-caption">${
+      c.attribution
+        ? escapeHtml(c.attribution)
+        : c.via
+          ? `เปิดใน ${escapeHtml(c.via)} · กล้องของ ${escapeHtml(c.owner)}`
+          : `เปิดในเว็บของ ${escapeHtml(c.owner)}`
+    }</span>`;
 }
 
 function nearbyInputs(): NearbyInput[] {
