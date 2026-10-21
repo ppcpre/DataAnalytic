@@ -1,11 +1,9 @@
 name: Probe CCTV sources
 
 # ตรวจจุดวัดคลอง กทม. (POPNIX Flood) บนเว็บจริง (รันเองจากแท็บ Actions)
+# ใช้สำรวจแหล่งข้อมูลระหว่างพัฒนาเท่านั้น — รันเองจากแท็บ Actions (ไม่รันอัตโนมัติเมื่อ push)
 on:
   workflow_dispatch:
-  push:
-    branches: [claude/progressive-web-flood-data-m8f1ov]
-    paths: [.github/workflows/probe-cctv.yml]
 
 jobs:
   probe:
