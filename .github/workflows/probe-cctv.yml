@@ -1,6 +1,6 @@
 name: Probe CCTV sources
 
-# รอบ 2: ดูที่มาของภาพและเงื่อนไขการใช้ข้อมูลของ POPNIX Flood (รันเองจากแท็บ Actions)
+# รอบ 2: อ่านหน้า "ข้อมูลเปิดและ API" ของ POPNIX Flood (รันเองจากแท็บ Actions)
 on:
   workflow_dispatch:
   push:
@@ -10,43 +10,27 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 8
     env:
       UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
       P: https://flood.pop.in.th
     steps:
-      - name: Counts and terms
-        continue-on-error: true
+      - name: API page text
         run: |
           set +e
+          curl -sS -m 30 -A "$UA" -L -o api.html "$P/api/"
+          python3 - <<'PY'
+          import re, html
+          h = open('api.html', encoding='utf-8', errors='replace').read()
+          h = re.sub(r'<(script|style)[^>]*>.*?</\1>', ' ', h, flags=re.S)
+          t = html.unescape(re.sub(r'<[^>]+>', '\n', h))
+          t = re.sub(r'\n\s*\n+', '\n', t)
+          print(t[:9000])
+          PY
           for f in dds pkk doh; do
             curl -sS -m 30 -A "$UA" -o $f.json "$P/cctv/$f.json"
             python3 -c "
           import json,collections; d=json.load(open('$f.json')); c=d['cams']
           box=[x for x in c if 13.4<=x['lat']<=14.3 and 100.1<=x['lng']<=100.95]
-          print('$f', 'total', len(c), 'bkk-area', len(box), 'with img', sum(1 for x in box if x.get('img')), 'keys', list(c[0].keys()))
-          print('  ', collections.Counter(x.get('province') or x.get('detail') for x in box).most_common(8))"
+          print('$f', 'total', len(c), 'bkk-area', len(box), 'with img', sum(1 for x in box if x.get('img')))"
           done
-          curl -sS -m 30 -A "$UA" -o home.html "$P/"
-          grep -oiE '.{0,120}(license|สัญญาอนุญาต|CC BY|เงื่อนไข|terms|ข้อตกลง|ห้าม|api)[^<]{0,160}' home.html | sort -u | head -20
-          for p in about about.php terms terms.php api api.php privacy.php; do curl -sS -m 15 -A "$UA" -o /dev/null -w "%{http_code} <- /$p\n" "$P/$p"; done
-      - name: Image URL pattern in Chrome
-        continue-on-error: true
-        run: |
-          mkdir b && cd b && npm init -y >/dev/null && npm i playwright-core@1 >/dev/null 2>&1
-          cat > t.mjs <<'JS'
-          import { chromium } from 'playwright-core';
-          const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome' });
-          const p = await b.newPage({ viewport: { width: 1280, height: 900 } });
-          const seen = new Set();
-          p.on('request', (r) => { const u = r.url(); if (r.resourceType() === 'image' && !/tile|\.png$|\.svg|favicon|radar/.test(u) && !seen.has(u.split('?')[0])) { seen.add(u.split('?')[0]); if (seen.size < 25) console.log('IMG', u.slice(0, 160)); } });
-          await p.goto(process.env.P + '/', { waitUntil: 'networkidle', timeout: 60000 }).catch(() => {});
-          for (const sel of ['text=กล้อง CCTV ถนน', 'text=กล้องทั้งประเทศ', 'text=กล้องใกล้ฉัน']) {
-            await p.click(sel, { timeout: 5000 }).catch(() => {});
-            await p.waitForTimeout(5000);
-          }
-          const links = await p.evaluate(() => [...document.querySelectorAll('a')].map((a) => a.href + ' ' + a.textContent.trim().slice(0, 30)).filter((t) => /about|terms|license|เกี่ยวกับ|ที่มา|แหล่งข้อมูล|api/i.test(t)));
-          console.log('LINKS', JSON.stringify([...new Set(links)].slice(0, 15)));
-          await b.close();
-          JS
-          P=$P node t.mjs
