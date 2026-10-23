@@ -2,6 +2,7 @@ import { serve } from '@hono/node-server';
 import { createApp } from './app.js';
 import { loadConfig } from './config.js';
 import { NONT_BASE } from './adapters/nonthaburi.js';
+import { relayGet } from './relay.js';
 
 const config = loadConfig();
 const app = createApp(config, undefined, undefined, {
@@ -14,6 +15,10 @@ const app = createApp(config, undefined, undefined, {
       body: new Uint8Array(await res.arrayBuffer()),
     };
   },
+  // ใช้ relay เดียวกับ Workers ได้ถ้าตั้ง RELAY_URL/RELAY_KEY (ไม่ตั้ง = ใช้ getText/getImage ตรง)
+  ...(process.env.RELAY_URL && process.env.RELAY_KEY
+    ? { bmaGet: (path: string) => relayGet(process.env.RELAY_URL!, process.env.RELAY_KEY!, 'bmatraffic', path), bmaVia: 'relay' }
+    : {}),
 });
 
 serve({ fetch: app.fetch, port: config.port }, (info) => {

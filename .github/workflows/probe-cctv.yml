@@ -1,32 +1,33 @@
 name: Probe CCTV sources
 
 # ใช้สำรวจแหล่งข้อมูลระหว่างพัฒนาเท่านั้น — รันเองจากแท็บ Actions (ไม่รันอัตโนมัติเมื่อ push)
-# รอบ 3: กล้องกรมทางหลวงที่มูลนิธิ iTIC ให้บริการภาพ (รหัส PER-…)
+# ทดสอบ relay ทั้งระบบ: build Docker image → รัน relay → รัน API ด้วย RELAY_URL → ตรวจ /api/bma/status
 on:
   workflow_dispatch:
 
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    env:
-      UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
-      I: https://camera1.iticfoundation.org
+    timeout-minutes: 15
     steps:
-      - name: iTIC DOH cameras
+      - uses: actions/checkout@v4
+      - name: Build and run the relay image
         run: |
-          set +e
-          for p in "" "index.php" "list.php" "camlist.php" "cameras.json" "camera.json" "api/cameras" "doh.json" \
-                   "jpeg.cgi?camid=PER-3-005" "jpeg.cgi?camid=PER-3-008_2" "jpeg2.php?camid=PER-3-005" "mjpeg.php?camid=PER-3-008_2" "hls/PER-3-005.m3u8"; do
-            curl -sS -m 12 -A "$UA" -o r.bin -w "%{http_code} %{content_type} %{size_download} <- /$p\n" "$I/$p"
-            file -b r.bin | cut -c1-60; head -c 200 r.bin | strings | head -3
-          done
-          echo "== other iTIC hosts"
-          for u in https://camera.iticfoundation.org/ https://cctv.iticfoundation.org/ https://api.iticfoundation.org/ https://traffic.iticfoundation.org/ https://www.iticfoundation.org/camera ; do
-            curl -sS -m 12 -A "$UA" -k -o /dev/null -w "%{http_code} <- $u\n" "$u" 2>&1 | tail -1
-          done
-          echo "== Longdo camera.json organizations / non-motion ids"
-          curl -sS -m 20 -A "$UA" -o l.json https://traffic.longdo.com/camera.json
-          python3 -c "
-          import json,collections; d=json.load(open('l.json'))['item']
-          print(collections.Counter(x.get('organization') for x in d)); print(collections.Counter(x['camid'][:6] for x in d).most_common(8))"
+          docker build -f apps/api/Dockerfile.relay -t flood-watch-relay .
+          KEY=$(openssl rand -base64 32); echo "::add-mask::$KEY"; echo "KEY=$KEY" >> $GITHUB_ENV
+          docker run -d --name relay -p 127.0.0.1:8788:8788 -e RELAY_KEY="$KEY" flood-watch-relay
+          sleep 3; curl -sS http://127.0.0.1:8788/health; echo
+          curl -sS -o /dev/null -w "no key -> %{http_code}\n" "http://127.0.0.1:8788/bmatraffic?path=/"
+          curl -sS -H "x-relay-key: $KEY" -o page.html -w "page via relay -> %{http_code} %{size_download}\n" "http://127.0.0.1:8788/bmatraffic?path=/"
+          docker image ls flood-watch-relay --format '{{.Size}}'
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: API through the relay
+        run: |
+          npm ci >/dev/null 2>&1
+          npm run build --workspace @flood-watch/api >/dev/null
+          RELAY_URL=http://127.0.0.1:8788 RELAY_KEY="$KEY" PORT=8787 node apps/api/dist/server.js > api.log 2>&1 &
+          sleep 4
+          curl -sS -m 120 http://127.0.0.1:8787/api/bma/status; echo
+          curl -sS -m 60 -o /dev/null -w "bma image proxy -> %{http_code}\n" "http://127.0.0.1:8787/api/bma/image?id=1692"
+          tail -5 api.log; docker logs relay 2>&1 | tail -5

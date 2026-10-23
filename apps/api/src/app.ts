@@ -118,6 +118,8 @@ export interface AppDeps {
    * ไม่ระบุ = ใช้ getText/getImage
    */
   bmaGet?: (path: string) => Promise<RawResponse>;
+  /** ชื่อเส้นทางของ bmaGet สำหรับแสดงสถานะ เช่น relay / socket */
+  bmaVia?: string;
   /** เปิดสตรีมภาพสด — ค่าเริ่มต้นใช้ fetch */
   openStream?: (url: string, signal?: AbortSignal) => Promise<Response>;
 }
@@ -295,6 +297,8 @@ export function createApp(
     return out;
   };
   const bmaGet = deps.bmaGet;
+  /** เส้นทางที่ใช้เรียก bmatraffic.com (บอกใน /api/bma/status) */
+  const bmaVia = deps.bmaVia ?? (bmaGet ? 'socket' : 'fetch');
   const bmaPage = async () => {
     if (!bmaGet) return getText(`${BMA_TRAFFIC_BASE}/`);
     const res = await bmaGet('/');
@@ -421,11 +425,11 @@ export function createApp(
     if (mode === 'off') return c.json({ mode, show: false });
     try {
       const s = await bmaTraffic();
-      return c.json({ mode, show: mode === 'on' || s.live, live: s.live, cameras: s.cameras.length, checkedAt: s.checkedAt });
+      return c.json({ mode, show: mode === 'on' || s.live, live: s.live, cameras: s.cameras.length, checkedAt: s.checkedAt, via: bmaVia });
     } catch (err) {
       console.error('[bmatraffic] status', err);
       return c.json(
-        { mode, show: false, error: 'ดึงรายชื่อกล้องไม่สำเร็จ', detail: (err as Error).message?.slice(0, 200), via: bmaGet ? 'socket' : 'fetch' },
+        { mode, show: false, error: 'ดึงรายชื่อกล้องไม่สำเร็จ', detail: (err as Error).message?.slice(0, 200), via: bmaVia },
         502,
       );
     }

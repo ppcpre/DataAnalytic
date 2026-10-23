@@ -38,8 +38,8 @@ export interface Config {
     rangsit: boolean;
     /**
      * กล้องจราจร กทม. (bmatraffic.com): auto = แสดงเมื่อสุ่มตรวจแล้วต้นทางส่งภาพจริง,
-     * on = แสดงเสมอ, off = ปิด (ค่าเริ่มต้น — ต.ค. 2569 ต้นทางไม่ตอบการเชื่อมต่อจาก Cloudflare Workers
-     * ทั้ง fetch และ TCP socket จึงเปิดได้เฉพาะเมื่อรัน API บนเครื่องที่ต้นทางยอมให้เข้าถึง)
+     * on = แสดงเสมอ, off = ปิด — ค่าเริ่มต้น off แต่เป็น auto เมื่อตั้ง RELAY_URL/RELAY_KEY
+     * (ต.ค. 2569 ต้นทางไม่ตอบการเชื่อมต่อจาก Cloudflare Workers ทั้ง fetch และ TCP socket จึงต้องผ่าน relay ในไทย)
      */
     bmaTraffic: 'auto' | 'on' | 'off';
     /** กล้องที่สถานีโทรมาตรของกรมทรัพยากรน้ำ (telemetry.dwr.go.th) — false = ปิด */
@@ -98,7 +98,13 @@ export function loadConfig(env: Env = process.env): Config {
         .map((x) => x.trim())
         .filter(Boolean),
       rangsit: env.RANGSIT_LIVE !== 'false',
-      bmaTraffic: env.BMA_TRAFFIC === 'on' || env.BMA_TRAFFIC === 'auto' ? env.BMA_TRAFFIC : 'off',
+      // มี relay ในไทยแล้ว → เปิดแบบ auto เป็นค่าเริ่มต้น (แสดงเมื่อต้นทางส่งภาพจริง)
+      bmaTraffic:
+        env.BMA_TRAFFIC === 'on' || env.BMA_TRAFFIC === 'auto' || env.BMA_TRAFFIC === 'off'
+          ? env.BMA_TRAFFIC
+          : env.RELAY_URL && env.RELAY_KEY
+            ? 'auto'
+            : 'off',
       dwr: env.DWR_LIVE !== 'false',
       popnix: env.POPNIX_LIVE !== 'false',
     },
