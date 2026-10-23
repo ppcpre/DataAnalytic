@@ -149,6 +149,7 @@ API ดึงรายชื่อกล้องชั่วโมงละค�
   ต.ค. 2569 ต้นทางปิดปรับปรุงและส่งภาพขาวล้วน และไม่ตอบการเชื่อมต่อจาก Cloudflare Workers (ทั้ง fetch และ TCP socket — ค้างจนหมดเวลา)
   จึงปิดไว้เป็นค่าเริ่มต้น (`BMA_TRAFFIC=off`); `auto` = สุ่มตรวจภาพทุกชั่วโมงและแสดงเมื่อได้ภาพจริง (JPEG), `on` = แสดงเสมอ
   ดูสถานะที่ `/api/bma/status` (ถ้าเปิดแล้วดึงไม่ได้ จะบอกสาเหตุใน `detail`)
+  **ทางแก้: relay บนเครื่องในไทย** — ตั้ง `RELAY_URL` / `RELAY_KEY` แล้ว Worker จะดึงผ่าน relay และเปิดกล้องชุดนี้แบบ auto เอง ดูขั้นตอนใน [docs/RELAY.md](docs/RELAY.md)
 - **กล้องสถานีโทรมาตร กรมทรัพยากรน้ำ** (`https://telemetry.dwr.go.th`) — รายชื่อ `POST /api/public/reportCctv/listPaginate`, รายละเอียด `GET /api/public/station/getByCode/<code>` (พิกัด ระดับน้ำ เกณฑ์เตือนภัย)
   ภาพสด MJPEG `/cctv/mjpeg/<code>`; ภาพนิ่งล่าสุด (ทุก ~15 นาที) ผ่าน `/api/dwr/image?code=` (ต้นทางให้ภาพด้วย POST); เก็บประวัติระดับน้ำเป็น `dwr-<code>`; ปิดด้วย `DWR_LIVE=false`
 - **ระดับน้ำคลองและน้ำท่วมถนน กทม.** — จุดวัดของสำนักการระบายน้ำ ผ่าน API เปิดของ [POPNIX Flood](https://flood.pop.in.th/api/) (`api_overview.php`, `api_roads.php`, `api_history.php`)
