@@ -48,7 +48,37 @@ RELAY_KEY='<กุญแจ>' PORT=8788 node apps/api/dist/relay.js
 
 ## 4. เปิดให้ Worker เรียกได้ทาง HTTPS
 
-Worker ต้องเรียก relay ด้วยชื่อโดเมน (เรียก IP ตรง ๆ ไม่ได้) — ทางที่ง่ายที่สุดคือ **Cloudflare Tunnel** (ฟรี ไม่ต้องเปิดพอร์ต):
+Worker ต้องเรียก relay ด้วย **ชื่อโดเมนแบบ HTTPS** (เรียก IP ตรง ๆ ไม่ได้) — ไม่มีโดเมนของตัวเองก็ได้ เลือกตามชนิดเครื่อง:
+
+### ก. คอมพิวเตอร์ / Raspberry Pi ที่บ้านหรือที่ทำงาน → Tailscale Funnel (ฟรี ไม่ต้องมีโดเมน ไม่ต้องเปิดพอร์ต)
+
+ใช้ได้แม้เน็ตบ้านจะเป็น CGNAT (ไม่มี IP สาธารณะ) ได้ชื่อถาวรรูปแบบ `https://<ชื่อเครื่อง>.<tailnet>.ts.net`
+
+```sh
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up                       # ล็อกอินบัญชี Tailscale (ฟรี) ตามลิงก์ที่ขึ้น
+sudo tailscale funnel --bg 8788         # เปิด relay (พอร์ต 8788) ออกอินเทอร์เน็ตทาง HTTPS
+tailscale funnel status                 # จด URL https://….ts.net ไว้ใช้ในข้อ 5
+```
+
+(ครั้งแรกอาจต้องกดเปิดใช้ Funnel ในหน้า admin ของ Tailscale ตามลิงก์ที่คำสั่งแจ้ง)
+
+### ข. VPS ที่มี IP สาธารณะ → DuckDNS + Caddy (ฟรี)
+
+1. สมัคร https://www.duckdns.org (ล็อกอินด้วย Google/GitHub) ตั้งชื่อเช่น `floodrelay` แล้วใส่ IP ของ VPS
+   → ได้ชื่อ `floodrelay.duckdns.org`
+2. เปิดพอร์ต 80 และ 443 บน VPS แล้วติดตั้ง Caddy (ออกใบรับรอง HTTPS ให้อัตโนมัติ):
+
+```sh
+sudo apt install -y caddy
+echo 'floodrelay.duckdns.org {
+  reverse_proxy 127.0.0.1:8788
+}' | sudo tee /etc/caddy/Caddyfile
+sudo systemctl reload caddy
+curl https://floodrelay.duckdns.org/health   # → {"ok":true,...}
+```
+
+### ค. มีโดเมนบน Cloudflare (ถ้าซื้อภายหลัง ~350 บาท/ปี) → Cloudflare Tunnel
 
 ```sh
 cloudflared tunnel login
@@ -57,12 +87,12 @@ cloudflared tunnel route dns flood-relay relay.<โดเมนของคุ�
 cloudflared tunnel run --url http://127.0.0.1:8788 flood-relay
 ```
 
-(ต้องมีโดเมนที่อยู่บน Cloudflare; ถ้าไม่มี ใช้ VPS ที่มีโดเมน + HTTPS เช่น Caddy reverse proxy แทนได้)
+> ไม่แนะนำ "quick tunnel" (`*.trycloudflare.com`) เพราะ URL เปลี่ยนทุกครั้งที่รันใหม่ ต้องตั้งค่า Worker ใหม่ทุกครั้ง
 
 ## 5. ตั้งค่า Worker
 
 ```sh
-npx wrangler secret put RELAY_URL   # เช่น https://relay.<โดเมนของคุณ>
+npx wrangler secret put RELAY_URL   # เช่น https://floodrelay.duckdns.org หรือ https://<เครื่อง>.<tailnet>.ts.net
 npx wrangler secret put RELAY_KEY   # กุญแจเดียวกับข้อ 2
 ```
 
