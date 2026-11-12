@@ -34,6 +34,10 @@ export default defineConfig({
   server: {
     proxy: { '/api': 'http://localhost:8787' },
   },
+  build: {
+    // หน้าหลัก + หน้าตรวจสถานะกล้อง (/status)
+    rollupOptions: { input: { main: 'index.html', status: 'status.html' } },
+  },
   plugins: [
     maplibreWorker(),
     VitePWA({
@@ -59,6 +63,8 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         globPatterns: ['**/*.{js,mjs,css,html,png,svg,webmanifest}'],
         navigateFallback: 'index.html',
+        // หน้าตรวจสถานะกล้องเป็นหน้าแยก ไม่ใช่หน้าหลักของแอป
+        navigateFallbackDenylist: [/^\/status(\.html)?$/],
         runtimeCaching: [
           {
             // ข้อมูลล่าสุด: พยายามดึงใหม่ก่อน ถ้าออฟไลน์ใช้ชุดล่าสุดที่เคยโหลด

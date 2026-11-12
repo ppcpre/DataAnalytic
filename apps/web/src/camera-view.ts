@@ -10,8 +10,8 @@ import { apiUrl } from './api';
  * (กล้องกรมทางหลวงผ่าน iTIC ส่งภาพ MJPEG/ภาพนิ่งว่างเปล่า มีเฉพาะ HLS)
  */
 
-type SourceKind = 'hls' | 'mjpeg' | 'clip' | 'still' | 'page';
-interface Source {
+export type SourceKind = 'hls' | 'mjpeg' | 'clip' | 'still' | 'page';
+export interface Source {
   kind: SourceKind;
   url: string;
   /** ลิงก์ที่ต้องขอก่อนเล่น (เช่น session ภาพสดที่มีอายุ) — ได้ URL จริงจากค่า hlsUrl ที่ตอบกลับ */
@@ -44,7 +44,8 @@ const LABEL: Record<SourceKind | 'loading' | 'off', string> = {
   off: 'ไม่มีภาพ',
 };
 
-function sourcesOf(c: Camera): Source[] {
+/** แหล่งภาพของกล้องตามลำดับที่หน้าต่างกล้องลอง (ใช้ร่วมกับหน้าตรวจสถานะกล้อง /status) */
+export function sourcesOf(c: Camera): Source[] {
   const list: Source[] = [];
   if (c.hlsUrl) list.push({ kind: 'hls', url: c.hlsUrl });
   else if (c.hlsSessionUrl) {

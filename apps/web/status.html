@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#F4F1EA" />
+    <meta name="robots" content="noindex" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mitr:wght@300;400;500;600&display=swap" />
+    <title>ตรวจสถานะกล้อง · Pre-Monitoring</title>
+  </head>
+  <body>
+    <main class="st-page">
+      <header class="st-head">
+        <a class="st-back" href="/">← กลับไปที่แผนที่</a>
+        <h1>ตรวจสถานะกล้อง</h1>
+        <p class="st-lead">
+          กดเริ่มตรวจแล้วเครื่องนี้จะลองเปิดภาพของกล้องทุกตัวแบบเดียวกับหน้าต่างกล้องในแอป
+          (วิดีโอสด → ภาพเคลื่อนไหว → ภาพนิ่ง) ผลจึงตรงกับที่ผู้ใช้ในพื้นที่เดียวกับเครื่องนี้เห็น
+        </p>
+      </header>
+
+      <section class="st-controls" aria-label="การตรวจ">
+        <button id="st-start" class="st-btn" type="button">เริ่มตรวจ</button>
+        <label class="st-check"><input id="st-skip" type="checkbox" checked /> ข้ามจุดวัดระดับน้ำที่ไม่มีกล้อง</label>
+        <div class="st-progress" hidden>
+          <div class="st-bar"><i id="st-bar"></i></div>
+          <span id="st-count" role="status"></span>
+        </div>
+      </section>
+
+      <section id="st-summary" class="st-card" hidden>
+        <h2>สรุปตามแหล่งข้อมูล</h2>
+        <div class="st-table-wrap">
+          <table class="st-table">
+            <thead>
+              <tr><th>แหล่ง</th><th>ภาพสด</th><th>ภาพนิ่ง</th><th>หน้าเว็บ</th><th>ไม่มีภาพ</th><th>รวม</th></tr>
+            </thead>
+            <tbody id="st-rows"></tbody>
+          </table>
+        </div>
+        <p class="st-note" id="st-note"></p>
+      </section>
+
+      <section id="st-list" class="st-card" hidden>
+        <div class="st-list-head">
+          <h2 id="st-list-title">กล้องที่ไม่มีภาพ</h2>
+          <label class="st-check"><input id="st-all" type="checkbox" /> แสดงทุกกล้อง</label>
+        </div>
+        <ul id="st-items" class="st-items"></ul>
+      </section>
+    </main>
+    <script type="module" src="/src/status.ts"></script>
+  </body>
+</html>

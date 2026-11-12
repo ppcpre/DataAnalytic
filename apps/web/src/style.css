@@ -481,6 +481,7 @@ button.link-card { width: 100%; text-align: left; font: inherit; color: inherit;
 .link-name { font-weight: 600; font-size: 0.95rem; }
 .link-desc { font-size: 0.78rem; color: var(--muted); line-height: 1.45; }
 .link-card > svg { color: var(--muted); }
+.status-link { margin: 10px 0 14px; }
 .tag { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 6px; border: 1px solid var(--line); font-size: 0.7rem; font-weight: 400; color: var(--muted); }
 .tips { padding: 14px; border-radius: 16px; background: var(--st-watch-bg); color: var(--st-watch-ink); }
 .tips h2 { font-size: 1rem; }
