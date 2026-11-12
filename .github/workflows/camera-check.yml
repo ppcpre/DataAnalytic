@@ -1,0 +1,40 @@
+name: Camera check (live site)
+
+# ตรวจกล้องทุกตัวบนเว็บที่ deploy แล้ว: ลิงก์ภาพ/วิดีโอตอบหรือไม่ และเปิดหน้าต่างกล้องใน Chrome แล้วภาพขึ้นหรือไม่
+# หมายเหตุ: เครื่องของ GitHub อยู่ต่างประเทศ — แหล่งที่เปิดได้เฉพาะจากในไทยจะขึ้นว่าล้มเหลวในรายงานนี้
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: URL ของเว็บที่ deploy
+        default: https://dataanalytic.precare.workers.dev
+      sample:
+        description: จำนวนกล้องต่อแหล่งที่เปิดใน Chrome
+        default: '6'
+  push:
+    branches: [claude/wonderful-einstein-wg3ano]
+    paths: ['.github/scripts/camera-check.mjs', '.github/workflows/camera-check.yml']
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Check cameras
+        env:
+          BASE: ${{ inputs.url || 'https://dataanalytic.precare.workers.dev' }}
+          SAMPLE: ${{ inputs.sample || '6' }}
+        run: |
+          mkdir b && cp .github/scripts/camera-check.mjs b/ && cd b
+          npm init -y >/dev/null && npm i playwright-core@1 >/dev/null 2>&1
+          node camera-check.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: camera-report
+          path: |
+            b/report.json
+            b/*.png
