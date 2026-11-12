@@ -101,6 +101,30 @@ for (const [g, s] of Object.entries(groups)) {
   for (const ex of s.failEx) console.log(`   FAIL-EX ${ex.id} ${ex.name} ${JSON.stringify(ex.checks)}`);
 }
 
+// ---------- 1b) ตรวจต้นทางโดยตรง (แยกปัญหาของต้นทางกับของ API แอป) ----------
+console.log('\n===== UPSTREAM DIRECT =====');
+const placeholder = cams.filter((c) => /X\.X\.X\.X/.test(`${c.streamUrl ?? ''}${c.imageUrl ?? ''}`));
+console.log(`longdo placeholder camid (X.X.X.X) in stream/image url: ${placeholder.length}`, placeholder.slice(0, 5).map((c) => c.id).join(' '));
+for (const c of cams.filter((c) => c.id.startsWith('dwr-')).slice(0, 4)) {
+  const code = c.id.slice(4);
+  const r = await head(`https://telemetry.dwr.go.th/cctv/mjpeg/${code}`, 12000);
+  console.log('DWR mjpeg direct', code, r.status, r.type, r.bytes, r.err ?? '', r.text.slice(0, 80).replace(/[^\x20-\x7e]/g, '.'));
+  const a = await head(abs(`/api/dwr/live?code=${code}`), 12000);
+  console.log('DWR mjpeg via app', code, a.status, a.type, a.text.slice(0, 120));
+}
+// นนทบุรี: ตรวจทีละตัว (ไม่ยิงพร้อมกัน) เทียบกับผลรอบแรกที่ยิงพร้อมกันหลายตัว
+const nontUrls = cams.filter((c) => c.id.startsWith('nont-')).flatMap((c) => (c.views?.length ? c.views.map((v) => v.imageUrl) : c.imageUrl ? [c.imageUrl] : []).map((u) => [c.id, u]));
+const nontSeq = {};
+for (const [id, u] of nontUrls) {
+  const r = await head(abs(u), 20000);
+  const v = verdict('still', r);
+  nontSeq[v] = (nontSeq[v] ?? 0) + 1;
+  if (v !== 'ok') console.log('NONT seq fail', id, decodeURIComponent(u.split('cam=')[1] ?? ''), v, `${r.ms}ms`, r.text.slice(0, 100));
+}
+console.log('NONT sequential', JSON.stringify(nontSeq));
+const nd = await head('http://182.52.224.70/json.php?app=station', 15000);
+console.log('NONT direct station list', nd.status, nd.type, nd.err ?? '', `${nd.ms}ms`);
+
 // ---------- 2) เปิดหน้าต่างกล้องใน Chrome ----------
 const byGroup = {};
 for (const c of cams) (byGroup[group(c)] ??= []).push(c);
@@ -123,8 +147,13 @@ async function newAppPage() {
 const pages = await Promise.all(Array.from({ length: 4 }, newAppPage));
 console.log('\n===== BROWSER (pins on map:', await pages[0].locator('.pin-camera').count(), ') =====');
 
-const uiResults = await pool(sample, pages.length, async (c, k) => {
-  const p = pages[k % pages.length];
+// แต่ละ worker ใช้แท็บของตัวเอง (กันผลของกล้องหนึ่งไปปนกับอีกตัว)
+const queue = [...sample];
+const uiResults = [];
+await Promise.all(pages.map(async (p) => {
+  while (queue.length) uiResults.push(await openOne(p, queue.shift()));
+}));
+async function openOne(p, c) {
   const failed = [];
   const onFail = (r) => failed.push(`${r.failure()?.errorText} ${r.url().slice(0, 90)}`);
   const onResp = (r) => { if (r.status() >= 400) failed.push(`HTTP ${r.status()} ${r.url().slice(0, 90)}`); };
@@ -155,7 +184,7 @@ const uiResults = await pool(sample, pages.length, async (c, k) => {
   const line = { id: c.id, g: group(c), name: c.name, opened, ...st, failed: [...new Set(failed)].slice(0, 4) };
   console.log('UI', JSON.stringify(line));
   return line;
-});
+}
 await browser.close();
 
 console.log('\n===== BROWSER SUMMARY =====');
