@@ -15,6 +15,14 @@ const https = (v: unknown) => {
   const s = str(v);
   return s?.startsWith('https://') ? s : undefined;
 };
+/**
+ * ลิงก์ภาพของ iTIC ที่ใช้ได้จริง — กล้องส่วนใหญ่ที่มี HLS มีลิงก์ MJPEG/ภาพนิ่งเป็นค่าตัวอย่าง camid=X.X.X.X:YYYY
+ * (ตรวจ พ.ย. 2569: 123 กล้อง ลิงก์เหล่านี้ส่งภาพว่างหรือค้าง ทำให้หน้าต่างกล้องรอนานก่อนบอกว่าไม่มีภาพ)
+ */
+const mediaUrl = (v: unknown) => {
+  const s = https(v);
+  return s && !/X\.X\.X\.X|:YYYY/i.test(s) ? s : undefined;
+};
 
 /** ลิงก์เปิดกล้องตัวเดียว — หน้าเว็บ Longdo ย่อรหัส ITICM_BMAMI0xxx เป็น ixxx */
 export function longdoCameraUrl(camid: string): string {
@@ -51,8 +59,8 @@ export function parseLongdoCameras(body: unknown): Camera[] {
       url: longdoCameraUrl(camid),
       via: 'Longdo Traffic',
       hlsUrl: https(it.hls_url),
-      streamUrl: https(it.link) ?? https(it.vdourl),
-      imageUrl: https(it.imgurl),
+      streamUrl: mediaUrl(it.link) ?? mediaUrl(it.vdourl),
+      imageUrl: mediaUrl(it.imgurl),
       imageCredit: 'มูลนิธิ iTIC',
     });
   }

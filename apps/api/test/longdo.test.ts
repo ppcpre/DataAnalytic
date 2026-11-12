@@ -40,6 +40,26 @@ describe('longdo cameras', () => {
     ]);
   });
 
+  it('drops placeholder MJPEG/still links (camid=X.X.X.X:YYYY) and keeps the HLS video', () => {
+    const [cam] = parseLongdoCameras({
+      item: [
+        {
+          camid: 'ITICM_BMAMI0211',
+          title: '(นนทบุรี) ประชานุกูลไปต่างระดับรัชวิภา',
+          latitude: '13.83',
+          longitude: '100.53',
+          geocode: '120101',
+          hls_url: 'https://camerai1.iticfoundation.org/hls/cl210-d.m3u8',
+          link: 'https://camera1.iticfoundation.org/mjpeg2.php?camid=X.X.X.X:YYYY',
+          imgurl: 'https://camera1.iticfoundation.org/jpeg2.php?camid=X.X.X.X:YYYY',
+        },
+      ],
+    });
+    expect(cam.hlsUrl).toBe('https://camerai1.iticfoundation.org/hls/cl210-d.m3u8');
+    expect(cam.streamUrl).toBeUndefined();
+    expect(cam.imageUrl).toBeUndefined();
+  });
+
   it('returns an empty list for unexpected shapes', () => {
     expect(parseLongdoCameras(null)).toEqual([]);
     expect(parseLongdoCameras({ item: 'x' })).toEqual([]);

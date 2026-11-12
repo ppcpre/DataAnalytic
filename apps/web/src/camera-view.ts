@@ -30,6 +30,8 @@ async function hlsFromSession(path: string): Promise<string> {
 const SOURCE_TIMEOUT_MS = 10000;
 /** วิดีโอสดบนมือถือเริ่มช้ากว่า (ต้องขอ session + โหลดตัวเล่น + รอ segment แรก) */
 const HLS_TIMEOUT_MS = 25000;
+/** ภาพนิ่งบางแหล่งต้องส่งต่อผ่าน API ของแอปและต้นทางตอบช้า (เช่น นนทบุรี ~5–15 วินาที) — เป็นแหล่งสุดท้ายจึงรอได้นานกว่า */
+const STILL_TIMEOUT_MS = 25000;
 const SNAPSHOT_REFRESH_MS = 10000;
 
 const LABEL: Record<SourceKind | 'loading' | 'off', string> = {
@@ -156,7 +158,8 @@ export function startCameraView(root: HTMLElement, c: Camera, fresh = false) {
     };
     // หน้าเว็บอาจโหลดช้า ไม่ตัดทิ้งตามเวลา
     if (src.kind !== 'page') {
-      timers.push(window.setTimeout(() => !done && next(), src.kind === 'hls' ? HLS_TIMEOUT_MS : SOURCE_TIMEOUT_MS));
+      const wait = src.kind === 'hls' ? HLS_TIMEOUT_MS : src.kind === 'still' ? STILL_TIMEOUT_MS : SOURCE_TIMEOUT_MS;
+      timers.push(window.setTimeout(() => !done && next(), wait));
     }
 
     if (src.kind === 'page') {
@@ -265,7 +268,10 @@ export function startCameraView(root: HTMLElement, c: Camera, fresh = false) {
       if (img.naturalWidth > 0) ok();
       else next();
     });
-    img.addEventListener('error', () => (done ? src.kind === 'still' && showOff() : next()));
+    // ภาพขึ้นแล้ว: ภาพนิ่งเก็บภาพเดิมไว้ (โหลดภาพใหม่แยกต่างหาก) — error หลังจากนี้ไม่ต้องตัดภาพทิ้ง
+    img.addEventListener('error', () => {
+      if (!done) next();
+    });
     img.src = fresh || src.kind === 'still' ? bust(src.url) : src.url;
     media.appendChild(img);
     if (src.kind === 'mjpeg') {
@@ -281,10 +287,20 @@ export function startCameraView(root: HTMLElement, c: Camera, fresh = false) {
     }
     // ภาพที่ถ่ายไว้แล้ว (มีเวลาถ่าย) ไม่ต้องโหลดซ้ำ
     if (src.kind === 'still' && !c.imageTakenAt) {
+      // โหลดภาพใหม่ใน Image แยก แล้วค่อยสลับเมื่อได้ภาพ — ถ้าต้นทางตอบช้า/ล้มเหลวรอบใด ยังเห็นภาพล่าสุดอยู่
       const refresh = () => {
         if (stopped) return;
-        if (done) img.src = bust(src.url);
-        timers.push(window.setTimeout(refresh, SNAPSHOT_REFRESH_MS));
+        const schedule = () => !stopped && timers.push(window.setTimeout(refresh, SNAPSHOT_REFRESH_MS));
+        if (!done) return schedule();
+        const loader = new Image();
+        loader.referrerPolicy = 'no-referrer';
+        loader.onload = () => {
+          if (stopped) return;
+          if (loader.naturalWidth > 0) img.src = loader.src;
+          schedule();
+        };
+        loader.onerror = schedule;
+        loader.src = bust(src.url);
       };
       timers.push(window.setTimeout(refresh, SNAPSHOT_REFRESH_MS));
     }
