@@ -49,7 +49,7 @@ async function head(url, ms = 15000, init = {}) {
 
 const verdict = (kind, r) => {
   if (r.status !== 200) return `HTTP ${r.status}${r.err ? ` ${r.err}` : ''}`;
-  if (kind === 'hls') return r.text.startsWith('#EXTM3U') ? 'ok' : `not m3u8 (${r.type})`;
+  if (kind === 'hls' || kind === 'viewhls') return r.text.startsWith('#EXTM3U') ? 'ok' : `not m3u8 (${r.type})`;
   if (kind === 'session') return /"hlsUrl"\s*:\s*"https:/.test(r.text) ? 'ok' : `no hlsUrl: ${r.text.slice(0, 80)}`;
   if (kind === 'page') return 'ok';
   if (!/image|multipart|video|octet/.test(r.type)) return `type ${r.type || '?'} ${r.text.slice(0, 60).replace(/\s+/g, ' ')}`;
@@ -73,12 +73,13 @@ const linkResults = await pool(cams, 24, async (c) => {
   if (c.streamUrl) checks.push(['mjpeg', c.streamUrl]);
   if (c.videoUrl) checks.push(['clip', c.videoUrl]);
   if (c.imageUrl) checks.push(['still', c.imageUrl]);
-  for (const v of (c.views ?? []).slice(1)) checks.push(['view', v.imageUrl]);
+  for (const v of (c.views ?? []).slice(1)) checks.push(v.hlsUrl ? ['viewhls', v.hlsUrl] : ['view', v.imageUrl]);
   if (c.embedUrl) checks.push(['page', c.embedUrl]);
   const out = {};
   for (const [kind, url] of checks) {
+    if (!url) continue;
     const r = await head(abs(url), kind === 'session' ? 25000 : 15000);
-    out[kind === 'view' ? `view:${url.slice(-24)}` : kind] = { v: verdict(kind, r), status: r.status, type: r.type, bytes: r.bytes, ms: r.ms, url: abs(url).slice(0, 140) };
+    out[kind.startsWith('view') ? `view:${url.slice(-36)}` : kind] = { v: verdict(kind, r), status: r.status, type: r.type, bytes: r.bytes, ms: r.ms, url: abs(url).slice(0, 140) };
   }
   return { id: c.id, g: group(c), name: c.name, owner: c.owner, kind: c.kind ?? 'traffic', checks: out, none: checks.length === 0 };
 });

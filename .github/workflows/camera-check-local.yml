@@ -35,9 +35,10 @@ jobs:
         run: |
           mkdir b && cp .github/scripts/camera-check.mjs b/ && cd b
           npm init -y >/dev/null && npm i playwright-core@1 >/dev/null 2>&1
+          # เซิร์ฟเวอร์วิดีโอของกรมทางหลวงติดตั้งใบรับรองไม่ครบ: Node ตรวจลิงก์เองไม่ได้ (ผลส่วน LINK CHECK ของ doh จึงล้ม) — ดูผลจริงที่ส่วน BROWSER
           node camera-check.mjs
       - if: always()
-        run: tail -20 api.log web.log
+        run: tail -n 20 api.log; tail -n 20 web.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
