@@ -9,7 +9,7 @@ on:
         default: doh,sb
   push:
     branches: [claude/wonderful-einstein-wg3ano]
-    paths: ['.github/workflows/camera-check-local.yml', 'apps/api/src/data/doh-highway.ts', 'apps/api/src/adapters/doh.ts']
+    paths: ['.github/workflows/camera-check-local.yml', 'apps/api/src/data/doh-highway.ts', 'apps/api/src/adapters/doh.ts', 'apps/web/src/camera-view.ts']
 
 jobs:
   check:

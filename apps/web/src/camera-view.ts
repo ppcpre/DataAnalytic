@@ -33,6 +33,9 @@ const HLS_TIMEOUT_MS = 25000;
 /** ภาพนิ่งบางแหล่งต้องส่งต่อผ่าน API ของแอปและต้นทางตอบช้า (เช่น นนทบุรี ~5–15 วินาที) — เป็นแหล่งสุดท้ายจึงรอได้นานกว่า */
 const STILL_TIMEOUT_MS = 25000;
 const SNAPSHOT_REFRESH_MS = 10000;
+/** ลองโหลดรายการวิดีโอสดซ้ำกี่ครั้ง และเว้นช่วงเท่าไร เมื่อสตรีมยังไม่พร้อม */
+const HLS_MANIFEST_RETRIES = 5;
+const HLS_RETRY_DELAY_MS = 3000;
 
 const LABEL: Record<SourceKind | 'loading' | 'off', string> = {
   hls: 'ภาพสด',
@@ -249,11 +252,27 @@ export function startCameraView(root: HTMLElement, c: Camera, fresh = false) {
         .then(({ default: Hls }) => {
           if (stopped || done) return;
           if (Hls.isSupported()) {
-            hls = new Hls({ lowLatencyMode: false });
-            hls.on(Hls.Events.ERROR, (_e, data) => data.fatal && next());
-            hls.loadSource(src.url);
-            hls.attachMedia(video);
-            void video.play().catch(() => {});
+            // สตรีมบางแหล่งเริ่มส่งเมื่อมีคนขอดู (เช่น กล้องทางหลวง) คำขอแรกจึงได้ 404 — ลองโหลดรายการวิดีโอซ้ำก่อนเปลี่ยนแหล่ง
+            // (เวลารวมยังถูกจำกัดด้วย HLS_TIMEOUT_MS)
+            let retries = 0;
+            const start = () => {
+              if (stopped || done) return;
+              hls?.destroy();
+              const player = new Hls({ lowLatencyMode: false });
+              hls = player;
+              player.on(Hls.Events.ERROR, (_e, data) => {
+                if (!data.fatal || stopped || done || hls !== player) return;
+                const notReady = data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR || data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT;
+                if (notReady && retries < HLS_MANIFEST_RETRIES) {
+                  retries++;
+                  timers.push(window.setTimeout(start, HLS_RETRY_DELAY_MS));
+                } else next();
+              });
+              player.loadSource(src.url);
+              player.attachMedia(video);
+              void video.play().catch(() => {});
+            };
+            start();
           } else if (video.canPlayType('application/vnd.apple.mpegurl')) native();
           else next();
         })
