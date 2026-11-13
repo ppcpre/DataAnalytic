@@ -1,127 +1,96 @@
-// สำรวจแหล่งกล้องใหม่ (ใช้ระหว่างพัฒนา):
-// 1) ระบบแผนที่เทศบาลนครนนทบุรี (MAPBOSS) — ฟิลด์ของชั้นข้อมูลกล้อง และแท็บติดตามสถานการณ์น้ำ
-// 2) กล้องเทศบาลนครปากเกร็ด (thaiclouderp.com/CCTV_MONITOR)
-import { chromium } from 'playwright-core';
-import { writeFileSync, mkdirSync } from 'node:fs';
-
-mkdirSync('out', { recursive: true });
-const stage = async (name, fn) => {
-  console.log(`\n========== ${name} ==========`);
-  try {
-    await fn();
-  } catch (e) {
-    console.log(`STAGE FAILED ${name}:`, String(e?.stack ?? e).slice(0, 600));
-  }
-};
+// สำรวจแหล่งกล้องเพิ่ม (ใช้ระหว่างพัฒนา) — เรียกเฉพาะหน้าที่เปิดสาธารณะ ไม่ต้องล็อกอิน
+// 1) Longdo/iTIC: กล้องในแต่ละจังหวัด/อำเภอ (รวมสัตหีบ) และกล้องที่แอปยังไม่ได้แสดง
+// 2) StreamBridge: มีหน่วยงานอื่นนอกจากเทศบาลเมืองบางกรวยหรือไม่
+// 3) กรมทรัพยากรน้ำ: สถานีที่มีกล้องในชลบุรี
 const UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36';
 const get = async (url, init = {}) => {
   const r = await fetch(url, { ...init, headers: { 'user-agent': UA, ...(init.headers ?? {}) }, signal: AbortSignal.timeout(30000) });
   return { status: r.status, type: r.headers.get('content-type') ?? '', text: await r.text() };
 };
-
-const NKN = 'https://nkndatamap.nakornnont.go.th';
-const CCTV = '8c5a386c5fbf56fcb824469410e7eb12';
-
-await stage('NKN cctv layer details', async () => {
-  const r = await get(`${NKN}/api/item/${CCTV}/details`);
-  writeFileSync('out/nkn-cctv-details.json', r.text);
-  console.log(r.status, r.type, r.text.length);
-  console.log(r.text.replace(/\s+/g, ' ').slice(0, 5000));
-});
-
-await stage('NKN cctv features (all fields)', async () => {
-  for (const [tag, body] of [
-    ['raw', { format: 'geojson', rawField: true, rawValue: true, limit: 0, query: { geometry: { $ne: null } } }],
-    ['named', { format: 'geojson', limit: 0, query: { geometry: { $ne: null } } }],
-  ]) {
-    const r = await get(`${NKN}/api/item/${CCTV}/actions/query`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-    writeFileSync(`out/nkn-cctv-${tag}.json`, r.text);
-    console.log('QUERY', tag, r.status, r.type, r.text.length);
-    let j;
-    try {
-      j = JSON.parse(r.text);
-    } catch {
-      console.log('  not json:', r.text.slice(0, 300));
-      continue;
-    }
-    console.log('  total', j.total, 'features', j.features?.length);
-    for (const f of (j.features ?? []).slice(0, 4)) console.log('  FEATURE', JSON.stringify(f).slice(0, 1200));
-    const keys = {};
-    for (const f of j.features ?? []) for (const [k, v] of Object.entries(f.properties ?? {})) if (v !== null && v !== '') keys[k] = (keys[k] ?? 0) + 1;
-    console.log('  NONEMPTY', JSON.stringify(keys));
-    const urls = (j.features ?? []).flatMap((f) => Object.values(f.properties ?? {}).filter((v) => typeof v === 'string' && /https?:|rtsp:|\.m3u8|\.jpe?g|\.png/i.test(v)));
-    console.log('  URL-LIKE VALUES', urls.length, JSON.stringify(urls.slice(0, 15)));
+const stage = async (name, fn) => {
+  console.log(`\n========== ${name} ==========`);
+  try {
+    await fn();
+  } catch (e) {
+    console.log(`STAGE FAILED ${name}:`, String(e?.stack ?? e).slice(0, 400));
   }
-});
-
-const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome' });
-const watch = (p) => {
-  p.on('response', async (r) => {
-    const url = r.url();
-    const rt = r.request().resourceType();
-    const type = r.headers()['content-type'] ?? '';
-    if (/font|stylesheet/.test(rt) || /maps\.googleapis|gstatic|_next\/image|\.(woff2?|css)(\?|$)/.test(url)) return;
-    console.log('NET', r.status(), r.request().method(), rt, type.slice(0, 34), url.slice(0, 200));
-    if (/json|mpegurl|text\/plain/i.test(type) || ((rt === 'xhr' || rt === 'fetch') && !/image|video|octet/.test(type))) {
-      console.log('  BODY', (await r.text().catch(() => '')).slice(0, 700).replace(/\s+/g, ' '));
-    }
-  });
-  p.on('requestfailed', (q) => console.log('FAILED', q.failure()?.errorText, q.url().slice(0, 160)));
-  p.on('request', (q) => q.method() === 'POST' && console.log('POST', q.url().slice(0, 160), (q.postData() ?? '').slice(0, 250)));
-  p.on('websocket', (ws) => console.log('WEBSOCKET', ws.url().slice(0, 200)));
 };
-const media = (p) =>
-  p.evaluate(() =>
-    [...document.querySelectorAll('iframe,video,source,img,a[href],canvas,embed,object')]
-      .map((e) => `${e.tagName}:${e.getAttribute('src') ?? e.getAttribute('href') ?? e.currentSrc ?? e.getAttribute('data') ?? ''}`.slice(0, 220))
-      .filter((x) => !/maps\.google|googleapis|_next\/image|data:image/.test(x))
-      .slice(0, 150),
-  );
+const PROV = { 10: 'กรุงเทพฯ', 11: 'สมุทรปราการ', 12: 'นนทบุรี', 13: 'ปทุมธานี', 73: 'นครปฐม', 74: 'สมุทรสาคร', 20: 'ชลบุรี', 24: 'ฉะเชิงเทรา', 14: 'อยุธยา' };
 
-await stage('NKN water tab in browser', async () => {
-  const p = await (await b.newContext({ viewport: { width: 1280, height: 900 }, locale: 'th-TH' })).newPage();
-  await p.goto(`${NKN}/public`, { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await p.waitForTimeout(12000);
-  watch(p);
-  console.log('--- click water tab');
-  await p.getByText('การติดตามสถานการณ์น้ำ').first().click({ timeout: 8000 });
-  await p.waitForTimeout(12000);
-  console.log('TEXT', (await p.evaluate(() => document.body.innerText)).replace(/\s+/g, ' ').slice(0, 2500));
-  console.log('MEDIA', JSON.stringify(await media(p)));
-  await p.screenshot({ path: 'out/nkn-water.png' });
-  await p.close();
-});
-
-const PAKKRET = 'https://www.thaiclouderp.com/CCTV_MONITOR/web/pakkred';
-await stage('PAKKRET plain fetch', async () => {
-  for (const u of [PAKKRET, 'http://www.thaiclouderp.com/CCTV_MONITOR/web/pakkred', 'https://www.thaiclouderp.com/']) {
-    try {
-      const r = await get(u);
-      console.log(u, '->', r.status, r.type, r.text.length);
-      if (u === PAKKRET) {
-        writeFileSync('out/pakkret.html', r.text);
-        console.log(r.text.replace(/\s+/g, ' ').slice(0, 6000));
-      }
-    } catch (e) {
-      console.log(u, '-> ERROR', String(e?.cause?.code ?? e?.name ?? e), String(e?.message ?? '').slice(0, 120));
-    }
+await stage('LONGDO camera list by province / district', async () => {
+  const r = await get('https://traffic.longdo.com/camera.json');
+  const items = JSON.parse(r.text).item ?? [];
+  console.log('total cameras', items.length, 'fields', Object.keys(items[0] ?? {}).join(','));
+  const byProv = {};
+  for (const it of items) {
+    const g = String(it.geocode ?? '');
+    const p = g.slice(0, 2);
+    (byProv[p] ??= []).push(it);
   }
+  console.log('BY PROVINCE', JSON.stringify(Object.fromEntries(Object.entries(byProv).map(([p, l]) => [`${p}${PROV[p] ? ` ${PROV[p]}` : ''}`, l.length]))));
+  for (const p of Object.keys(PROV)) {
+    const list = byProv[p] ?? [];
+    const amp = {};
+    for (const it of list) {
+      const a = String(it.geocode).slice(0, 4);
+      const e = (amp[a] ??= { n: 0, hls: 0, ex: [] });
+      e.n++;
+      if (String(it.hls_url ?? '').startsWith('https://')) e.hls++;
+      if (e.ex.length < 2) e.ex.push(String(it.title).slice(0, 50));
+    }
+    console.log(`\n${p} ${PROV[p]}: ${list.length}`);
+    for (const [a, e] of Object.entries(amp).sort()) console.log(`   amphoe ${a}: ${e.n} cams (hls ${e.hls}) e.g. ${e.ex.join(' | ')}`);
+  }
+  // สัตหีบ: รหัสอำเภอ 2009 หรือพิกัดในกรอบอำเภอ หรือชื่อมีคำว่าสัตหีบ/บางเสร่/แสมสาร/อู่ตะเภา
+  const sat = items.filter((it) => {
+    const lat = Number(it.latitude), lng = Number(it.longitude);
+    return String(it.geocode).startsWith('2009') || /สัตหีบ|บางเสร่|แสมสาร|อู่ตะเภา|นาจอมเทียน|พลูตาหลวง|Sattahip/i.test(String(it.title)) || (lat > 12.55 && lat < 12.82 && lng > 100.82 && lng < 101.05);
+  });
+  console.log('\nSATTAHIP candidates', sat.length);
+  for (const it of sat) console.log('  ', JSON.stringify({ camid: it.camid, title: it.title, lat: it.latitude, lng: it.longitude, geocode: it.geocode, org: it.organization, hls: it.hls_url, link: it.link }).slice(0, 400));
+  // ชลบุรีตอนใต้ (พัทยา-สัตหีบ) เรียงตามละติจูด เพื่อดูว่ากล้องใต้สุดอยู่ที่ไหน
+  const south = (byProv['20'] ?? []).map((it) => ({ t: String(it.title).slice(0, 44), lat: Number(it.latitude), lng: Number(it.longitude) })).sort((a, b) => a.lat - b.lat).slice(0, 8);
+  console.log('CHONBURI southernmost', JSON.stringify(south));
 });
 
-await stage('PAKKRET in browser', async () => {
-  const p = await (await b.newContext({ viewport: { width: 1280, height: 900 }, locale: 'th-TH', ignoreHTTPSErrors: true })).newPage();
-  watch(p);
-  await p.goto(PAKKRET, { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await p.waitForTimeout(15000);
-  console.log('TITLE', await p.title(), '| URL', p.url());
-  console.log('TEXT', (await p.evaluate(() => document.body.innerText)).replace(/\s+/g, ' ').slice(0, 3000));
-  console.log('MEDIA', JSON.stringify(await media(p)));
-  console.log('FRAMES', p.frames().map((f) => f.url().slice(0, 160)).join(' | '));
-  const html = await p.content();
-  writeFileSync('out/pakkret-rendered.html', html);
-  console.log('INLINE URLS', JSON.stringify([...new Set(html.match(/(?:https?|rtsp|wss?):\/\/[^"'\s<>\\)]{6,160}/g) ?? [])].filter((u) => !/w3\.org|googleapis|gstatic|jquery|bootstrap|cdnjs|jsdelivr|fontawesome/.test(u)).slice(0, 80)));
-  console.log('LATLNG', JSON.stringify((html.match(/1[34]\.\d{4,}\s*,\s*100\.\d{4,}|100\.\d{4,}\s*,\s*1[34]\.\d{4,}/g) ?? []).slice(0, 20)));
-  await p.screenshot({ path: 'out/pakkret.png', fullPage: true });
-  await p.close();
+await stage('STREAMBRIDGE other agencies', async () => {
+  const home = await get('https://app.streambridge.online/');
+  console.log('home', home.status, home.type, home.text.length);
+  const assets = [...new Set(home.text.match(/\/(?:assets|_next|static)\/[^"' )]+\.js/g) ?? [])];
+  console.log('assets', assets.slice(0, 6).join(' '));
+  for (const path of ['/api/public', '/api/public/', '/api/public/list', '/api/public/tenants', '/api/public/organizations', '/p', '/sitemap.xml', '/robots.txt']) {
+    const r = await get(`https://app.streambridge.online${path}`).catch((e) => ({ status: 0, type: String(e), text: '' }));
+    console.log(path, '->', r.status, r.type.slice(0, 30), r.text.slice(0, 200).replace(/\s+/g, ' '));
+  }
+  // หน้าสาธารณะของหน่วยงานใช้รูปแบบ /p/<ชื่อหน่วยงาน> — ลองชื่อเทศบาลในปริมณฑลและชลบุรี
+  const names = ['bangkruai', 'nonthaburi', 'nakornnont', 'pakkret', 'pakkred', 'bangbuathong', 'bangyai', 'saima', 'plaibang', 'bangsrimuang', 'rangsit', 'pathumthani', 'thanyaburi', 'khlongluang', 'lamlukka', 'bangkadi', 'samutprakan', 'paknam', 'bangpu', 'bangkaeo', 'phrapradaeng', 'bangphli', 'nakhonpathom', 'samphran', 'raikhing', 'krathumlom', 'omnoi', 'samutsakhon', 'krathumbaen', 'sattahip', 'bansattahip', 'bangsaray', 'khetudomsak', 'najomtien', 'pattaya', 'chonburi', 'sriracha', 'laemchabang', 'saensuk', 'banglamung', 'nongprue', 'bma', 'bangkok'];
+  const suffixes = ['', '-city', '-town', '-municipality', '-subdistrict'];
+  const found = [];
+  const slugs = names.flatMap((n) => suffixes.map((s) => n + s));
+  let i = 0;
+  await Promise.all(Array.from({ length: 6 }, async () => {
+    while (i < slugs.length) {
+      const slug = slugs[i++];
+      const r = await get(`https://app.streambridge.online/api/public/${slug}`).catch(() => null);
+      if (!r || r.status !== 200) continue;
+      try {
+        const j = JSON.parse(r.text);
+        if (Array.isArray(j.cameras)) found.push({ slug, title: j.title, subtitle: j.subtitle, cameras: j.cameras.length, online: j.cameras.filter((c) => c.status === 'online').length, withCoords: j.cameras.filter((c) => typeof c.latitude === 'number').length, sample: j.cameras.slice(0, 3).map((c) => c.name) });
+      } catch {}
+    }
+  }));
+  console.log('tried', slugs.length, 'slugs; FOUND', found.length);
+  for (const f of found) console.log('  ', JSON.stringify(f));
 });
-await b.close();
+
+await stage('DWR stations with cameras in Chonburi / metro', async () => {
+  const r = await get('https://telemetry.dwr.go.th/api/public/reportCctv/listPaginate', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ paginate: { page: 1, pageSize: 500, orders: [{ key: 'MAIN_BASIN', desc: false }] }, search: {} }),
+  });
+  const rows = JSON.parse(r.text).value?.results ?? [];
+  const by = {};
+  for (const x of rows) (by[x.provinceNameTh] ??= []).push(`${x.entity?.stnNameTh} (${x.districtNameTh})`);
+  for (const p of ['ชลบุรี', 'กรุงเทพมหานคร', 'นนทบุรี', 'ปทุมธานี', 'สมุทรปราการ', 'นครปฐม', 'สมุทรสาคร', 'ระยอง']) console.log(p, (by[p] ?? []).length, JSON.stringify((by[p] ?? []).slice(0, 12)));
+});
