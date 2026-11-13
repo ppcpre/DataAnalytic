@@ -35,13 +35,15 @@ for (const s of sites) {
   current = s.id;
   await p.evaluate((id) => MoveLocation(id), s.id).catch(() => {});
   const t0 = Date.now();
-  while (Date.now() - t0 < 9000 && !(got.get(s.id)?.GetSiteInfo && got.get(s.id)?.GetCameraInfo)) await p.waitForTimeout(250);
+  while (Date.now() - t0 < 5000 && !(got.get(s.id)?.GetSiteInfo && got.get(s.id)?.GetCameraInfo)) await p.waitForTimeout(200);
+  const g = got.get(s.id) ?? {};
+  console.log('GOT', s.code, s.id, 'info', g.GetSiteInfo?.status ?? '-', 'cam', g.GetCameraInfo?.status ?? '-', `${Date.now() - t0}ms`, [...String(g.GetCameraInfo?.d ?? '').matchAll(/site_code="([^"]+)"/g)].map((m) => m[1]).join(' '));
 }
 await b.close();
 
 const checkStream = async (url) => {
   try {
-    const r = await fetch(url, { headers: { 'user-agent': UA, origin: APP_ORIGIN, referer: `${APP_ORIGIN}/` }, signal: AbortSignal.timeout(10000) });
+    const r = await fetch(url, { headers: { 'user-agent': UA, origin: APP_ORIGIN, referer: `${APP_ORIGIN}/` }, signal: AbortSignal.timeout(6000) });
     const t = await r.text();
     return { s: r.status, cors: r.headers.get('access-control-allow-origin') ?? '-', ok: r.status === 200 && t.startsWith('#EXTM3U') };
   } catch (e) {
