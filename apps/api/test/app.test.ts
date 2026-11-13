@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CAMERAS } from '../src/data/cameras.js';
+import { DOH_SITES } from '../src/data/doh-highway.js';
+import { dohHighwayCameras } from '../src/adapters/doh.js';
 import { NONT_STATIC } from '../src/data/nonthaburi.js';
 import { createApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
@@ -140,7 +142,9 @@ describe('cameras and geocode', () => {
     );
     // Longdo 1 + นนทบุรี 2 (เซนเซอร์ถนนค่าเก่าไม่แสดง) + ปากเกร็ด 1 + บางกรวย 2 + รังสิต กล้อง 2 + กรมทรัพยากรน้ำ 1 (+ รายงานประชาชนที่ยังไม่เก่า)
     const reports = live.data.filter((c: { id: string }) => c.id.startsWith('rs-rep-')).length;
-    expect(live.data.length).toBe(CAMERAS.length + 9 + reports);
+    const highway = live.data.filter((c: { id: string }) => c.id.startsWith('doh-')).length;
+    expect(highway).toBe(DOH_SITES.length);
+    expect(live.data.length).toBe(CAMERAS.length + 9 + reports + highway);
 
     // แหล่งใดล่ม ยังแสดงแหล่งที่เหลือ และจุดของนนทบุรีใช้รายชื่อที่บันทึกไว้
     const down = async () => {
@@ -148,10 +152,11 @@ describe('cameras and geocode', () => {
     };
     for (const deps of [{ getText: down }, { getText: down, nontGet: down }]) {
       const off = await (await createApp(loadConfig({ CAMERA_LIST_URL: '' }), down, down, deps).request('/api/cameras')).json();
-      expect(off.data).toEqual([...CAMERAS, ...NONT_STATIC]);
+      // กล้องทางหลวงเป็นรายชื่อคงที่ จึงยังอยู่แม้แหล่งอื่นล่ม
+      expect(off.data).toEqual([...CAMERAS, ...NONT_STATIC, ...dohHighwayCameras()]);
     }
     // ปิดการดึงสดด้วย NONT_LIVE=false
-    const noLive = createApp(loadConfig({ CAMERA_LIST_URL: '', NONT_LIVE: 'false' }), down, down, {
+    const noLive = createApp(loadConfig({ CAMERA_LIST_URL: '', NONT_LIVE: 'false', DOH_HIGHWAY: 'false' }), down, down, {
       getText: down,
       nontGet: async (path) => nontJson(path),
     });

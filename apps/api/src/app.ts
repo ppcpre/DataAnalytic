@@ -8,6 +8,7 @@ import { parseFloodgates, parseKeyStations, parseRain, parseWaterLevel } from '.
 import { fetchFloodStatusPages, parseFloodStatuses } from './adapters/floodhub.js';
 import { geocodeUrl, parsePhoton } from './adapters/geocode.js';
 import { CAMERAS } from './data/cameras.js';
+import { dohHighwayCameras } from './adapters/doh.js';
 import { parseLongdoCameras } from './adapters/longdo.js';
 import { PAKKRET_EON_URL, parsePakkretEon } from './adapters/pakkret.js';
 import { parseRangsit, RANGSIT_PAGE } from './adapters/rangsit.js';
@@ -475,7 +476,7 @@ export function createApp(
     '/api/cameras',
     serve({
       key: 'cameras',
-      source: 'Longdo Traffic / มูลนิธิ iTIC / เทศบาลนครนนทบุรี / StreamBridge / เทศบาลนครรังสิต / กรมทรัพยากรน้ำ / สำนักการระบายน้ำ กทม. (POPNIX Flood)',
+      source: 'Longdo Traffic / มูลนิธิ iTIC / เทศบาลนครนนทบุรี / StreamBridge / เทศบาลนครรังสิต / กรมทรัพยากรน้ำ / กรมทางหลวง / สำนักการระบายน้ำ กทม. (POPNIX Flood)',
       enabled: () => true,
       load: async () => {
         const url = config.cameras.listUrl;
@@ -557,7 +558,9 @@ export function createApp(
           }),
         ]);
         const own = new Set(CAMERAS.map((c) => c.id));
-        return [...CAMERAS, ...fromPakkret, ...fromNont, ...fromStreamBridge, ...fromRangsit, ...fromBma, ...fromDwr, ...fromPopnix, ...fromList.filter((c) => !own.has(c.id))];
+        // กล้องทางหลวงของกรมทางหลวง (รายชื่อคงที่ วิดีโอเล่นตรงจากต้นทาง)
+        const fromDoh = config.cameras.dohHighway ? dohHighwayCameras() : [];
+        return [...CAMERAS, ...fromPakkret, ...fromNont, ...fromStreamBridge, ...fromRangsit, ...fromBma, ...fromDwr, ...fromPopnix, ...fromDoh, ...fromList.filter((c) => !own.has(c.id))];
       },
       sample: sampleCameras,
     }),

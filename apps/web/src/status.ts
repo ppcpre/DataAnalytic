@@ -38,6 +38,7 @@ function groupOf(c: Camera): string {
   if (id.startsWith('sb-')) return `StreamBridge · ${c.owner}`;
   if (id.startsWith('rs-')) return 'เทศบาลนครรังสิต';
   if (id.startsWith('dwr-')) return 'กรมทรัพยากรน้ำ';
+  if (id.startsWith('doh-')) return 'กรมทางหลวง';
   if (id.startsWith('pop-')) return 'สำนักการระบายน้ำ กทม. (POPNIX)';
   if (id.startsWith('bma-')) return 'กล้องจราจร กทม.';
   if (id.startsWith('pakkret-')) return 'เทศบาลนครปากเกร็ด';

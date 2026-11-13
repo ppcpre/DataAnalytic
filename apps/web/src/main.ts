@@ -774,7 +774,11 @@ function startSheetCamera(fresh = false) {
   if (!cam) return stopCameraView();
   if (camView.id !== cam.id) Object.assign(camView, { id: cam.id, index: 0 });
   const view = cam.views?.[camView.index];
-  startCameraView(sheetEl, view ? { ...cam, imageUrl: view.imageUrl } : cam, fresh);
+  // มุมกล้องที่เลือก: ใช้ภาพนิ่ง/วิดีโอของมุมนั้นแทนของจุด
+  const selected = view
+    ? { ...cam, ...(view.imageUrl ? { imageUrl: view.imageUrl } : {}), ...(view.hlsUrl ? { hlsUrl: view.hlsUrl } : {}) }
+    : cam;
+  startCameraView(sheetEl, selected, fresh);
 }
 
 function openEntity(kind: LayerKey, id: string, pan = true) {

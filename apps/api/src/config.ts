@@ -32,6 +32,8 @@ export interface Config {
     cacheTtlMs: number;
     /** ดึงภาพกล้อง/ระดับน้ำสดของเทศบาลนครนนทบุรี — false = ปักหมุดจากรายชื่อที่บันทึกไว้เท่านั้น */
     nontLive: boolean;
+    /** กล้องทางหลวงของกรมทางหลวง (รายชื่อใน data/doh-highway.ts) */
+    dohHighway: boolean;
     /** หน้ากล้องของหน่วยงานบน StreamBridge (คั่นด้วย ,) — ว่าง = ปิด */
     streamBridgeSlugs: string[];
     /** กล้องและจุดน้ำท่วมที่ประชาชนแจ้งของเทศบาลนครรังสิต — false = ปิด */
@@ -107,6 +109,7 @@ export function loadConfig(env: Env = process.env): Config {
             : 'off',
       dwr: env.DWR_LIVE !== 'false',
       popnix: env.POPNIX_LIVE !== 'false',
+      dohHighway: env.DOH_HIGHWAY !== 'false',
     },
     floodhub: {
       apiKey: env.GOOGLE_FLOOD_API_KEY ?? '',

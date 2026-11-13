@@ -164,7 +164,7 @@ export interface Camera {
   imageUrl?: string;
   /** คลิปวิดีโอสั้น (mp4, https) เช่น คลิปที่ประชาชนแจ้งน้ำท่วม */
   videoUrl?: string;
-  /** มุมกล้องทั้งหมดของจุดนี้ (เมื่อมีกล้องมากกว่าหนึ่งตัว) — ตัวแรกตรงกับ imageUrl */
+  /** มุมกล้องทั้งหมดของจุดนี้ (เมื่อมีกล้องมากกว่าหนึ่งตัว) — ตัวแรกตรงกับ imageUrl / hlsUrl */
   views?: CameraView[];
   /** ผู้ให้บริการภาพ เช่น "มูลนิธิ iTIC" */
   imageCredit?: string;
@@ -189,7 +189,10 @@ export interface Camera {
 /** มุมกล้องหนึ่งตัวของจุดที่มีหลายกล้อง */
 export interface CameraView {
   label: string;
-  imageUrl: string;
+  /** ภาพนิ่งของมุมนี้ */
+  imageUrl?: string;
+  /** วิดีโอสด HLS ของมุมนี้ (เช่น กล้องทางหลวงขาเข้า/ขาออก) */
+  hlsUrl?: string;
 }
 
 export interface CameraAlert {

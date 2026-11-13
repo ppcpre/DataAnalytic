@@ -1,0 +1,47 @@
+name: Camera check (this branch, before deploy)
+
+# รันแอปจากโค้ดของ branch นี้บนเครื่องทดสอบ แล้วเปิดกล้องใน Chrome — ใช้ตรวจแหล่งกล้องใหม่ก่อน deploy
+on:
+  workflow_dispatch:
+    inputs:
+      groups:
+        description: แหล่งที่จะตรวจ (คั่นด้วย , — ว่าง = ทุกแหล่ง)
+        default: doh,sb
+  push:
+    branches: [claude/wonderful-einstein-wg3ano]
+    paths: ['.github/workflows/camera-check-local.yml', 'apps/api/src/data/doh-highway.ts', 'apps/api/src/adapters/doh.ts']
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Start the app (live data)
+        run: |
+          DATA_MODE=live npm run dev --workspace @flood-watch/api > api.log 2>&1 &
+          npm run dev --workspace @flood-watch/web > web.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://localhost:5173/ && curl -sf -o /dev/null http://localhost:8787/api/health && break; sleep 1; done
+          curl -s http://localhost:8787/api/health; echo
+      - name: Check cameras
+        env:
+          BASE: http://localhost:5173
+          SAMPLE: '10'
+          ONLY_GROUPS: ${{ inputs.groups || 'doh,sb' }}
+          EXTRA_IDS: doh-PER-16-013,doh-PER-16-014,doh-PER-11-030
+        run: |
+          mkdir b && cp .github/scripts/camera-check.mjs b/ && cd b
+          npm init -y >/dev/null && npm i playwright-core@1 >/dev/null 2>&1
+          node camera-check.mjs
+      - if: always()
+        run: tail -20 api.log web.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: camera-report-local
+          path: |
+            b/report.json
+            b/*.png

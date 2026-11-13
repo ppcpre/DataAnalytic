@@ -59,7 +59,10 @@ const verdict = (kind, r) => {
 
 const res = await fetch(`${BASE}/api/cameras`, { headers: { 'user-agent': UA } });
 const body = await res.json();
-const cams = body.data ?? [];
+// ONLY_GROUPS=doh,sb จำกัดการตรวจเฉพาะบางแหล่ง; EXTRA_IDS=id1,id2 เปิดกล้องเหล่านี้ใน Chrome เพิ่มจากตัวอย่าง
+const ONLY = (process.env.ONLY_GROUPS ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+const EXTRA = (process.env.EXTRA_IDS ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+const cams = (body.data ?? []).filter((c) => !ONLY.length || ONLY.includes(group(c)));
 console.log(`cameras HTTP ${res.status} count=${cams.length} source=${body.source} stale=${body.stale} error=${body.error ?? '-'}`);
 
 // ---------- 1) ตรวจลิงก์ของทุกกล้อง ----------
@@ -134,6 +137,7 @@ for (const list of Object.values(byGroup)) {
   for (let i = 0; i < list.length && sample.filter((c) => group(c) === group(list[0])).length < SAMPLE; i += step) sample.push(list[i]);
 }
 
+for (const id of EXTRA) { const c = cams.find((x) => x.id === id); if (c && !sample.includes(c)) sample.push(c); }
 const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--autoplay-policy=no-user-gesture-required'] });
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, userAgent: UA.replace('X11; Linux x86_64', 'Linux; Android 14; Pixel 8') + ' Mobile' });
 async function newAppPage() {
