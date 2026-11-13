@@ -23,7 +23,7 @@ jobs:
         env:
           URL: ${{ inputs.url || 'https://nkndatamap.nakornnont.go.th/public' }}
         run: |
-          mkdir b && cp .github/scripts/probe-site.mjs b/ && cd b
+          mkdir b && cp .github/scripts/probe-site.mjs .github/scripts/doh-sites.json b/ && cd b
           npm init -y >/dev/null && npm i playwright-core@1 >/dev/null 2>&1
           curl -sS -m 30 -o /dev/null -w "plain curl -> %{http_code} %{content_type} %{size_download}B\n" "$URL" || true
           node probe-site.mjs

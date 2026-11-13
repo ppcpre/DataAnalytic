@@ -1,0 +1,2017 @@
+[
+{
+"lat": 13.9391,
+"lng": 100.6244,
+"code": "PER-3-001",
+"id": 44,
+"name": "ถ.พหลโยธิน ดอนเมือง",
+"detail": "ทางหลวงหมายเลข 1 (ถ.พหลโยธิน) ระหว่าง กม. 26-27 ใกล้ซอยพหลโยธิน 62",
+"streams": [
+{
+"u": "https://streaming5.highwaytraffic.go.th/PER-3/PER_3_001_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าแยก คปอ."
+},
+{
+"u": "https://streaming5.highwaytraffic.go.th/PER-3/PER_3_001_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าสนามกีฬาธูปะเตมีย์"
+}
+]
+},
+{
+"lat": 14.0775,
+"lng": 100.6178,
+"code": "PER-3-002",
+"id": 45,
+"name": "1 - อ.คลองหลวง จ.ปทุมธานี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 1 ระหว่าง กม.41-42 ต.คลองหนึ่ง อ.คลองหลวง จ.ปทุมธานี บริเวณหน้า ม.ธรรมศาสตร์ (ศูนย์รังสิต)",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-3/PER_3_002_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้ากรุงเทพ"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-3/PER_3_002_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางออกจากกรุงเทพ"
+}
+]
+},
+{
+"lat": 14.3914,
+"lng": 100.888,
+"code": "PER-3-003",
+"id": 2753,
+"name": "1 - อ.หนองแค จ.สระบุรี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 1 ระหว่าง กม.92-93 ต.ห้วยขมิ้น อ.หนองแค จ.สระบุรี",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-3/PER_3_003_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้ากรุงเทพ"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-3/PER_3_003_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางออกจากกรุงเทพ"
+}
+]
+},
+{
+"lat": 13.708,
+"lng": 100.2841,
+"code": "PER-3-004",
+"id": 2767,
+"name": "ถ.เพชรเกษม อ้อมใหญ่",
+"detail": "ทางหลวงแผ่นดินหมายเลข 4 ระหว่าง กม.26-27 ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-3/PER_3_004_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าหนองแขม"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-3/PER_3_004_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าสามพราน"
+}
+]
+},
+{
+"lat": 13.7434,
+"lng": 100.4058,
+"code": "PER-3-005",
+"id": 2768,
+"name": "ถ.กาญจนาภิเษก บางแค",
+"detail": "ทางหลวงหมายเลข 9 (ถ.กาญจนาภิเษก) ระหว่าง กม.24-25 เขตบางแค (ช่วง ถ.เพชรเกษม - ถ.บรมราชชนนี)",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-3/PER_3_005_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "มุ่งหน้าพระประแดง"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-3/PER_3_005_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "มุ่งหน้าบางบัวทอง"
+}
+]
+},
+{
+"lat": 13.9277,
+"lng": 100.6058,
+"code": "PER-3-008",
+"id": 2771,
+"name": "ถ.วิภาดีรังสิต ดอนเมือง",
+"detail": "ทางหลวงหมายเลข 31 (ถ.วิภาวดีรังสิต) ระหว่าง กม.24-25 บริเวณหน้าท่าอากาศยานดอนเมือง",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-3/PER_3_008_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "มุ่งหน้าแยกหลักสี่"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-3/PER_3_008_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "มุ่งหน้ารังสิต"
+}
+]
+},
+{
+"lat": 13.6612,
+"lng": 100.6617,
+"code": "PER-3-009",
+"id": 2772,
+"name": "ถ.บางนา-บางปะกง กม.6",
+"detail": "ทางหลวงหมายเลข 34 (ถ.บางนา-บางปะกง) ระหว่าง กม.6-7 (ช่วง ถ.ศรีนครินทร์ - ถ.กาญจนาภิเษก)",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-3/PER_3_009_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าบางนา"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-3/PER_3_009_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าบางปะกง"
+}
+]
+},
+{
+"lat": 14.0879,
+"lng": 100.9253,
+"code": "PER-3-013",
+"id": 2776,
+"name": "305 - อ.องครักษ์ จ.นครนายก",
+"detail": "ทางหลวงแผ่นดินหมายเลข 305 ระหว่าง กม.35-36 ต.บึงศาล อ.องค์รักษ์ จ.นครนายก",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-3/PER_3_013.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้ากรุงเทพ"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-3/PER_3_013.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้านครนายก"
+}
+]
+},
+{
+"lat": 13.6974,
+"lng": 100.7321,
+"code": "PER-3-016",
+"id": 2779,
+"name": "ถ.กิ่งแก้ว",
+"detail": "ทางหลวงหมายเลข 3256 (ถ.กิ่งแก้ว) ระหว่าง กม.20-21 บริเวณซอยกิ่งแก้ว 37/1",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-3/PER_3_016_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้า อ.เมือง จ.สมุทรปราการ"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-3/PER_3_016_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าลาดกระบัง"
+}
+]
+},
+{
+"lat": 13.9329,
+"lng": 100.6882,
+"code": "PER-3-017",
+"id": 2780,
+"name": "ถ.ลำลูกกา กม.9",
+"detail": "ทางหลวงหมายเลข 3312 (ถ.ลำลูกกา) ระหว่าง กม.9-10 บริเวณโรงเรียนวัดคลองชัน",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-3/PER_3_017.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้า ถ.พหลโยธิน"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-3/PER_3_017.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้า ถ.กาญจนาภิเษก"
+}
+]
+},
+{
+"lat": 13.6235,
+"lng": 100.6248,
+"code": "PER-3-018",
+"id": 2781,
+"name": "ถ.ศรีนครินทร์ กม.16",
+"detail": "ทางหลวงหมายเลข 3344 (ถ.ศรีนครินทร์) ระหว่าง กม.16-17 (ช่วง ถ.เทพารักษ์ - ทางด่วนบางพลี-สุขสวัสดิ์)",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-3/PER_3_018.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้ากรุงเทพ"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-3/PER_3_018.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้า อ.เมืองสมุทรปราการ"
+}
+]
+},
+{
+"lat": 14.6397,
+"lng": 101.2704,
+"code": "PER-4-002",
+"id": 2784,
+"name": "2 - อ.ปากช่อง จ.นครราชสีมา",
+"detail": "ทางหลวงแผ่นดินหมายเลข 2 ระหว่าง กม.42-43 ต.กลางดง อ.ปากช่อง จ.นครราชสีมา",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-4/PER_4_002_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้า จ.สระบุรี"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-4/PER_4_002_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าตัวเมืองนครราชสีมา"
+}
+]
+},
+{
+"lat": 14.8533,
+"lng": 100.9095,
+"code": "PER-4-010",
+"id": 2792,
+"name": "21 - อ.พัฒนานิคม จ.ลพบุรี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 21 ระหว่าง กม.22-23 ต.ดีลัง อ.พัฒนานิคม จ.ลพบุรี",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-4/PER_4_010.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้า จ.สระบุรี"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-4/PER_4_010.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้า จ.เพชรบูรณ์"
+}
+]
+},
+{
+"lat": 14.523,
+"lng": 100.508,
+"code": "PER-4-011",
+"id": 2793,
+"name": "32 - อ.บางปะหัน จ.อยุธยา",
+"detail": "ทางหลวงแผ่นดินหมายเลข 32 ที่ กม.43 ต.หันสัง อ.บางปะหัน จ.พระนครศรีอยุธยา",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-4/PER_4_011_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้ากรุงเทพ"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-4/PER_4_011_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้า จ.อ่างทอง"
+}
+]
+},
+{
+"lat": 15.2304,
+"lng": 100.2087,
+"code": "PER-4-012",
+"id": 2794,
+"name": "32 - อ.เมือง จ.ชัยนาท",
+"detail": "ทางหลวงแผ่นดินหมายเลข 32 ที่ กม.131 ต.เสือโฮก อ.เมือง จ.ชัยนาท",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-4/PER_4_012_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้า จ.สิงห์บุรี"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-4/PER_4_012_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้า จ.นครสวรรค์"
+}
+]
+},
+{
+"lat": 14.2795,
+"lng": 101.0509,
+"code": "PER-4-013",
+"id": 2795,
+"name": "33 - อ.บ้านนา จ.นครนายก",
+"detail": "ทางหลวงแผ่นดินหมายเลข 33 ระหว่าง กม.111-112 ต.ป่าขะ อ.บ้านนา จ.นครนายก",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-4/PER_4_013.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้า จ.สระบุรี"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-4/PER_4_013.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้า จ.ปราจีนบุรี"
+}
+]
+},
+{
+"lat": 13.9032,
+"lng": 100.5314,
+"code": "PER-4-016",
+"id": 2798,
+"name": "ถ.แจ้งวัฒนะ",
+"detail": "ทางหลวงหมายเลข 304 (ถ.แจ้งวัฒนะ) ระหว่าง กม.3-4 ใกล้ห้างเซ็นทรัลพลาซ่า แจ้งวัฒนะ",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-4/PER_4_016_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าแยกปากเกร็ด"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-4/PER_4_016_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าแยกหลักสี่"
+}
+]
+},
+{
+"lat": 13.777,
+"lng": 100.2232,
+"code": "PER-4-020",
+"id": 2802,
+"name": "ถ.บรมราชชนนี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 338 (ถ.บรมราชชนนี) ระหว่าง กม.26-27 ต.หอมเกร็ด อ.สามพราน จ.นครปฐม",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-4/PER_4_020.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้ากรุงเทพ"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-4/PER_4_020.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้า อ.นครชัยศรี จ.นครปฐม"
+}
+]
+},
+{
+"lat": 13.9531,
+"lng": 100.4734,
+"code": "PER-4-022",
+"id": 2804,
+"name": "345 - อ.เมือง จ.ปทุมธานี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 345 ระหว่าง กม.6-7 ต.บางคูวัด อ.เมือง จ.ปทุมธานี",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-4/PER_4_022.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าสะพานนนทบุรี (สะพานนวลฉวี)"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-4/PER_4_022.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าบางบัวทอง"
+}
+]
+},
+{
+"lat": 14.1844,
+"lng": 100.5567,
+"code": "PER-4-023",
+"id": 2805,
+"name": "347 - อ.บางปะอิน จ.อยุธยา",
+"detail": "ทางหลวงแผ่นดินหมายเลข 347 ที่ กม.20 ต.บางกระสั้น อ.บางปะอิน จ.พระนครศรีอยุธยา",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-4/PER_4_023.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้ากรุงเทพ"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-4/PER_4_023.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าตัวเมืองอยุธยา"
+}
+]
+},
+{
+"lat": 14.2125,
+"lng": 100.68,
+"code": "PER-5-001",
+"id": 2978,
+"name": "1 - อ.วังน้อย จ.พระนครศรีอยุธยา",
+"detail": "ทางหลวงแผ่นดินหมายเลข 1 ระหว่าง กม.60-61 ต.ลำไทร อ.วังน้อย จ.พระนครศรีอยุธยา",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-5/PER_5_001_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้ากรุงเทพ"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-5/PER_5_001_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าสระบุรี"
+}
+]
+},
+{
+"lat": 13.0461,
+"lng": 100.9265,
+"code": "PER-5-002",
+"id": 2979,
+"name": "3 - อ.บางละมุง จ.ชลบุรี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 3 ระหว่าง กม.132-133 ต.บางละมุง อ.บางละมุง จ.ชลบุรี",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-5/PER_5_002_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "มุ่งหน้า อ.เมืองชลบุรี"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-5/PER_5_002_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "มุ่งหน้า อ.สัตหีบ"
+}
+]
+},
+{
+"lat": 12.7195,
+"lng": 101.1583,
+"code": "PER-5-003",
+"id": 2980,
+"name": "3 - อ.เมืองระยอง จ.ระยอง",
+"detail": "ทางหลวงแผ่นดินหมายเลข 3 ระหว่าง กม.207-208 ต.มาบตาพุด อ.เมืองระยอง จ.ระยอง",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-5/PER_5_003.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้า อ.สัตหีบ"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-5/PER_5_003.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าตัวเมืองระยอง"
+}
+]
+},
+{
+"lat": 12.8293,
+"lng": 99.9352,
+"code": "PER-5-006",
+"id": 2983,
+"name": "4 - อ.ชะอำ จ.เพชรบุรี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 4 ระหว่าง กม.199-200 ต.เขาใหญ่ อ.ชะอำ จ.เพชรบุรี",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-5/PER_5_006_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้ากรุงเทพ"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-5/PER_5_006_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าหัวหิน"
+}
+]
+},
+{
+"lat": 12.6745,
+"lng": 99.9524,
+"code": "PER-5-007",
+"id": 2984,
+"name": "4 - อ.ชะอำ จ.เพชรบุรี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 4 ระหว่าง กม.219-220 ต.ชะอำ อ.ชะอำ จ.เพชรบุรี",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-5/PER_5_007_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้ากรุงเทพ"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-5/PER_5_007_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าหัวหิน"
+}
+]
+},
+{
+"lat": 13.3575,
+"lng": 99.9363,
+"code": "PER-5-014",
+"id": 2991,
+"name": "35 - อ.เมือง จ.สมุทรสงคราม",
+"detail": "ทางหลวงแผ่นดินหมายเลข 35 ระหว่าง กม.72-73 ต.คลองโคน อ.เมือง จ.สมุทรสงคราม",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-5/PER_5_014_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้ากรุงเทพ"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-5/PER_5_014_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้า จ.เพชรบุรี"
+}
+]
+},
+{
+"lat": 13.8556,
+"lng": 99.8384,
+"code": "PER-5-021",
+"id": 2998,
+"name": "323 - อ.บ้านโป่ง จ.ราชบุรี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 323 ระหว่าง กม.16-17 ต.ท่าผา อ.บ้านโป่ง จ.ราชบุรี",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-5/PER_5_021.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้า จ.นครปฐม"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-5/PER_5_021.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้า จ.กาญจนบุรี"
+}
+]
+},
+{
+"lat": 14.61117,
+"lng": 100.893707,
+"code": "PER-6-001",
+"id": 3049,
+"name": "1 - อ.เฉลิมพระเกียรติ จ.สระบุรี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 1 ระหว่าง กม.116-117 ต.ห้วยบง อ.เฉลิมพระเกียรติ จ.สระบุรี",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-6/PER6001IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "มุ่งหน้า กทม."
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-6/PER6001OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "มุ่งหน้า ลพบุรี"
+}
+]
+},
+{
+"lat": 14.221084,
+"lng": 100.610092,
+"code": "PER-6-013",
+"id": 3061,
+"name": "32 - อ.บางปะอิน จ.พระนครศรีอยุธยา",
+"detail": "ทางหลวงแผ่นดินหมายเลข 32 ระหว่าง กม.5-6 ต.คลองจิก อ.บางปะอิน จ.พระนครศรีอยุธยา",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-6/PER_6_013_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "มุ่งหน้า กทม."
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-6/PER_6_013_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "มุ่งหน้า จ.อ่างทอง"
+}
+]
+},
+{
+"lat": 14.747,
+"lng": 100.4541,
+"code": "PER-6-014",
+"id": 3062,
+"name": "32 - อ.พรหมบุรี จ.สิงห์บุรี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 32 ระหว่าง กม.67-68 ต.บ้านหม้อ อ.พรหมบุรี จ.สิงห์บุรี",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-6/PER_6_014_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "มุ่งหน้า จ.อ่างทอง"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-6/PER_6_014_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "มุ่งหน้า จ.สิหง์บุรี"
+}
+]
+},
+{
+"lat": 13.278027,
+"lng": 101.25423,
+"code": "PER-7-037",
+"id": 3131,
+"name": "331 - อ.บ้านบึง จ.ชลบุรี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 331 ระหว่าง กม.75-76 ต.หนองอิรุณ อ.บ้านบึง จ.ชลบุรี",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-7/PER_7_037.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.พนัสนิคม จ.ชลบุรี"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-7/PER_7_037.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.สัตหีบ จ.ชลบุรี"
+}
+]
+},
+{
+"lat": 14.406756,
+"lng": 99.962691,
+"code": "PER-8-010",
+"id": 3151,
+"name": "321 - อ.เมืองสุพรรณบุรี จ.สุพรรณบุรี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 321 ระหว่าง กม. 82-83 ต.ศาลาขาว อ.เมืองสุพรรณบุรี จ.สุพรรณบุรี",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-8/PER_8_010.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "มุ่งหน้า จ.สุพรรณบุรี"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-8/PER_8_010.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "มุ่งหน้า จ.นครปฐม"
+}
+]
+},
+{
+"lat": 13.7966,
+"lng": 99.9616,
+"code": "PER-8-012",
+"id": 3162,
+"name": "4 - อ.เมืองนครปฐม จ.นครปฐม",
+"detail": "ทางหลวงแผ่นดินหมายเลข 4 ระหว่าง กม. 66-67 ต.สระกระเทียม อ.เมืองนครปฐม จ.นครปฐม",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-8/PER_8_012.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "มุ่งหน้า จ.นครปฐม "
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-8/PER_8_012.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "มุ่งหน้า จ.ราชบุรี"
+}
+]
+},
+{
+"lat": 15.34198,
+"lng": 100.532905,
+"code": "PER-8-013",
+"id": 3153,
+"name": "1 - อ.ตากฟ้า จ.นครสวรรค์",
+"detail": "ทางหลวงแผ่นดินหมายเลข 1 ระหว่าง กม. 228-229 ต.สุขสำราญ อ.ตากฟ้า จ.นครสวรรค์",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-8/PER_8_013.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "มุ่งหน้า จ.ลพบุรี"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-8/PER_8_013.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "มุ่งหน้า จ.นครสวรรค์"
+}
+]
+},
+{
+"lat": 13.5482839,
+"lng": 100.6170774,
+"code": "PER-9-022",
+"id": 3211,
+"name": "3 - อ.เมืองสมุทรปราการ จ.สมุทรปราการ",
+"detail": "ทางหลวงแผ่นดินเหมายเลข 3 ระหว่าง กม. 32-33 ต.ท้ายบ้านใหม่ อ.เมือง จ.สมุทรปราการ",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-9/PER_9_022_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.สมุทรปราการ"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-9/PER_9_022_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.บางปู จ.สมุทรปราการ"
+}
+]
+},
+{
+"lat": 13.87167,
+"lng": 100.462385,
+"code": "PER-9-026",
+"id": 3215,
+"name": "302 - อ.เมืองนนทบุรี จ.นนทบุรี",
+"detail": "ทางหลวงแผ่นดินเหมายเลข 302 ระหว่าง กม. 13-14 ต.ไทรม้า อ.เมือง จ.นนทบุรี",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-9/PER_9_026_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า กทม."
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-9/PER_9_026_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าออก บางใหญ่"
+}
+]
+},
+{
+"lat": 13.811674,
+"lng": 100.787157,
+"code": "PER-9-027",
+"id": 3216,
+"name": "304-เขตมีนบุรี จ.กรุงเทพมหานคร",
+"detail": "ทางหลวงแผ่นดินหมายเลข 304 ระหว่าง กม.41-42 แขวงแสนแสบ เขตมีนบุรี กรุงเทพมหานคร",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-9/PER_9_027_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า มีนบุรี"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-9/PER_9_027_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.ฉะเชิงเทรา"
+}
+]
+},
+{
+"lat": 13.759117,
+"lng": 100.74628,
+"code": "PER-9-028",
+"id": 3217,
+"name": "3119-เขตลาดกระบัง จ.กรุงเทพมหานคร",
+"detail": "ทางหลวงแผ่นดินหมายเลข 3119 ระหว่าง กม.6-7 แขวงคลองสามประเวศ เขตลาดกระบัง กรุงเทพมหานคร",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-9/PER_9_028.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า ร่มเกล้า"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-9/PER_9_028.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า ลาดกระบัง"
+}
+]
+},
+{
+"lat": 14.066887,
+"lng": 100.688338,
+"code": "PER-9-030",
+"id": 3219,
+"name": "3214-อ.คลองหลวง จ.ปทุมธานี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 3214 ระหว่าง กม.12-13 ต.คลองสี่ อ.คลองหลวง จ.ปทุมธานี",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-9/PER_9_030.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า พหลโยธิน"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-9/PER_9_030.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า คลองหลวง"
+}
+]
+},
+{
+"lat": 13.475502,
+"lng": 99.964504,
+"code": "PER-9-032",
+"id": 3221,
+"name": "325 - อ.บางคนที จ.สมุทรสงคราม",
+"detail": "ทางหลวงแผ่นดินเหมายเลข 325 ระหว่าง กม. 30-31 ต.กระดังงา อ.บางคนที จ.สมุทรสงคราม",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-9/PER_9_032.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.ดำเนินสะดวก จ.สมุทรสงคราม"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-9/PER_9_032.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.อัมพวา จ.สมุทรสงคราม"
+}
+]
+},
+{
+"lat": 14.0266719,
+"lng": 100.1345838,
+"code": "PER-9-033",
+"id": 3222,
+"name": "346 - อ.บางเลน จ.นครปฐม",
+"detail": "ทางหลวงแผ่นดินเหมายเลข 346 ระหว่าง กม. 57-58 ต.ดอนตูม อ.บางเลน จ.นครปฐม",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-9/PER_9_033.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า บางเลน"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-9/PER_9_033.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า กำแพงแสน"
+}
+]
+},
+{
+"lat": 13.658957,
+"lng": 100.089816,
+"code": "PER-9-034",
+"id": 3223,
+"name": "375 - อ.สามพราน จ.นครปฐม",
+"detail": "ทางหลวงแผ่นดินเหมายเลข 375 ระหว่าง กม. 19-20 ต.คลองจินดา อ.สามพราน จ.นครปฐม",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-9/PER_9_034.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.สมุทรสาคร"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-9/PER_9_034.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.นครปฐม"
+}
+]
+},
+{
+"lat": 14.126861,
+"lng": 101.322615,
+"code": "PER-10-009",
+"id": 3235,
+"name": "319 - อ.เมือง จ.ปราจีนบุรี",
+"detail": "ทางหลวงแผ่นดินเหมายเลข 319 ระหว่าง กม. 2-3 ต.ไม้เค็ด อ.เมือง จ.ปราจีนบุรี",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_009.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.เมือง (จ.ปราจีนบุรี)"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_009.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.พนมสารคาม (จ.ปราจีนบุรี)"
+}
+]
+},
+{
+"lat": 14.7513,
+"lng": 100.7434,
+"code": "PER-10-011",
+"id": 3237,
+"name": "1 - อ.พระพุทธบาท จ.สระบุรี",
+"detail": "ทางหลวงแผ่นดินเหมายเลข 1 ระหว่าง กม. 142-143 ต.นายาว อ.พระพุทธบาท จ.สระบุรี",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_011.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.สระบุรี"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_011.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.ลพบุรี"
+}
+]
+},
+{
+"lat": 15.226901,
+"lng": 101.152119,
+"code": "PER-10-012",
+"id": 3238,
+"name": "205 - อ.ชัยบาดาล จ.ลพบุรี",
+"detail": "ทางหลวงแผ่นดินเหมายเลข 205 ระหว่าง กม. 76-77 ต.ลำนารายณ์ อ.ชัยบาดาล จ.ลพบุรี",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_012.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.ลพบุรี"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_012.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.ชัยภูมิ"
+}
+]
+},
+{
+"lat": 15.124171,
+"lng": 100.396338,
+"code": "PER-10-015",
+"id": 3241,
+"name": "11- อ.ตาครี จ.นครสวรรค์",
+"detail": "ทางหลวงแผ่นดินเหมายเลข 11 ระหว่าง กม. 11-12 ต.สร้อยทอง อ.ตาครี จ.นครสวรรค์",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_015.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.สิงห์บุรี"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_015.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.นครสวรรค์"
+}
+]
+},
+{
+"lat": 14.95995,
+"lng": 100.37431,
+"code": "PER-10-016",
+"id": 3242,
+"name": "32 - อ.อินทร์บุรี จ.สิงห์บุรี",
+"detail": "ทางหลวงแผ่นดินเหมายเลข 32 ระหว่าง กม. 95-96 ต.น้ำตาล อ.อินทร์บุรี จ.สิงห์บุรี",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_016_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.พระนครศรีอยุธยา"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_016_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.สิงห์บุรี"
+}
+]
+},
+{
+"lat": 13.9144,
+"lng": 100.41,
+"code": "PER-10-019",
+"id": 3245,
+"name": "9 - อ.บางบัวทอง จ.นนทบุรี",
+"detail": "ทางหลวงแผ่นดินเหมายเลข 9 (ถ. กาญจนาภิเษก) ระหว่าง กม. 44-750 ต.พิมลราช อ.บางบัวทอง จ.นนทบุรี",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_019_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.นนทบุรี"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_019_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.ลาดหลุมแก้ว (จ.ปทุมธานี)"
+}
+]
+},
+{
+"lat": 13.6345,
+"lng": 100.2963,
+"code": "PER-10-023",
+"id": 3249,
+"name": "3091 - อ.กระทุ่มแบน จ.สมุทรสาคร",
+"detail": "ทางหลวงแผ่นดินเหมายเลข 3091 ระหว่าง กม. 10-11 ต.คลองมะเดื่อ อ.กระทุ่มแบน จ.สมุทรสาคร",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_023.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า พุทธมณฑล สาย4 "
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_023.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.สมุทรสาคร"
+}
+]
+},
+{
+"lat": 14.4232,
+"lng": 100.5332,
+"code": "PER-10-024",
+"id": 3250,
+"name": "347 - อ.บางปะหัน จ.พระนครศรีอยุธยา",
+"detail": "ทางหลวงแผ่นดินเหมายเลข 347 ระหว่าง กม. 46-47 ต.พุทเลา อ.บางปะหัน จ.พระนครศรีอยุธยา",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_024.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.พระนครศรีอยุธยา"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_024.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.อ่างทอง"
+}
+]
+},
+{
+"lat": 13.575803,
+"lng": 101.004541,
+"code": "PER-10-026",
+"id": 3252,
+"name": "314 - อ.บ้านโพธิ์ จ.ฉะเชิงเทรา",
+"detail": "ทางหลวงแผ่นดินเหมายเลข 314 ระหว่าง กม. 7-8 ต.แสนภูดาษ อ.บ้านโพธิ์ จ.ฉะเชิงเทรา",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_026.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.ฉะเชิงเทรา"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_026.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.ปราจีนบุรี"
+}
+]
+},
+{
+"lat": 12.5341,
+"lng": 99.8774,
+"code": "PER-10-028",
+"id": 3254,
+"name": "37 - อ.หัวหิน จ.ประจวบคีรีขันธ์",
+"detail": "ทางหลวงแผ่นดินเหมายเลข 37 ระหว่าง กม. 33-34 ต.ทับใต้ อ.หัวหิน จ.ประจวบคีรีขันธ์",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_028.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.วังโบสถ์ (จ.เพชรบุรี)"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_028.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.ปรานบุรี (จ.ประจวบฯ)"
+}
+]
+},
+{
+"lat": 13.9003,
+"lng": 99.982,
+"code": "PER-10-029",
+"id": 3255,
+"name": "321- อ.เมือง จ.นครปฐม",
+"detail": "ทางหลวงแผ่นดินเหมายเลข 321 ระหว่าง กม. 11-12 ต.หนองงูเหลือม อ.เมือง จ.นครปฐม",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_029.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.นครปฐม"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_029.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.กำแพงแสน (จ.นครปฐม)"
+}
+]
+},
+{
+"lat": 13.552618,
+"lng": 100.139772,
+"code": "PER-10-030",
+"id": 3256,
+"name": "375 - อ.บ้านแพ้ว จ.สมุทรสาคร",
+"detail": "ทางหลวงแผ่นดินเหมายเลข 375 ระหว่าง กม. 6-7 ต.หลักสาม อ.บ้านแพ้ว จ.สมุทรสาคร",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_030.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.สมุทรสาคร"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_030.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.บ้านแพ้ว (จ.นครปฐม)"
+}
+]
+},
+{
+"lat": 12.7432,
+"lng": 99.9297,
+"code": "PER-10-031",
+"id": 3257,
+"name": "37 - อ.ชะอำ จ.เพชรบุรี",
+"detail": "ทางหลวงแผ่นดินเหมายเลข 37 ระหว่าง กม. 7-8 ต.เขาใหญ่ อ.ชะอำ จ.เพชรบุรี",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_031.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.ชะอำ (จ.เพชรบุรี)"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_031.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.วังโบสถ์ (จ.เพชรบุรี)"
+}
+]
+},
+{
+"lat": 13.7565,
+"lng": 99.9253,
+"code": "PER-10-032",
+"id": 3258,
+"name": "4 - อ.โพธาราม จ.ราชบุรี",
+"detail": "ทางหลวงแผ่นดินเหมายเลข 4 ระหว่าง กม. 73-74 ต.ดอนกระเบื้อง อ.โพธาราม จ.ราชบุรี",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_032.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.นครปฐม"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_032.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.ราชบุรี"
+}
+]
+},
+{
+"lat": 13.6345,
+"lng": 100.2963,
+"code": "PER-10-033",
+"id": 3259,
+"name": "4 - อ.ปากท่อ จ.ราชบุรี",
+"detail": "ทางหลวงแผ่นดินเหมายเลข 4 ระหว่าง กม. 116-117 ต.หนองกระทุ่ม อ.ปากท่อ จ.ราชบุรี",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_033.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.ราชบุรี"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_033.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.เพชรบุรี"
+}
+]
+},
+{
+"lat": 13.416031,
+"lng": 100.029061,
+"code": "PER-10-034",
+"id": 3260,
+"name": "35 - อ.เมือง จ.สมุทรสงคราม",
+"detail": "ทางหลวงแผ่นดินเหมายเลข 35 ระหว่าง กม. 59-60 ต.บางแก้ว อ.เมือง จ.สมุทรสงคราม",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_034_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.สมุทรสาคร"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_034_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.สมุทรสงคราม"
+}
+]
+},
+{
+"lat": 15.1242,
+"lng": 100.3963,
+"code": "PER-10-115",
+"id": 3965,
+"name": "11- อ.ตาครี จ.นครสวรรค์",
+"detail": "ทางหลวงแผ่นดินเหมายเลข 11 ระหว่าง กม. 11-12 ต.สร้อยทอง อ.ตาครี จ.นครสวรรค์",
+"streams": [
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_015.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.สิงห์บุรี"
+},
+{
+"u": "https://streaming1.highwaytraffic.go.th/PER-10/PER_10_015.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.นครสวรรค์"
+}
+]
+},
+{
+"lat": 14.860087,
+"lng": 100.639952,
+"code": "PER-11-013",
+"id": 3274,
+"name": "1 - อ.เมืองลพบุรี จ.ลพบุรี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 1 ระหว่าง กม 160 - 161 อ.เมืองลพบุรี จ.ลพบุรี",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-11/PER_11_013.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.ลพบุรี"
+}
+]
+},
+{
+"lat": 14.501092,
+"lng": 100.969996,
+"code": "PER-11-015",
+"id": 3276,
+"name": "362 - อ.เมืองสระบุรี จ.สระบุรี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 262 ระหว่าง กม 21 - 22 อ.เมืองสระบุรี จ.สระบุรี",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-11/PER_11_015.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.สระบุรี"
+}
+]
+},
+{
+"lat": 14.5827185,
+"lng": 100.2962653,
+"code": "PER-11-016",
+"id": 3277,
+"name": "3195 - อ.สามโก้ จ.อ่างทอง",
+"detail": "ทางหลวงแผ่นดินหมายเลข 3195 ระหว่าง กม 19 - 20 อ.สามโก้ จ.อ่างทอง",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-11/PER_11_016.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.อ่างทอง"
+}
+]
+},
+{
+"lat": 14.578969,
+"lng": 100.472321,
+"code": "PER-11-017",
+"id": 3278,
+"name": "334 - อ.เมืองอ่างทอง จ.อ่างทอง",
+"detail": "ทางหลวงแผ่นดินหมายเลข 334 ระหว่า กม 1 - 2 อ.เมืองอ่างทอง จ.อ่างทอง",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-11/PER_11_017.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.อยุธยา"
+}
+]
+},
+{
+"lat": 14.847395,
+"lng": 100.445785,
+"code": "PER-11-018",
+"id": 3279,
+"name": "32 - อ.พรหมบุรี จ.สิงห์บุรี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 32 ระหว่าง กม 80 - 81 อ.พรหมบุรี จ.สิงห์บุรี",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-11/PER_11_018_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.อ่างทอง"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-11/PER_11_018_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.สิงห์บุรี"
+}
+]
+},
+{
+"lat": 14.4627,
+"lng": 100.1994,
+"code": "PER-11-020",
+"id": 3281,
+"name": "33 - อ.เมืองสุพรรณบุรี จ.สุพรรณบุรี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 33 ระหว่าง กม 7 - 8 อ.เมืองสุพรรณบุรี จ.สุพรรณบุรี",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-11/PER_11_020.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.อยุธยา"
+}
+]
+},
+{
+"lat": 13.628822,
+"lng": 100.360577,
+"code": "PER-11-024",
+"id": 3285,
+"name": "3242 - อ.เมืองสมุทรสาคร จ.สมุทรสาคร",
+"detail": "ทางหลวงแผ่นดินหมายเลข 3242 ระหว่าง กม 13-14 อ.เมืองสมุทรสาคร จ.สมุทรสาคร",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-11/PER_11_024.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า พระราม 2"
+}
+]
+},
+{
+"lat": 13.4276063,
+"lng": 101.1183259,
+"code": "PER-11-026",
+"id": 3287,
+"name": "315 - อ.พานทอง จ.ชลบุรี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 315 ระหว่าง กม 31-32 อ.พานทอง จ.ชลบุรี",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-11/PER_11_026_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.พนัสนิคม จ.ชลบุรี"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-11/PER_11_026_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.ชลบุรี"
+}
+]
+},
+{
+"lat": 13.3754247,
+"lng": 101.0198804,
+"code": "PER-11-027",
+"id": 3288,
+"name": "361 - อ.เมืองชลบุรี จ.ชลบุรี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 361 ระหว่าง กม 5-6 - อ.เมืองชลบุรี จ.ชลบุรี",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-11/PER_11_027_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า ถ.บางนาตราด"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-11/PER_11_027_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า ถ.สุขุมวิท"
+}
+]
+},
+{
+"lat": 13.2963883,
+"lng": 100.945525,
+"code": "PER-11-028",
+"id": 3289,
+"name": "3 - อ.เมืองชลบุรี จ.ชลบุรี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 3 ระหว่าง กม 102-103 อ.เมืองชลบุรี จ.ชลบุรี",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-11/PER_11_028_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.เมือง จ.ชลบุรี"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-11/PER_11_028_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า เทศบาลแหลมฉบัง"
+}
+]
+},
+{
+"lat": 12.841583,
+"lng": 101.011513,
+"code": "PER-11-030",
+"id": 3291,
+"name": "331 - อ.บางละมุง จ.ชลบุรี",
+"detail": "หมายเลขแผ่นดินทางหลวง 331 ระหว่า กม 18-19 อ.บางละมุง จ.ชลบุรี",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-11/PER_11_030.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.พนมสารคาม จ.ชลบุรี"
+}
+]
+},
+{
+"lat": 13.965813,
+"lng": 100.92626,
+"code": "PER-11-033",
+"id": 3294,
+"name": "3312 - อ.องครักษ์ จ.นครนายก",
+"detail": "ทางหลวงแผ่นดินหมายเลข 3312 ระหว่าง กม 35-36 อ.องครักษ์ จ.นครนายก",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-11/PER_11_033.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.นครนายก"
+}
+]
+},
+{
+"lat": 14.8105,
+"lng": 100.5422,
+"code": "PER-11-119",
+"id": 3962,
+"name": "311 - อ.ท่าวุ้ง จ.ลพบุรี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 311 ระหว่าง กม 12 - 13 อ.ท่าวุ้ง จ.ลพบุรี",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-11/PER_11_019.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": ""
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-11/PER_11_019.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": ""
+}
+]
+},
+{
+"lat": 13.578088,
+"lng": 100.311403,
+"code": "PER-11-123",
+"id": 3793,
+"name": "3242 - อ.เมืองสมุทรสาคร จ.สมุทรสาคร",
+"detail": "ทางหลวงแผ่นดินหมายเลข 3242 ระหว่าง กม 5-6 อ.เมืองสมุทรสาคร จ.สมุทรสาคร",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-11/PER_11_023.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.สมุทรสาคร"
+}
+]
+},
+{
+"lat": 14.6045,
+"lng": 101.0596,
+"code": "PER-12-010",
+"id": 3304,
+"name": "2 - ตาลเดี่ยว - ซับบอน",
+"detail": "ทางหลวงแผ่นดินหมายเลข 2 ระหว่าง กม 17 - 18 อ.แก่งคอย จ.สระบุรี",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-12/PER_12_010_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.เมืองสระบุรี"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-12/PER_12_010_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.ปากช่อง"
+}
+]
+},
+{
+"lat": 15.2812,
+"lng": 100.1963,
+"code": "PER-12-011",
+"id": 3305,
+"name": "32 - โพนางดำออก - ท่าฉนวน",
+"detail": "ทางหลวงแผ่นดินหมายเลข 32 ระหว่าง กม 136 - 137 อ.มโนรมย์ จ.ชัยนาท",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-12/PER_12_011_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.สิงห์บุรี"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-12/PER_12_011_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า จ.นครสวรรค์"
+}
+]
+},
+{
+"lat": 14.1313,
+"lng": 100.2898,
+"code": "PER-12-013",
+"id": 3307,
+"name": "340 - บางบัวทอง - ลาดบัวหลวง",
+"detail": "ทางหลวงแผ่นดินหมายเลข 340 ระหว่าง กม 25 - 26 อ.ไทรน้อย จ.นนทบุรี",
+"streams": [
+{
+"u": "https://streaming3.highwaytraffic.go.th/PER-12/PER_12_013.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.บางบัวทอง"
+},
+{
+"u": "https://streaming3.highwaytraffic.go.th/PER-12/PER_12_013.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.ลาดบัวหลวง"
+}
+]
+},
+{
+"lat": 14.1089,
+"lng": 100.5702,
+"code": "PER-12-014",
+"id": 3308,
+"name": "347 - เทคโนโลยีปทุมธานี - ต่างระดับเชียงรากน้อย",
+"detail": "ทางหลวงแผ่นดินหมายเลข 347 ระหว่าง กม 10 - 11 อ.สามโคก จ.ปทุมธานี",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-12/PER_12_014_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า ต.เชียงรากน้อย"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-12/PER_12_014_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า ต.บางกระสั้น"
+}
+]
+},
+{
+"lat": 13.7643,
+"lng": 100.3285,
+"code": "PER-12-016",
+"id": 3310,
+"name": "3310 - กระทุ่มล้ม - พุทธมณฑล",
+"detail": "ทางหลวงแผ่นดินหมายเลข 3310 ระหว่าง กม 6 - 7 อ.สามพราน จ.นครปฐม",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-12/PER_12_016_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า ตำบล กระทุ่มล้ม"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-12/PER_12_016_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.พุทธมณฑล"
+}
+]
+},
+{
+"lat": 13.7579,
+"lng": 100.3012,
+"code": "PER-12-017",
+"id": 3311,
+"name": "3414 - อ้อมน้อย - ศาลายา",
+"detail": "ทางหลวงแผ่นดินหมายเลข 3414 ระหว่าง กม 5 - 6 อ.สามพราน จ.นครปฐม",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-12/PER_12_017.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.อ้อมน้อย"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-12/PER_12_017.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า ต.บางกระทึก"
+}
+]
+},
+{
+"lat": 14.2652,
+"lng": 100.7851,
+"code": "PER-12-018",
+"id": 3312,
+"name": "1 - ประตูน้ําพระอินทร์ - หนองแค",
+"detail": "ทางหลวงแผ่นดินหมายเลข 1 ระหว่าง กม 73 - 74 อ.วังน้อย จ.พระนครศรีอยุธยา",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-12/PER_12_018_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.วังน้อย"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-12/PER_12_018_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.หนองแค"
+}
+]
+},
+{
+"lat": 14.1389,
+"lng": 100.4938,
+"code": "PER-12-019",
+"id": 3313,
+"name": "3111 - ท้ายเกาะ - เสนา",
+"detail": "ทางหลวงแผ่นดินหมายเลข 3111 ระหว่าง กม 14 - 15 อ.บางไทร จ.พระนครศรีอยุธยา",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-12/PER_12_019.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.สามโคก"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-12/PER_12_019.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.เสนา"
+}
+]
+},
+{
+"lat": 12.923,
+"lng": 101.011,
+"code": "PER-12-022",
+"id": 3316,
+"name": "36 - บ้านโป่ง - มะขามคู่",
+"detail": "ทางหลวงแผ่นดินหมายเลข 36 ระหว่าง กม 12 - 13 อ.บางละมุง อ.ชลบุรี",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-12/PER_12_022.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า ต.โป่ง อ.บางละมุง"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-12/PER_12_022.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า ต.เขาไม้แก้ว อ.บางละมุง"
+}
+]
+},
+{
+"lat": 13.4807,
+"lng": 101.0015,
+"code": "PER-12-026",
+"id": 3320,
+"name": "34 - บางวัว - บางปะกง",
+"detail": "ทางหลวงแผ่นดินหมายเลข 34 ระหว่าง กม 51 - 52 อ.บางปะกง จ.ฉะเชิงเทรา",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-12/PER_12_026_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า ต.บางปะกง อ.บางปะกง"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-12/PER_12_026_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า ต.ท่าขาม อ.บางปะกง"
+}
+]
+},
+{
+"lat": 12.7579,
+"lng": 101.2891,
+"code": "PER-12-029",
+"id": 3323,
+"name": "3574 - บ้านค่าย - ระยอง",
+"detail": "ทางหลวงแผ่นดินหมายเลข 3574 ระหว่าง กม 49 - 50 อ.บ้านค่าย จ.ระยอง",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-12/PER_12_029_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.บ้านค่าย จ.ระยอง"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-12/PER_12_029_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.ท่าปะดู่ จ.ระยอง"
+}
+]
+},
+{
+"lat": 14.6322,
+"lng": 100.4729,
+"code": "PER-12-112",
+"id": 3963,
+"name": "32 - อ่างทอง - ไชโย",
+"detail": "ทางหลวงแผ่นดินหมายเลข 32 ระหว่าง กม 55 - 56 อ.ไชโย จ.อ่างทอง",
+"streams": [
+{
+"u": "https://streaming3.highwaytraffic.go.th/PER-12/PER_12_012_OUT.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": ""
+},
+{
+"u": "https://streaming3.highwaytraffic.go.th/PER-12/PER_12_012_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": ""
+}
+]
+},
+{
+"lat": 14.48379,
+"lng": 100.172649,
+"code": "PER-13-024",
+"id": 3388,
+"name": "357 - ถนนวงแหวนรอบเมืองสุพรรณบุรี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 357 ระหว่าง กม 35 - 36",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-13/PER_13_024.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า อ่างทอง"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-13/PER_13_024.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า สุพรรณบุรี"
+}
+]
+},
+{
+"lat": 14.085407,
+"lng": 100.617906,
+"code": "PER-13-029",
+"id": 3393,
+"name": "1 - ต่างระดับคลองหลวง - ประตูน้ำพระอินทร์",
+"detail": "ทางหลวงแผ่นดินหมายเลข 1 ระหว่าง กม 42 - 43",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-13/PER_13_029_1.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า กรุงเทพฯ"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-13/PER_13_029_2.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อยุธยา"
+}
+]
+},
+{
+"lat": 13.605208,
+"lng": 101.303892,
+"code": "PER-13-032",
+"id": 3396,
+"name": "331 - แปลงยาว - เขาหินซ้อน",
+"detail": "ทางหลวงแผ่นดินหมายเลข 331 ระหว่าง กม 113 - 114",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-13/PER_13_032.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า ชลบุรี"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-13/PER_13_032.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.กบินทร์บุรี จ.ปราจีนบุรี"
+}
+]
+},
+{
+"lat": 13.777329,
+"lng": 100.2234,
+"code": "PER-14-001",
+"id": 3440,
+"name": "338 - พุทธมณฑลสาย 4 - นครชัยศรี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 338 ระหว่าง กม 26 - 27",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-14/PER_14_001_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า เขตทวีวัฒนา กรุงเทพมหานคร"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-14/PER_14_001_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.นครชัยศรี จ.นครปฐม"
+}
+]
+},
+{
+"lat": 14.9036,
+"lng": 100.9047,
+"code": "PER-15-014",
+"id": 3776,
+"name": "21 - แยกมะนาวหวาน - ม่วงค่อม",
+"detail": "ทางหลวงแผ่นดินหมายเลข 21 ระหว่าง กม 27 - 28",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-15/PER_15_014.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.พระพุทธบาท จ.สระบุรี"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-15/PER_15_014.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.ชัยบาดาล จ.ลพบุรี"
+}
+]
+},
+{
+"lat": 15.2802,
+"lng": 100.3761,
+"code": "PER-15-016",
+"id": 3778,
+"name": "1 - เกษตรชัย - ตาคลี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 1 ระหว่าง กม 251 - 252",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-15/PER_15_016.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.ตากฟ้า จ.นครสวรรค์"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-15/PER_15_016.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.เมืองชัยนาท จ.ชัยนาท"
+}
+]
+},
+{
+"lat": 14.2698,
+"lng": 100.5313,
+"code": "PER-15-017",
+"id": 3779,
+"name": "37 - ต่างระดับเชียงราก - บางกระสั้น",
+"detail": "ทางหลวงแผ่นดินหมายเลข 347 ระหว่าง กม 29 - 30",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-15/PER_15_017_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.สามโคก จ.ปทุมธานี"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-15/PER_15_017_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.พระนครศรีอยุธยา จ.อยุธยา"
+}
+]
+},
+{
+"lat": 13.4969787,
+"lng": 100.8492719,
+"code": "PER-16-012",
+"id": 3810,
+"name": "314 - บางตำหรุ - คลองด่าน",
+"detail": "ทางหลวงแผ่นดินหมายเลข 314 ระหว่าง กม 59 - 60",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-16/PER_16_012.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.เมือง จ.สมุทรปราการ"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-16/PER_16_012.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.เมือง จ.ฉะเชิงเทรา"
+}
+]
+},
+{
+"lat": 12.7085324,
+"lng": 100.9735357,
+"code": "PER-16-013",
+"id": 3811,
+"name": "331 - สัตหีบ - เขาบายศรี",
+"detail": "ทางหลวงแผ่นดินหมายเลข 331 ระหว่าง กม 2 - 3",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-16/PER_16_013.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.สัตหีบ จ.ชลบุรี"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-16/PER_16_013.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.แปลงยาว จ.ฉะเชิงเทรา"
+}
+]
+},
+{
+"lat": 12.7418599,
+"lng": 100.9907514,
+"code": "PER-16-014",
+"id": 3812,
+"name": "331 - เขาบายศรี - พันเสด็จนอก",
+"detail": "ทางหลวงแผ่นดินหมายเลข 331 ระหว่าง กม 6 - 7",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-16/PER_16_014.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.สัตหีบ จ.ชลบุรี"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-16/PER_16_014.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.แปลงยาว จ.ฉะเชิงเทรา"
+}
+]
+},
+{
+"lat": 12.8038996,
+"lng": 101.145822,
+"code": "PER-16-016",
+"id": 3814,
+"name": "36 - มะขามคู่ - มาบข่า IN-OUT",
+"detail": "ทางหลวงแผ่นดินหมายเลข 36 ระหว่าง กม. 32 - 33",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-16/PER_16_016_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.บางละมุง จ.ชลบุรี"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-16/PER_16_016_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.เมือง จ.ระยอง"
+}
+]
+},
+{
+"lat": 13.4592602,
+"lng": 101.0695574,
+"code": "PER-17-018",
+"id": 3924,
+"name": "3466-บ้านเก่า - พานทอง",
+"detail": "ทางหลวงแผ่นดินหมายเลข3466ระหว่าง กม.7-8",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-17/PER_17_018.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้าอ.เมือง จ.ชลบุรี"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-17/PER_17_018.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้าอ.พานทอง จ.ชลบุรี"
+}
+]
+},
+{
+"lat": 13.25529,
+"lng": 101.2031274,
+"code": "PER-18-008",
+"id": 3943,
+"name": "0102-หนองรี - หนองปรือ",
+"detail": "ทางหลวงแผ่นดินหมายเลข ระหว่าง กม.27-28",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-18/PER_18_008.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้าต.เขาซก อ.หนองใหญ่ จ.ชลบุรี"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-18/PER_18_008.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้าต.หนองรี อ.เมือง จ.ชลบุรี"
+}
+]
+},
+{
+"lat": 13.374012,
+"lng": 101.194843,
+"code": "PER-18-009",
+"id": 3945,
+"name": "0100-พนัสนิคม - หนองชาก",
+"detail": "ทางหลวงแผ่นดินหมายเลข 344 ระหว่าง กม.-1",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-18/PER_18_009_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้าอ.พนัสนิคม จ.ชลบุรี"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-18/PER_18_009_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้าอ.บ้านบึง จ.ชลบุรี"
+}
+]
+},
+{
+"lat": 13.621,
+"lng": 100.6235,
+"code": "PER-19-001",
+"id": 3954,
+"name": "3344-อุดมสุข - สมุทรปราการ",
+"detail": "ทางหลวงแผ่นดินหมายเลข 3344 ระหว่าง กม 16 - 17",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-19/PER_19_001_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า เขคสวนหลวง กรุงเทพฯ"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-19/PER_19_001_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า เขคบางนา กรุงเทพฯ"
+}
+]
+},
+{
+"lat": 13.6672,
+"lng": 101.1883,
+"code": "PER-19-002",
+"id": 3955,
+"name": "304-ฉะเชิงเทรา - เสม็ดเหนือ",
+"detail": "ทางหลวงแผ่นดินหมายเลข 304 ระหว่าง กม 85 - 86",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-19/PER_19_002_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.เมือง จ.ฉะเชิงเทรา"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-19/PER_19_002_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.พนมสารคาม จ.ฉะเชิงเทรา"
+}
+]
+},
+{
+"lat": 12.8469,
+"lng": 101.1091,
+"code": "PER-19-003",
+"id": 3956,
+"name": "36-มะขามคู่ - มาบข่า",
+"detail": "ทางหลวงแผ่นดินหมายเลข 36 ระหว่าง กม 26 - 27",
+"streams": [
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-19/PER_19_003_IN.stream/playlist.m3u8",
+"label": "ขาเข้า",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.บางละมุง จ.ชลบุรี"
+},
+{
+"u": "https://streaming2.highwaytraffic.go.th/PER-19/PER_19_003_OUT.stream/playlist.m3u8",
+"label": "ขาออก",
+"dir": "ทิศทางมุ่งหน้าเข้า อ.เมือง จ.ระยอง"
+}
+]
+},
+{
+"lat": 13.8496,
+"lng": 99.9771,
+"code": "Tmp-080",
+"id": 3846,
+"name": "ทางหลวงพิเศษสาย อ.บางใหญ่-กาญจนบุรี",
+"detail": "",
+"streams": [
+{
+"u": "http://183.89.205.98:9980/8rvqgJbOl5rQzqnbnBDHpcNJIVTfnb/hls/stream/M81_STA1_CAM01/s.m3u8",
+"label": "ขาเข้า",
+"dir": ""
+},
+{
+"u": "http://183.89.205.98:9980/8rvqgJbOl5rQzqnbnBDHpcNJIVTfnb/hls/stream/M81_STA2_CAM01/s.m3u8",
+"label": "ขาออก",
+"dir": ""
+}
+]
+}
+]
