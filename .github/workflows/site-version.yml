@@ -1,6 +1,6 @@
 name: Site version (live site)
 
-# ตรวจว่าเว็บที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง (หน้าแรก / หน้า /status / service worker)
+# ตรวจว่าเว็บที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง (หน้าแรก / หน้า /status / service worker) — รันเมื่อแก้ไฟล์นี้หรือกดรันเอง
 on:
   workflow_dispatch:
   push:
