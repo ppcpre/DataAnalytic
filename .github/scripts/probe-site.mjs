@@ -1,26 +1,47 @@
 // สำรวจกล้องถาวรของกรมทางหลวง (highwaytraffic.go.th) ในกรุงเทพฯ ปริมณฑล ชลบุรี และจังหวัดใกล้เคียง
-// อ่านรายชื่อหมุดจากหน้าเว็บสาธารณะ แล้วขอชื่อจุด/ลิงก์วิดีโอแบบเดียวกับที่หน้าเว็บทำเมื่อกดหมุด (ไม่ล็อกอิน)
-// ผลลัพธ์: บรรทัด SITE {...} ต่อจุด ใช้สร้างรายชื่อกล้องของแอป
+// เปิดหน้าเว็บสาธารณะใน Chrome แล้วกดหมุดทีละจุด (ฟังก์ชันเดียวกับที่หมุดเรียกเมื่อผู้ใช้คลิก) เพื่ออ่านชื่อจุดและลิงก์วิดีโอ
+// จากนั้นทดสอบว่าลิงก์วิดีโอเล่นได้และอนุญาตให้เว็บอื่นเล่นหรือไม่ — ผลลัพธ์: บรรทัด SITE {...} ต่อจุด
+import { chromium } from 'playwright-core';
+
 const UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36';
-const BASE = 'https://highwaytraffic.go.th/DOHWeb/Home.aspx';
+const SITE = 'https://highwaytraffic.go.th/DOHWeb/Home.aspx';
 const APP_ORIGIN = 'https://dataanalytic.precare.workers.dev';
 const strip = (s) => String(s ?? '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 
-const html = await (await fetch(BASE, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(40000) })).text();
-const all = [...html.matchAll(/CreateCustomDiv\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*'([^']+)'\s*,\s*'<div id="pin(\d+)"[^>]*class="(pin\d+)"/g)].map((m) => ({ lat: Number(m[1]), lng: Number(m[2]), code: m[3], id: Number(m[4]), cls: m[5] }));
-console.log('all pins', all.length, 'by prefix', JSON.stringify(all.reduce((a, s) => ((a[s.code.split('-')[0]] = (a[s.code.split('-')[0]] ?? 0) + 1), a), {})));
-// กรอบ: ลุ่มเจ้าพระยาตอนล่าง + ภาคตะวันออก (ชลบุรี/สัตหีบ)
+const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome' });
+const ctx = await b.newContext({ viewport: { width: 1400, height: 900 }, locale: 'th-TH', ignoreHTTPSErrors: true });
+// ไม่ต้องโหลดวิดีโอจริงระหว่างเก็บรายชื่อ (ลดภาระต้นทาง)
+await ctx.route(/streaming\d*\.highwaytraffic\.go\.th/, (r) => r.abort());
+const p = await ctx.newPage();
+const got = new Map();
+let current = null;
+p.on('response', async (r) => {
+  const m = /Home\.aspx\/(GetSiteInfo|GetCameraInfo)$/.exec(r.url());
+  if (!m) return;
+  const id = JSON.parse(r.request().postData() ?? '{}').siteID ?? current;
+  const d = (await r.json().catch(() => ({}))).d;
+  const row = got.get(id) ?? {};
+  row[m[1]] = { status: r.status(), d };
+  got.set(id, row);
+});
+await p.goto(SITE, { waitUntil: 'domcontentloaded', timeout: 60000 });
+await p.waitForTimeout(8000);
+const html = await p.content();
+const all = [...html.matchAll(/CreateCustomDiv\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*'([^']+)'\s*,\s*'<div id="pin(\d+)"/g)].map((m) => ({ lat: Number(m[1]), lng: Number(m[2]), code: m[3], id: Number(m[4]) }));
 const sites = all.filter((s) => s.lat > 12.5 && s.lat < 15.4 && s.lng > 99.8 && s.lng < 101.35);
-console.log('in region', sites.length);
+console.log('all pins', all.length, 'in region', sites.length);
 
-const call = async (method, siteID) => {
-  const r = await fetch(`${BASE}/${method}`, { method: 'POST', headers: { 'user-agent': UA, 'content-type': 'application/json; charset=utf-8' }, body: JSON.stringify({ siteID }), signal: AbortSignal.timeout(30000) });
-  if (!r.ok) throw new Error(`${method} HTTP ${r.status}`);
-  return (await r.json()).d;
-};
+for (const s of sites) {
+  current = s.id;
+  await p.evaluate((id) => MoveLocation(id), s.id).catch(() => {});
+  const t0 = Date.now();
+  while (Date.now() - t0 < 9000 && !(got.get(s.id)?.GetSiteInfo && got.get(s.id)?.GetCameraInfo)) await p.waitForTimeout(250);
+}
+await b.close();
+
 const checkStream = async (url) => {
   try {
-    const r = await fetch(url, { headers: { 'user-agent': UA, origin: APP_ORIGIN, referer: `${APP_ORIGIN}/` }, signal: AbortSignal.timeout(12000) });
+    const r = await fetch(url, { headers: { 'user-agent': UA, origin: APP_ORIGIN, referer: `${APP_ORIGIN}/` }, signal: AbortSignal.timeout(10000) });
     const t = await r.text();
     return { s: r.status, cors: r.headers.get('access-control-allow-origin') ?? '-', ok: r.status === 200 && t.startsWith('#EXTM3U') };
   } catch (e) {
@@ -28,34 +49,27 @@ const checkStream = async (url) => {
   }
 };
 
-let i = 0;
 const out = [];
-await Promise.all(Array.from({ length: 4 }, async () => {
+let i = 0;
+await Promise.all(Array.from({ length: 6 }, async () => {
   while (i < sites.length) {
     const s = sites[i++];
-    const row = { ...s };
-    try {
-      const info = await call('GetSiteInfo', s.id);
-      const text = strip(info?.[3]);
-      row.name = (/ชื่อจุดติดตั้ง\s*(.*?)\s*รายละเอียด/.exec(text)?.[1] ?? '').trim();
-      row.detail = (/รายละเอียด\s*(.*)$/.exec(text)?.[1] ?? '').trim().slice(0, 140);
-      const cam = String(await call('GetCameraInfo', s.id));
-      const streams = [...cam.matchAll(/site_code="(https:\/\/[^"]+\.m3u8)"/g)].map((m) => m[1]);
-      const labels = [...cam.matchAll(/id="ctl01_tab\dLabel">([^<]*)</g)].map((m) => m[1]);
-      const dirs = [...cam.matchAll(/id="ctl01_TxtDirect(?:In|Out)">([^<]*)</g)].map((m) => m[1]);
-      row.streams = [];
-      for (const [k, u] of streams.entries()) row.streams.push({ u, label: labels[k] ?? '', dir: dirs[k] ?? '', ...(await checkStream(u)) });
-      if (!streams.length) row.note = strip(cam).slice(0, 120);
-    } catch (e) {
-      row.error = String(e?.message ?? e).slice(0, 100);
-    }
+    const g = got.get(s.id) ?? {};
+    const text = strip(g.GetSiteInfo?.d?.[3]);
+    const cam = String(g.GetCameraInfo?.d ?? '');
+    const row = { ...s, name: (/ชื่อจุดติดตั้ง\s*(.*?)\s*รายละเอียด/.exec(text)?.[1] ?? '').trim(), detail: (/รายละเอียด\s*(.*)$/.exec(text)?.[1] ?? '').trim().slice(0, 120), camStatus: g.GetCameraInfo?.status ?? null, streams: [] };
+    const urls = [...cam.matchAll(/site_code="(https?:\/\/[^"]+)"/g)].map((m) => m[1]);
+    const labels = [...cam.matchAll(/id="ctl01_tab\dLabel">([^<]*)</g)].map((m) => m[1]);
+    const dirs = [...cam.matchAll(/id="ctl01_TxtDirect(?:In|Out)">([^<]*)</g)].map((m) => m[1]);
+    for (const [k, u] of urls.entries()) row.streams.push({ u, label: labels[k] ?? '', dir: dirs[k] ?? '', ...(u.includes('.m3u8') ? await checkStream(u) : { ok: false, s: -1, cors: '-' }) });
+    if (!urls.length) row.note = strip(cam).slice(0, 100);
     out.push(row);
-    console.log('SITE', JSON.stringify(row));
   }
 }));
+out.sort((a, b) => a.code.localeCompare(b.code, 'en', { numeric: true }));
+for (const r of out) console.log('SITE', JSON.stringify(r));
 
-const withStream = out.filter((r) => r.streams?.length);
-const playable = out.filter((r) => r.streams?.some((x) => x.ok));
-console.log('\nSUMMARY sites', out.length, 'with stream url', withStream.length, 'playable now', playable.length, 'errors', out.filter((r) => r.error).length);
-console.log('CORS values', JSON.stringify(out.flatMap((r) => r.streams ?? []).reduce((a, x) => ((a[`${x.s}:${x.cors}`] = (a[`${x.s}:${x.cors}`] ?? 0) + 1), a), {})));
-console.log('HOSTS', JSON.stringify(out.flatMap((r) => r.streams ?? []).reduce((a, x) => { const h = new URL(x.u).host; a[h] ??= { ok: 0, fail: 0 }; a[h][x.ok ? 'ok' : 'fail']++; return a; }, {})));
+const streams = out.flatMap((r) => r.streams);
+console.log('\nSUMMARY sites', out.length, '| with stream url', out.filter((r) => r.streams.length).length, '| playable now', out.filter((r) => r.streams.some((x) => x.ok)).length);
+console.log('CORS', JSON.stringify(streams.reduce((a, x) => ((a[`${x.s}:${x.cors}${x.err ? `:${x.err}` : ''}`] = (a[`${x.s}:${x.cors}${x.err ? `:${x.err}` : ''}`] ?? 0) + 1), a), {})));
+console.log('HOSTS', JSON.stringify(streams.reduce((a, x) => { const h = new URL(x.u).host; a[h] ??= { ok: 0, fail: 0 }; a[h][x.ok ? 'ok' : 'fail']++; return a; }, {})));
