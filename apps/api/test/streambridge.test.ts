@@ -26,6 +26,29 @@ describe('streambridge cameras', () => {
     expect(out[1].hlsSessionUrl).toBeUndefined();
     expect(parseStreamBridge(null, 'x')).toEqual([]);
   });
+
+  it('pins Saensuk (Bang Saen) cameras in Chonburi, a camera-only province', () => {
+    const id = '11111111-2222-4333-8444-555555555555';
+    const out = parseStreamBridge(
+      {
+        title: 'เทศบาลเมืองแสนสุข',
+        subtitle: 'ระบบกล้องวงจรปิดรักษาความปลอดภัย หาดบางแสน',
+        cameras: [
+          { id, name: 'บางแสนสาย1 (โรงแรมเอสทู) #1', status: 'online', latitude: 13.2838, longitude: 100.9156 },
+          { id: 'zero', name: 'พิกัดผิด', status: 'online', latitude: 0, longitude: 0 },
+        ],
+      },
+      'saensuk',
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({
+      id: `sb-${id}`,
+      location: { lat: 13.2838, lng: 100.9156, province: '20', provinceName: 'ชลบุรี' },
+      hlsSessionUrl: `/api/streambridge/saensuk/${id}/session`,
+      url: 'https://app.streambridge.online/p/saensuk',
+    });
+    expect(loadConfig({}).cameras.streamBridgeSlugs).toEqual(['bangkruai-city', 'saensuk']);
+  });
 });
 
 describe('streambridge live session', () => {

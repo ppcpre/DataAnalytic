@@ -93,7 +93,7 @@ export function loadConfig(env: Env = process.env): Config {
       listUrl: env.CAMERA_LIST_URL ?? 'https://traffic.longdo.com/camera.json',
       cacheTtlMs: Number(env.CAMERA_CACHE_SECONDS ?? 3600) * 1000,
       nontLive: env.NONT_LIVE !== 'false',
-      streamBridgeSlugs: (env.STREAMBRIDGE_SLUGS ?? 'bangkruai-city')
+      streamBridgeSlugs: (env.STREAMBRIDGE_SLUGS ?? 'bangkruai-city,saensuk')
         .split(',')
         .map((x) => x.trim())
         .filter(Boolean),

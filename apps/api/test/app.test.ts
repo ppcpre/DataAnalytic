@@ -107,7 +107,7 @@ describe('cameras and geocode', () => {
       loadConfig({}),
       async (url) => {
         urls.push(url);
-        if (url.startsWith('https://app.streambridge.online/')) return STREAMBRIDGE_BODY;
+        if (url.startsWith('https://app.streambridge.online/')) return url.endsWith('/bangkruai-city') ? STREAMBRIDGE_BODY : { cameras: [] };
         if (url.startsWith('https://telemetry.dwr.go.th/')) return DWR_STATION;
         if (url.startsWith('https://flood.pop.in.th/')) return {};
         return {
@@ -123,6 +123,7 @@ describe('cameras and geocode', () => {
     const live = await (await app.request('/api/cameras')).json();
     expect(urls.sort()).toEqual([
       'https://app.streambridge.online/api/public/bangkruai-city',
+      'https://app.streambridge.online/api/public/saensuk',
       'https://flood.pop.in.th/api_overview.php',
       'https://flood.pop.in.th/api_roads.php',
       'https://telemetry.dwr.go.th/api/public/station/getByCode/TA100220',

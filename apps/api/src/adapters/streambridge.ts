@@ -3,7 +3,7 @@
  * หน้าเว็บดึงรายชื่อกล้องจาก /api/public/<slug> ซึ่งมีพิกัดและภาพล่าสุด (snapshot) ของแต่ละกล้อง
  * ภาพสด: POST /api/public/<slug>/cameras/<id>/session → { hlsUrl } (HLS อนุญาต CORS ให้โดเมนของแอป)
  */
-import { isServiceProvince, type Camera } from '@flood-watch/shared';
+import { isCameraProvince, type Camera } from '@flood-watch/shared';
 
 type Rec = Record<string, unknown>;
 
@@ -37,6 +37,8 @@ const ownUrl = (v: unknown) => {
  */
 export const STREAMBRIDGE_PROVINCES: Record<string, { code: string; name: string }> = {
   'bangkruai-city': { code: '12', name: 'นนทบุรี' },
+  // เทศบาลเมืองแสนสุข (หาดบางแสน) — ชลบุรีเป็นจังหวัดที่แสดงเฉพาะกล้อง
+  saensuk: { code: '20', name: 'ชลบุรี' },
 };
 
 export function parseStreamBridge(body: unknown, slug: string): Camera[] {
@@ -44,7 +46,7 @@ export function parseStreamBridge(body: unknown, slug: string): Camera[] {
   const list = b?.cameras;
   if (!Array.isArray(list)) return [];
   const province = STREAMBRIDGE_PROVINCES[slug];
-  if (province && !isServiceProvince(province.code)) return [];
+  if (province && !isCameraProvince(province.code)) return [];
   const owner = str(b?.subtitle) ?? str(b?.title) ?? slug;
   const out: Camera[] = [];
   for (const c of list as Rec[]) {
@@ -53,7 +55,8 @@ export function parseStreamBridge(body: unknown, slug: string): Camera[] {
     const lat = num(c.latitude);
     const lng = num(c.longitude);
     if (!id || !name || lat === undefined || lng === undefined) continue;
-    if (lat < 13.4 || lat > 14.3 || lng < 100.1 || lng > 100.95) continue;
+    // กรอบประเทศไทยตอนกลาง/ตะวันออก กันพิกัดผิด (เช่น 0,0)
+    if (lat < 12.4 || lat > 16.5 || lng < 99.5 || lng > 102.2) continue;
     if (str(c.status) && c.status !== 'online') continue;
     // ภาพล่าสุดของกล้อง ใช้เมื่อเปิดภาพสดไม่ได้ (อัปเดตเมื่อมีคนดูภาพสด) — ?v= คือเวลาที่ถ่าย (ms)
     const thumb = ownUrl(c.thumbnail);
