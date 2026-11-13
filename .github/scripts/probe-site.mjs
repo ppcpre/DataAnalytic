@@ -1,68 +1,127 @@
-// สำรวจระบบแผนที่ของเทศบาลนครนนทบุรี (MAPBOSS): ฟิลด์ทั้งหมดของชั้นข้อมูลกล้อง และแท็บติดตามสถานการณ์น้ำ
+// สำรวจแหล่งกล้องใหม่ (ใช้ระหว่างพัฒนา):
+// 1) ระบบแผนที่เทศบาลนครนนทบุรี (MAPBOSS) — ฟิลด์ของชั้นข้อมูลกล้อง และแท็บติดตามสถานการณ์น้ำ
+// 2) กล้องเทศบาลนครปากเกร็ด (thaiclouderp.com/CCTV_MONITOR)
 import { chromium } from 'playwright-core';
 import { writeFileSync, mkdirSync } from 'node:fs';
 
-const BASE = 'https://nkndatamap.nakornnont.go.th';
-const CCTV = '8c5a386c5fbf56fcb824469410e7eb12';
 mkdirSync('out', { recursive: true });
-const post = async (path, body) => {
-  const r = await fetch(BASE + path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-  return { status: r.status, text: await r.text() };
+const stage = async (name, fn) => {
+  console.log(`\n========== ${name} ==========`);
+  try {
+    await fn();
+  } catch (e) {
+    console.log(`STAGE FAILED ${name}:`, String(e?.stack ?? e).slice(0, 600));
+  }
+};
+const UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36';
+const get = async (url, init = {}) => {
+  const r = await fetch(url, { ...init, headers: { 'user-agent': UA, ...(init.headers ?? {}) }, signal: AbortSignal.timeout(30000) });
+  return { status: r.status, type: r.headers.get('content-type') ?? '', text: await r.text() };
 };
 
-// 1) โครงสร้างฟิลด์ของชั้นข้อมูลกล้อง
-const det = await (await fetch(`${BASE}/api/item/${CCTV}/details`)).text();
-writeFileSync('out/cctv-details.json', det);
-const d = JSON.parse(det).data;
-console.log('DETAILS keys', Object.keys(d), '\nFIELDS', JSON.stringify(d.props?.fields ?? d.fields ?? d.props, null, 0).slice(0, 4000));
+const NKN = 'https://nkndatamap.nakornnont.go.th';
+const CCTV = '8c5a386c5fbf56fcb824469410e7eb12';
 
-// 2) ข้อมูลทุกฟิลด์ของกล้อง
-for (const body of [
-  { format: 'geojson', rawField: true, rawValue: true, limit: 0, query: { geometry: { $ne: null } } },
-  { format: 'geojson', limit: 0, query: { geometry: { $ne: null } } },
-]) {
-  const r = await post(`/api/item/${CCTV}/actions/query`, body);
-  writeFileSync(`out/cctv-${body.rawField ? 'raw' : 'named'}.json`, r.text);
-  try {
-    const j = JSON.parse(r.text);
-    console.log('QUERY', JSON.stringify(body).slice(0, 60), r.status, 'total', j.total);
-    for (const f of j.features.slice(0, 4)) console.log('  FEATURE', JSON.stringify(f).slice(0, 900));
-    const keys = {};
-    for (const f of j.features) for (const [k, v] of Object.entries(f.properties)) if (v !== null && v !== '') keys[k] = (keys[k] ?? 0) + 1;
-    console.log('  NONEMPTY', JSON.stringify(keys));
-    const urls = j.features.flatMap((f) => Object.values(f.properties).filter((v) => typeof v === 'string' && /https?:|rtsp:|\.m3u8|\.jpg|\.png/i.test(v)));
-    console.log('  URLS', urls.length, JSON.stringify(urls.slice(0, 15)));
-    const names = j.features.map((f) => Object.values(f.properties).find((v) => typeof v === 'string' && /[ก-๙]/.test(v)));
-    console.log('  NAMES', JSON.stringify(names.slice(0, 60)));
-  } catch (e) {
-    console.log('QUERY fail', r.status, r.text.slice(0, 300));
-  }
-}
-
-// 3) เปิดหน้าเว็บ: แท็บติดตามสถานการณ์น้ำ และชั้นข้อมูลกล้อง
-const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome' });
-const p = await (await b.newContext({ viewport: { width: 1280, height: 900 }, locale: 'th-TH' })).newPage();
-p.on('response', async (r) => {
-  const url = r.url();
-  const rt = r.request().resourceType();
-  if (!/xhr|fetch|media|image/.test(rt) || /googleapis|gstatic|_next\/image/.test(url)) return;
-  console.log('NET', r.status(), rt, (r.headers()['content-type'] ?? '').slice(0, 30), url.slice(0, 200));
-  if (/json/.test(r.headers()['content-type'] ?? '')) console.log('  BODY', (await r.text().catch(() => '')).slice(0, 500).replace(/\s+/g, ' '));
+await stage('NKN cctv layer details', async () => {
+  const r = await get(`${NKN}/api/item/${CCTV}/details`);
+  writeFileSync('out/nkn-cctv-details.json', r.text);
+  console.log(r.status, r.type, r.text.length);
+  console.log(r.text.replace(/\s+/g, ' ').slice(0, 5000));
 });
-p.on('request', (q) => q.method() === 'POST' && console.log('POST', q.url().slice(0, 160), (q.postData() ?? '').slice(0, 250)));
-await p.goto(`${BASE}/public`, { waitUntil: 'domcontentloaded', timeout: 60000 });
-await p.waitForTimeout(12000);
-console.log('--- click water tab');
-await p.getByText('การติดตามสถานการณ์น้ำ', { exact: false }).first().click({ timeout: 5000 }).catch((e) => console.log('fail', e.message.slice(0, 100)));
-await p.waitForTimeout(10000);
-console.log('WATER TEXT', (await p.evaluate(() => document.body.innerText)).replace(/\s+/g, ' ').slice(0, 2500));
-console.log('WATER ELEMENTS', JSON.stringify(await p.evaluate(() => [...document.querySelectorAll('iframe[src],video,img[src],a[href]')].map((e) => `${e.tagName}:${e.getAttribute('src') ?? e.getAttribute('href')}`).filter((x) => !/googleapis|_next\/image|data:/.test(x)).slice(0, 60))));
-await p.screenshot({ path: 'out/water.png' });
-// ลองคลิกรายการแรก ๆ ในแท็บ
-for (const t of (await p.$$('[class*=card], [class*=item], li, tr')).slice(0, 3)) {
-  await t.click({ timeout: 2000 }).catch(() => {});
-  await p.waitForTimeout(3000);
-}
-console.log('AFTER CLICK ELEMENTS', JSON.stringify(await p.evaluate(() => [...document.querySelectorAll('iframe[src],video,img[src]')].map((e) => `${e.tagName}:${e.getAttribute('src') ?? e.currentSrc}`).filter((x) => !/googleapis|_next\/image|data:/.test(x)).slice(0, 40))));
-await p.screenshot({ path: 'out/water-after.png' });
+
+await stage('NKN cctv features (all fields)', async () => {
+  for (const [tag, body] of [
+    ['raw', { format: 'geojson', rawField: true, rawValue: true, limit: 0, query: { geometry: { $ne: null } } }],
+    ['named', { format: 'geojson', limit: 0, query: { geometry: { $ne: null } } }],
+  ]) {
+    const r = await get(`${NKN}/api/item/${CCTV}/actions/query`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    writeFileSync(`out/nkn-cctv-${tag}.json`, r.text);
+    console.log('QUERY', tag, r.status, r.type, r.text.length);
+    let j;
+    try {
+      j = JSON.parse(r.text);
+    } catch {
+      console.log('  not json:', r.text.slice(0, 300));
+      continue;
+    }
+    console.log('  total', j.total, 'features', j.features?.length);
+    for (const f of (j.features ?? []).slice(0, 4)) console.log('  FEATURE', JSON.stringify(f).slice(0, 1200));
+    const keys = {};
+    for (const f of j.features ?? []) for (const [k, v] of Object.entries(f.properties ?? {})) if (v !== null && v !== '') keys[k] = (keys[k] ?? 0) + 1;
+    console.log('  NONEMPTY', JSON.stringify(keys));
+    const urls = (j.features ?? []).flatMap((f) => Object.values(f.properties ?? {}).filter((v) => typeof v === 'string' && /https?:|rtsp:|\.m3u8|\.jpe?g|\.png/i.test(v)));
+    console.log('  URL-LIKE VALUES', urls.length, JSON.stringify(urls.slice(0, 15)));
+  }
+});
+
+const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome' });
+const watch = (p) => {
+  p.on('response', async (r) => {
+    const url = r.url();
+    const rt = r.request().resourceType();
+    const type = r.headers()['content-type'] ?? '';
+    if (/font|stylesheet/.test(rt) || /maps\.googleapis|gstatic|_next\/image|\.(woff2?|css)(\?|$)/.test(url)) return;
+    console.log('NET', r.status(), r.request().method(), rt, type.slice(0, 34), url.slice(0, 200));
+    if (/json|mpegurl|text\/plain/i.test(type) || ((rt === 'xhr' || rt === 'fetch') && !/image|video|octet/.test(type))) {
+      console.log('  BODY', (await r.text().catch(() => '')).slice(0, 700).replace(/\s+/g, ' '));
+    }
+  });
+  p.on('requestfailed', (q) => console.log('FAILED', q.failure()?.errorText, q.url().slice(0, 160)));
+  p.on('request', (q) => q.method() === 'POST' && console.log('POST', q.url().slice(0, 160), (q.postData() ?? '').slice(0, 250)));
+  p.on('websocket', (ws) => console.log('WEBSOCKET', ws.url().slice(0, 200)));
+};
+const media = (p) =>
+  p.evaluate(() =>
+    [...document.querySelectorAll('iframe,video,source,img,a[href],canvas,embed,object')]
+      .map((e) => `${e.tagName}:${e.getAttribute('src') ?? e.getAttribute('href') ?? e.currentSrc ?? e.getAttribute('data') ?? ''}`.slice(0, 220))
+      .filter((x) => !/maps\.google|googleapis|_next\/image|data:image/.test(x))
+      .slice(0, 150),
+  );
+
+await stage('NKN water tab in browser', async () => {
+  const p = await (await b.newContext({ viewport: { width: 1280, height: 900 }, locale: 'th-TH' })).newPage();
+  await p.goto(`${NKN}/public`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await p.waitForTimeout(12000);
+  watch(p);
+  console.log('--- click water tab');
+  await p.getByText('การติดตามสถานการณ์น้ำ').first().click({ timeout: 8000 });
+  await p.waitForTimeout(12000);
+  console.log('TEXT', (await p.evaluate(() => document.body.innerText)).replace(/\s+/g, ' ').slice(0, 2500));
+  console.log('MEDIA', JSON.stringify(await media(p)));
+  await p.screenshot({ path: 'out/nkn-water.png' });
+  await p.close();
+});
+
+const PAKKRET = 'https://www.thaiclouderp.com/CCTV_MONITOR/web/pakkred';
+await stage('PAKKRET plain fetch', async () => {
+  for (const u of [PAKKRET, 'http://www.thaiclouderp.com/CCTV_MONITOR/web/pakkred', 'https://www.thaiclouderp.com/']) {
+    try {
+      const r = await get(u);
+      console.log(u, '->', r.status, r.type, r.text.length);
+      if (u === PAKKRET) {
+        writeFileSync('out/pakkret.html', r.text);
+        console.log(r.text.replace(/\s+/g, ' ').slice(0, 6000));
+      }
+    } catch (e) {
+      console.log(u, '-> ERROR', String(e?.cause?.code ?? e?.name ?? e), String(e?.message ?? '').slice(0, 120));
+    }
+  }
+});
+
+await stage('PAKKRET in browser', async () => {
+  const p = await (await b.newContext({ viewport: { width: 1280, height: 900 }, locale: 'th-TH', ignoreHTTPSErrors: true })).newPage();
+  watch(p);
+  await p.goto(PAKKRET, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await p.waitForTimeout(15000);
+  console.log('TITLE', await p.title(), '| URL', p.url());
+  console.log('TEXT', (await p.evaluate(() => document.body.innerText)).replace(/\s+/g, ' ').slice(0, 3000));
+  console.log('MEDIA', JSON.stringify(await media(p)));
+  console.log('FRAMES', p.frames().map((f) => f.url().slice(0, 160)).join(' | '));
+  const html = await p.content();
+  writeFileSync('out/pakkret-rendered.html', html);
+  console.log('INLINE URLS', JSON.stringify([...new Set(html.match(/(?:https?|rtsp|wss?):\/\/[^"'\s<>\\)]{6,160}/g) ?? [])].filter((u) => !/w3\.org|googleapis|gstatic|jquery|bootstrap|cdnjs|jsdelivr|fontawesome/.test(u)).slice(0, 80)));
+  console.log('LATLNG', JSON.stringify((html.match(/1[34]\.\d{4,}\s*,\s*100\.\d{4,}|100\.\d{4,}\s*,\s*1[34]\.\d{4,}/g) ?? []).slice(0, 20)));
+  await p.screenshot({ path: 'out/pakkret.png', fullPage: true });
+  await p.close();
+});
 await b.close();
