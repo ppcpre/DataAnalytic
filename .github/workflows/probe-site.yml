@@ -1,0 +1,34 @@
+name: Probe a data source site
+
+# สำรวจเว็บแหล่งข้อมูลใหม่ (ใช้ระหว่างพัฒนา) — เปิดใน Chrome แล้วบันทึกคำขอเครือข่าย
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: URL ที่จะสำรวจ
+        default: https://nkndatamap.nakornnont.go.th/public
+  push:
+    branches: [claude/wonderful-einstein-wg3ano]
+    paths: ['.github/scripts/probe-site.mjs', '.github/workflows/probe-site.yml']
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Probe
+        env:
+          URL: ${{ inputs.url || 'https://nkndatamap.nakornnont.go.th/public' }}
+        run: |
+          mkdir b && cp .github/scripts/probe-site.mjs b/ && cd b
+          npm init -y >/dev/null && npm i playwright-core@1 >/dev/null 2>&1
+          curl -sS -m 30 -o /dev/null -w "plain curl -> %{http_code} %{content_type} %{size_download}B\n" "$URL" || true
+          node probe-site.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: probe-site
+          path: b/out/
