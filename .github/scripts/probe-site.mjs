@@ -1,78 +1,82 @@
-// สำรวจกล้องทางหลวงของกรมทางหลวง (Highway Traffic) — หากล้องในอำเภอสัตหีบและปริมณฑล
-// เปิดหน้าเว็บสาธารณะใน Chrome แล้วบันทึกคำขอที่หน้าเว็บทำเอง (ไม่ล็อกอิน ไม่เลี่ยงการควบคุมใด ๆ)
+// สำรวจกล้อง CCTV ของกรมทางหลวง (highwaytraffic.go.th) — หากล้องในอำเภอสัตหีบและปริมณฑล
+// เปิดหน้าเว็บสาธารณะใน Chrome กดเปิดชั้นข้อมูลกล้อง แล้วบันทึกคำขอที่หน้าเว็บทำเอง (ไม่ล็อกอิน)
 import { chromium } from 'playwright-core';
 import { writeFileSync, mkdirSync } from 'node:fs';
 
 mkdirSync('out', { recursive: true });
-const UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36';
-const SITES = ['https://www.highwaytraffic.go.th/', 'https://highwaytraffic.go.th/', 'http://bmm2.doh.go.th/ems/', 'https://traffic.doh.go.th/', 'https://www.doh.go.th/'];
-
-console.log('========== plain fetch ==========');
-for (const u of SITES) {
-  try {
-    const r = await fetch(u, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(20000), redirect: 'follow' });
-    const t = await r.text();
-    console.log(u, '->', r.status, r.url, (r.headers.get('content-type') ?? '').slice(0, 30), t.length, '|', (t.match(/<title>[^<]*<\/title>/i) ?? [''])[0]);
-  } catch (e) {
-    console.log(u, '-> ERROR', String(e?.cause?.code ?? e?.name ?? e));
-  }
-}
-
-// กรอบอำเภอสัตหีบ และคำที่ใช้หา
+const SITE = 'https://highwaytraffic.go.th/DOHWeb/Home.aspx';
 const inSattahip = (lat, lng) => lat > 12.55 && lat < 12.83 && lng > 100.82 && lng < 101.06;
-const SAT_WORDS = /สัตหีบ|บางเสร่|แสมสาร|อู่ตะเภา|พลูตาหลวง|นาจอมเทียน|เขตรอุดม|Sattahip|U-?Tapao/i;
-const jsonBodies = [];
+const SAT = /สัตหีบ|บางเสร่|แสมสาร|อู่ตะเภา|พลูตาหลวง|นาจอมเทียน|เขตรอุดม|Sattahip|U-?Tapao/i;
+const bodies = [];
 
 const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome' });
-for (const site of SITES.slice(0, 3)) {
-  console.log(`\n========== browser ${site} ==========`);
-  const p = await (await b.newContext({ viewport: { width: 1280, height: 900 }, locale: 'th-TH', ignoreHTTPSErrors: true })).newPage();
-  p.on('response', async (r) => {
-    const url = r.url();
-    const rt = r.request().resourceType();
-    const type = r.headers()['content-type'] ?? '';
-    if (/font|stylesheet|image/.test(rt) || /google|gstatic|\.(woff2?|css|png|jpe?g|svg|gif)(\?|$)/i.test(url)) return;
-    if (rt === 'script' && !/cctv|camera|cam/i.test(url)) return;
-    console.log('NET', r.status(), r.request().method(), rt, type.slice(0, 30), url.slice(0, 180));
-    if (/json|text\/plain|javascript|xml/.test(type) || rt === 'xhr' || rt === 'fetch') {
-      const body = await r.text().catch(() => '');
-      if (body.length > 200 && /lat|cctv|camera/i.test(body)) {
-        jsonBodies.push({ url, body });
-        console.log('  BODY', body.length, body.slice(0, 500).replace(/\s+/g, ' '));
-      }
-    }
-  });
-  p.on('request', (q) => q.method() === 'POST' && console.log('POST', q.url().slice(0, 160), (q.postData() ?? '').slice(0, 200)));
+const p = await (await b.newContext({ viewport: { width: 1400, height: 900 }, locale: 'th-TH', ignoreHTTPSErrors: true })).newPage();
+let logNet = false;
+p.on('response', async (r) => {
+  const url = r.url();
+  const rt = r.request().resourceType();
+  const type = r.headers()['content-type'] ?? '';
+  if (/font|stylesheet/.test(rt) || /statcounter|google|gstatic|longdo\.com\/mmmap|\.(woff2?|css|svg|gif)(\?|$)/i.test(url)) return;
+  if (rt === 'image' && !/cctv|cam|snapshot|jpe?g/i.test(url)) return;
+  if (logNet) console.log('NET', r.status(), r.request().method(), rt, type.slice(0, 30), url.slice(0, 200));
+  if (rt === 'image' || rt === 'media') return;
+  const body = await r.text().catch(() => '');
+  if (body.length > 100) bodies.push({ url, body, rt });
+  if (logNet && rt !== 'script' && rt !== 'document') console.log('  BODY', body.length, body.slice(0, 600).replace(/\s+/g, ' '));
+});
+p.on('request', (q) => logNet && q.method() === 'POST' && console.log('POST', q.url().slice(0, 160), (q.postData() ?? '').slice(0, 300)));
+
+await p.goto(SITE, { waitUntil: 'domcontentloaded', timeout: 60000 });
+await p.waitForTimeout(12000);
+writeFileSync('out/home.html', await p.content());
+
+// ตัวเลือกชั้นข้อมูลที่เกี่ยวกับกล้อง
+const controls = await p.evaluate(() =>
+  [...document.querySelectorAll('input, select, a, button, label, img[onclick], div[onclick], span[onclick]')]
+    .map((e, i) => ({ i, tag: e.tagName, type: e.getAttribute('type'), id: e.id, name: e.getAttribute('name'), onclick: (e.getAttribute('onclick') ?? '').slice(0, 120), text: (e.textContent ?? '').trim().slice(0, 60), value: (e.getAttribute('value') ?? '').slice(0, 40) }))
+    .filter((x) => /cctv|กล้อง|camera/i.test(`${x.id} ${x.name} ${x.onclick} ${x.text} ${x.value}`)),
+);
+console.log('CAMERA CONTROLS', JSON.stringify(controls, null, 0).slice(0, 3000));
+// ฟังก์ชัน/ตัวแปรในหน้าเว็บที่เกี่ยวกับกล้อง
+console.log('GLOBALS', JSON.stringify(await p.evaluate(() => Object.keys(window).filter((k) => /cctv|camera/i.test(k)).slice(0, 40))));
+const html = await p.content();
+console.log('INLINE cctv refs', JSON.stringify([...new Set(html.match(/[\w./?=&-]*(?:cctv|CCTV|Camera)[\w./?=&-]*/g) ?? [])].slice(0, 60)));
+
+logNet = true;
+console.log('\n--- turn on camera layers');
+for (const c of controls.filter((x) => x.tag === 'INPUT' || x.onclick)) {
+  const sel = c.id ? `#${CSS.escape ? c.id : c.id}` : null;
+  console.log('CLICK', JSON.stringify(c).slice(0, 200));
   try {
-    await p.goto(site, { waitUntil: 'domcontentloaded', timeout: 45000 });
-    await p.waitForTimeout(15000);
-    console.log('TITLE', await p.title(), '| URL', p.url());
-    console.log('TEXT', (await p.evaluate(() => document.body.innerText)).replace(/\s+/g, ' ').slice(0, 800));
-    console.log('LINKS', JSON.stringify(await p.evaluate(() => [...document.querySelectorAll('a[href]')].map((a) => `${a.textContent.trim().slice(0, 30)}=>${a.getAttribute('href')}`).filter((x) => /cctv|กล้อง|camera|traffic|จราจร/i.test(x)).slice(0, 30))));
-    // เมนูกล้อง
-    for (const t of await p.$$('a, button, li, span, div[role=button]')) {
-      const txt = ((await t.textContent().catch(() => '')) ?? '').trim();
-      if (/^(กล้อง|CCTV|กล้อง CCTV|กล้องจราจร)/i.test(txt) && txt.length < 30) {
-        console.log('CLICK', txt);
-        await t.click({ timeout: 3000 }).catch(() => {});
-        await p.waitForTimeout(8000);
-        break;
-      }
-    }
-    await p.screenshot({ path: `out/${new URL(site).host}.png` });
+    if (sel) await p.click(`[id="${c.id}"]`, { timeout: 4000, force: true });
+    else await p.evaluate((i) => [...document.querySelectorAll('input, select, a, button, label, img[onclick], div[onclick], span[onclick]')][i].click(), c.i);
   } catch (e) {
-    console.log('FAILED', String(e?.message ?? e).slice(0, 200));
+    console.log('  click failed', String(e.message).slice(0, 100));
   }
-  await p.close();
+  await p.waitForTimeout(7000);
 }
+// คลิกที่ข้อความของชั้นข้อมูลโดยตรงด้วย
+for (const t of ['กล้อง CCTV ช่วงเทศกาลของกรมทางหลวง', 'กล้องจากระบบเตือนภัยอุบัติเหตุบน ทล 304']) {
+  console.log('CLICK TEXT', t);
+  await p.getByText(t, { exact: false }).first().click({ timeout: 4000 }).catch((e) => console.log('  failed', String(e.message).slice(0, 80)));
+  await p.waitForTimeout(8000);
+}
+await p.screenshot({ path: 'out/after.png' });
+console.log('MEDIA', JSON.stringify(await p.evaluate(() => [...document.querySelectorAll('img[src],iframe[src],video')].map((e) => e.getAttribute('src') ?? e.currentSrc).filter((s) => s && /cctv|cam|snapshot|stream|m3u8|mjpe?g/i.test(s)).slice(0, 30))));
 await b.close();
 
-console.log('\n========== camera-like data ==========');
-for (const { url, body } of jsonBodies) {
-  writeFileSync(`out/${jsonBodies.findIndex((x) => x.url === url)}.txt`, `${url}\n\n${body}`);
-  // หาคู่พิกัดในข้อความ แล้วนับจุดที่อยู่ในสัตหีบ
-  const coords = [...body.matchAll(/(1[0-9]\.\d{3,})["',:\s\w]{1,40}?(1?0[0-9]\.\d{3,}|9[89]\.\d{3,})/g)].map((m) => [Number(m[1]), Number(m[2])]);
+console.log('\n========== responses mentioning cameras ==========');
+let n = 0;
+for (const { url, body, rt } of bodies) {
+  if (!/cctv|camera|กล้อง/i.test(body) && !/cctv|camera/i.test(url)) continue;
+  writeFileSync(`out/body-${++n}.txt`, `${url}\n\n${body}`);
+  const coords = [...body.matchAll(/(1[0-9]\.\d{3,})[^\d]{1,40}?((?:9[789]|10[0-5])\.\d{3,})/g)].map((m) => [Number(m[1]), Number(m[2])]);
   const sat = coords.filter(([la, ln]) => inSattahip(la, ln));
-  const words = [...new Set(body.match(new RegExp(`[^"'<>{}]{0,60}(?:${SAT_WORDS.source})[^"'<>{}]{0,60}`, 'gi')) ?? [])];
-  console.log(url.slice(0, 150), '| len', body.length, '| coords', coords.length, '| in Sattahip box', sat.length, JSON.stringify(sat.slice(0, 10)), '| name hits', words.length, JSON.stringify(words.slice(0, 15)));
+  const chon = coords.filter(([la, ln]) => la > 12.5 && la < 13.6 && ln > 100.8 && ln < 101.7);
+  const hits = [...new Set(body.match(new RegExp(`[^"'<>{}\\n]{0,70}(?:${SAT.source})[^"'<>{}\\n]{0,70}`, 'gi')) ?? [])];
+  const endpoints = [...new Set(body.match(/["'][\w./-]*(?:cctv|CCTV|Camera)[\w./?=&-]*["']/g) ?? [])].slice(0, 25);
+  console.log(`\n${rt} ${url.slice(0, 160)} | len ${body.length} | coords ${coords.length} | chonburi-area ${chon.length} | sattahip-box ${sat.length} ${JSON.stringify(sat.slice(0, 8))}`);
+  if (hits.length) console.log('  SATTAHIP NAME HITS', JSON.stringify(hits.slice(0, 20)));
+  if (endpoints.length) console.log('  ENDPOINT-LIKE', endpoints.join(' '));
+  if (rt !== 'script' && rt !== 'document') console.log('  SAMPLE', body.slice(0, 900).replace(/\s+/g, ' '));
 }
