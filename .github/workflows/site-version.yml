@@ -1,0 +1,25 @@
+name: Site version (live site)
+
+# ตรวจว่าเว็บที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง (หน้าแรก / หน้า /status / service worker)
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/wonderful-einstein-wg3ano]
+    paths: ['.github/workflows/site-version.yml']
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      BASE: https://dataanalytic.precare.workers.dev
+    steps:
+      - run: |
+          for p in / /status /status.html /sw.js; do
+            curl -sS -m 30 -D h.txt -o body.txt -w "$p -> HTTP %{http_code} %{size_download}B\n" "$BASE$p"
+            grep -iE '^(cache-control|cf-cache-status|age|etag|last-modified):' h.txt | tr -d '\r' | sed 's/^/   /'
+            grep -o '<title>[^<]*</title>' body.txt | head -1 | sed 's/^/   /'
+          done
+          echo "--- index.html has status card:"; curl -sS -m 30 "$BASE/" | grep -c 'status-link' || true
+          echo "--- sw.js precaches status.html:"; curl -sS -m 30 "$BASE/sw.js" | grep -o 'status[^"]*\.html[^,]*' | head -3 || true
+          echo "--- sw.js denylist:"; curl -sS -m 30 "$BASE/sw.js" | grep -o 'denylist[^]]*]' | head -2 || true
+          echo "--- assets:"; curl -sS -m 30 "$BASE/" | grep -oE '/assets/[^"]+' | head -5
