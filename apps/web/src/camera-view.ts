@@ -262,7 +262,13 @@ export function startCameraView(root: HTMLElement, c: Camera, fresh = false) {
               hls = player;
               player.on(Hls.Events.ERROR, (_e, data) => {
                 if (!data.fatal || stopped || done || hls !== player) return;
-                const notReady = data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR || data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT;
+                const notReady = [
+                  Hls.ErrorDetails.MANIFEST_LOAD_ERROR,
+                  Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT,
+                  // รายการวิดีโอหลักโหลดได้ แต่รายการย่อยยังไม่พร้อม (สตรีมกำลังเริ่ม)
+                  Hls.ErrorDetails.LEVEL_LOAD_ERROR,
+                  Hls.ErrorDetails.LEVEL_LOAD_TIMEOUT,
+                ].includes(data.details);
                 if (notReady && retries < HLS_MANIFEST_RETRIES) {
                   retries++;
                   timers.push(window.setTimeout(start, HLS_RETRY_DELAY_MS));
