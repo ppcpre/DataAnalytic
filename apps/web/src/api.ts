@@ -47,4 +47,8 @@ export const api = {
       '/api/health',
     ),
   links: () => getJson<{ cameras: CameraLink[]; official: CameraLink[] }>('/api/links'),
+  route: (from: { lat: number; lng: number }, to: { lat: number; lng: number }) =>
+    getJson<{ data: { coordinates: Array<[number, number]>; distanceKm: number; durationMin: number }; source: string }>(
+      `/api/route?from=${from.lat.toFixed(5)},${from.lng.toFixed(5)}&to=${to.lat.toFixed(5)},${to.lng.toFixed(5)}`,
+    ),
 };

@@ -45,6 +45,8 @@ import {
   type SavedPlace,
 } from './places';
 import { loadFavorites, storeFavorites, toggleFavorite, type FavoriteCamera } from './favorites';
+import { openMultiview } from './multiview';
+import { alongRoute, type RouteCoords } from './route';
 
 registerSW({ immediate: true });
 
@@ -443,6 +445,9 @@ function renderFavorites() {
   }
   const host = document.getElementById('fav-list');
   if (!host) return;
+  // ปุ่มดูหลายกล้องพร้อมกัน: แสดงเมื่อมีกล้องโปรดที่มีภาพอย่างน้อย 2 ตัว
+  const multi = document.getElementById('fav-multiview');
+  if (multi) multi.hidden = favoriteCamerasWithMedia().length < 2;
   if (!state.favorites.length) {
     host.innerHTML = `<li class="card card-empty">ยังไม่มีกล้องโปรด — เปิดกล้องบนแผนที่แล้วแตะ ${icons.star(16)} เพื่อบันทึกไว้ที่นี่</li>`;
     return;
@@ -475,6 +480,18 @@ function renderFavorites() {
     })
     .join('');
 }
+
+/** กล้องโปรดที่ยังอยู่ในรายชื่อและมีภาพ ตามลำดับในรายการโปรด */
+function favoriteCamerasWithMedia(): Camera[] {
+  const cams = new Map((state.cameras?.data ?? []).map((c) => [c.id, c]));
+  return state.favorites.map((f) => cams.get(f.id)).filter((c): c is Camera => !!c && hasCameraMedia(c));
+}
+
+document.getElementById('fav-multiview')!.addEventListener('click', () => {
+  // หยุดภาพในหน้าต่างรายละเอียดก่อน ไม่ให้ดึงภาพสดซ้อนกัน
+  if (!sheetEl.hidden) closeSheet();
+  openMultiview(favoriteCamerasWithMedia(), (id) => openEntity('camera', id));
+});
 
 document.getElementById('fav-list')!.addEventListener('click', (ev) => {
   const t = (ev.target as HTMLElement).closest<HTMLElement>('[data-open],[data-fav-remove]');
@@ -737,7 +754,221 @@ function placeSheet(p: PlaceItem): string {
       <span class="nearby-title">รอบจุดนี้ (รัศมี ${PLACE_RADIUS_KM} กม.) · ${escapeHtml(areaLine(area.counts))}</span>
       ${rows}
     </div>
-    ${p.saved ? `${cameraButton(p.location)}${saveBlock}` : `${saveBlock}${cameraButton(p.location)}`}`;
+    ${p.saved ? `${cameraButton(p.location)}${saveBlock}` : `${saveBlock}${cameraButton(p.location)}`}
+    ${routeBlock(p)}`;
+}
+
+// ---------- เช็กเส้นทาง ----------
+/** กล้องที่ห่างเส้นทางไม่เกินนี้ (กม.) */
+const ROUTE_CAMERA_KM = 0.5;
+/** สถานีวัดน้ำ/ฝนที่ห่างเส้นทางไม่เกินนี้ (กม.) */
+const ROUTE_STATION_KM = 1;
+const ROUTE_MAX_CAMERA_ROWS = 30;
+
+interface RouteEnd {
+  name: string;
+  lat: number;
+  lng: number;
+}
+let route: { from: RouteEnd; to: RouteEnd; coords: RouteCoords; distanceKm: number; durationMin: number; source: string } | null = null;
+const routeLayer = L.layerGroup().addTo(map);
+const routeChip = document.createElement('div');
+routeChip.className = 'route-chip';
+routeChip.hidden = true;
+document.querySelector('.mapwrap')!.appendChild(routeChip);
+
+function routeBlock(p: PlaceItem): string {
+  const others = state.places.filter((x) => x.id !== p.id);
+  return `
+    <div class="route-block">
+      <span class="nearby-title">เช็กเส้นทางมาที่จุดนี้ · กล้องและจุดเสี่ยงระหว่างทาง</span>
+      <div class="route-row">
+        <label class="route-from"><span>เริ่มจาก</span>
+          <select data-route-from>
+            <option value="me">ตำแหน่งของฉัน</option>
+            ${others.map((o) => `<option value="${escapeHtml(o.id)}">${escapeHtml(`${o.label} · ${o.name}`)}</option>`).join('')}
+          </select>
+        </label>
+        <button type="button" class="btn-secondary" data-route-to="${escapeHtml(p.id)}">${icons.route(18)}เช็กเส้นทาง</button>
+      </div>
+      <span class="route-msg" data-route-msg role="status"></span>
+    </div>`;
+}
+
+async function checkRoute(toId: string, fromVal: string) {
+  const msg = sheetEl.querySelector<HTMLElement>('[data-route-msg]');
+  const say = (t: string) => msg && (msg.textContent = t);
+  const dest = findEntity('place', toId);
+  if (!dest || dest.kind !== 'place') return;
+  let from: RouteEnd;
+  if (fromVal === 'me') {
+    if (!(await locate(false)) || !state.userPos) return;
+    from = { name: 'ตำแหน่งของฉัน', ...state.userPos };
+  } else {
+    const s = state.places.find((x) => x.id === fromVal);
+    if (!s) return;
+    from = { name: s.name, lat: s.lat, lng: s.lng };
+  }
+  const to: RouteEnd = { name: dest.item.name, lat: dest.item.lat, lng: dest.item.lng };
+  if (distanceKm(from, to) < 0.2) return say('ต้นทางกับปลายทางอยู่ใกล้กันเกินไป');
+  say('กำลังหาเส้นทาง…');
+  try {
+    const r = await api.route(from, to);
+    route = { from, to, coords: r.data.coordinates, distanceKm: r.data.distanceKm, durationMin: r.data.durationMin, source: r.source };
+  } catch (err) {
+    return say(`หาเส้นทางไม่สำเร็จ: ${(err as Error).message}`);
+  }
+  drawRoute();
+  showRouteSheet(true);
+}
+
+function drawRoute() {
+  routeLayer.clearLayers();
+  if (!route) return;
+  L.polyline(route.coords, { color: '#2563c9', weight: 6, opacity: 0.85, className: 'route-line', interactive: false }).addTo(routeLayer);
+  for (const [end, cls] of [[route.from, 'route-end route-start'], [route.to, 'route-end route-dest']] as const) {
+    L.circleMarker([end.lat, end.lng], { radius: 7, className: cls, interactive: false }).addTo(routeLayer);
+  }
+}
+
+function routeRisks() {
+  if (!route) return [];
+  const coords = route.coords;
+  const warn = (s: Status) => s === 'watch' || s === 'warning' || s === 'critical';
+  return [
+    ...alongRoute((state.water?.data ?? []).filter((s) => warn(s.status)), coords, ROUTE_STATION_KM).map((h) => ({
+      ...h,
+      kind: 'water' as const,
+      id: h.item.id,
+      status: h.item.status,
+      text: `${h.item.name} ${formatNum(h.item.percent, 0)}% · ${STATUS_LABEL_TH[h.item.status]}`,
+    })),
+    ...alongRoute((state.rain?.data ?? []).filter((s) => s.status === 'warning' || s.status === 'critical'), coords, ROUTE_STATION_KM).map((h) => ({
+      ...h,
+      kind: 'rain' as const,
+      id: h.item.id,
+      status: h.item.status,
+      text: `ฝน 24 ชม. ${formatNum(h.item.rain24h, 1)} มม. · ${STATUS_LABEL_TH[h.item.status]}`,
+    })),
+    // น้ำท่วมถนน / จุดวัดที่เกินเกณฑ์ (ต้นทางประเมิน)
+    ...alongRoute((state.cameras?.data ?? []).filter((c) => cameraAlert(c)), coords, ROUTE_CAMERA_KM).map((h) => ({
+      ...h,
+      kind: 'camera' as const,
+      id: h.item.id,
+      status: (cameraAlert(h.item) === 'critical' ? 'critical' : 'watch') as Status,
+      text: `${h.item.name}${h.item.road ? ` · ${h.item.road}` : ''}`,
+    })),
+  ].sort((a, b) => a.alongKm - b.alongKm);
+}
+
+const routePos = (h: { alongKm: number; distKm: number }) =>
+  `กม. ${formatNum(h.alongKm, 1)} จากต้นทาง · ห่างเส้นทาง ${formatDistance(h.distKm)}`;
+
+function routeSheet(): string {
+  if (!route) return '';
+  const risks = routeRisks();
+  const cams = alongRoute((state.cameras?.data ?? []).filter(hasCameraMedia), route.coords, ROUTE_CAMERA_KM);
+  const riskRows = risks.length
+    ? risks
+        .map(
+          (x) => `
+        <button type="button" class="nearby-row soft-${x.status}" data-open="${x.kind}:${escapeHtml(x.id)}">
+          <span class="mini-pin st-${x.status}">${x.kind === 'camera' ? icons.drop(14) : LETTER[x.kind]}</span>
+          <span><strong>${escapeHtml(x.text)}</strong><small>${routePos(x)}</small></span>
+        </button>`,
+        )
+        .join('')
+    : `<div class="card-empty">ไม่พบสถานีที่เฝ้าระวังขึ้นไปหรือน้ำท่วมถนนตามเส้นทาง</div>`;
+  const camRows = cams.length
+    ? cams
+        .slice(0, ROUTE_MAX_CAMERA_ROWS)
+        .map(
+          (h) => `
+        <button type="button" class="nearby-row route-cam" data-open="camera:${escapeHtml(h.item.id)}">
+          <span class="mini-pin route-cam-pin${isLiveCamera(h.item) ? ' is-live' : ''}">${h.item.kind === 'water' ? icons.drop(14) : icons.camera(14)}</span>
+          <span><strong>${escapeHtml(h.item.name)}</strong><small>${escapeHtml(h.item.owner)} · ${routePos(h)}</small></span>
+        </button>`,
+        )
+        .join('') + (cams.length > ROUTE_MAX_CAMERA_ROWS ? `<span class="btn-caption">และอีก ${cams.length - ROUTE_MAX_CAMERA_ROWS} กล้อง</span>` : '')
+    : `<div class="card-empty">ไม่มีกล้องในระยะ ${formatDistance(ROUTE_CAMERA_KM)} จากเส้นทาง</div>`;
+  return `
+    ${sheetHead(
+      '<span style="color:var(--brand);font-weight:600">เช็กเส้นทาง</span>',
+      `${route.from.name} → ${route.to.name}`,
+      `${formatNum(route.distanceKm, 1)} กม. · ประมาณ ${route.durationMin} นาทีเมื่อถนนโล่ง`,
+      `<span class="cam-icon">${icons.route(24)}</span>`,
+    )}
+    <div class="tiles">
+      <div class="tile${risks.length ? ` soft-${risks.some((r) => r.status === 'critical') ? 'critical' : 'watch'}` : ''}"><span>จุดที่ควรระวัง</span><span>${risks.length}</span></div>
+      <div class="tile"><span>กล้องตามเส้นทาง</span><span>${cams.length}</span></div>
+    </div>
+    <div class="nearby">
+      <span class="nearby-title">จุดที่ควรระวัง (ห่างเส้นทางไม่เกิน ${formatDistance(ROUTE_STATION_KM)})</span>
+      ${riskRows}
+    </div>
+    <div class="nearby">
+      <span class="nearby-title">กล้องตามเส้นทาง เรียงจากต้นทาง</span>
+      ${cams.length >= 2 ? `<button type="button" class="btn-primary" data-route-multi>${icons.grid(18)}ดูกล้องตามเส้นทางพร้อมกัน</button>` : ''}
+      ${camRows}
+    </div>
+    <button type="button" class="btn-secondary" data-route-clear>${icons.close(16)}ล้างเส้นทาง</button>
+    <span class="btn-caption">เส้นทางจาก ${escapeHtml(route.source)} · ไม่รวมสภาพจราจรและถนนปิด — ติดตามประกาศของหน่วยงานประกอบ</span>`;
+}
+
+function showRouteSheet(fit = false) {
+  if (!route) return;
+  stopCameraView();
+  setSelectedMarker(null);
+  sheetEl.innerHTML = routeSheet();
+  sheetEl.dataset.route = '1';
+  sheetEl.hidden = false;
+  document.body.classList.add('sheet-open');
+  ensureMapVisible();
+  updateRouteChip();
+  if (fit) {
+    // เว้นพื้นที่ที่แผ่นรายละเอียดบัง ให้เห็นเส้นทางทั้งเส้น
+    requestAnimationFrame(() => {
+      const r = sheetEl.getBoundingClientRect();
+      const mobile = window.innerWidth < 600;
+      map.fitBounds(L.latLngBounds(route!.coords), {
+        paddingTopLeft: [24, 110],
+        paddingBottomRight: mobile ? [24, Math.min(r.height, window.innerHeight * 0.6) + 24] : [r.width + 32, 32],
+        maxZoom: 15,
+      });
+    });
+  }
+}
+
+function updateRouteChip() {
+  const onRouteSheet = !sheetEl.hidden && sheetEl.dataset.route === '1';
+  routeChip.hidden = !route || onRouteSheet;
+  if (route && !routeChip.hidden) {
+    routeChip.innerHTML = `<button type="button" class="route-chip-main" data-route-show>${icons.route(16)}เส้นทาง ${formatNum(route.distanceKm, 1)} กม. · ดูรายการ</button><button type="button" class="route-chip-x" data-route-clear aria-label="ล้างเส้นทาง">${icons.close(14)}</button>`;
+  }
+}
+
+function clearRoute() {
+  route = null;
+  routeLayer.clearLayers();
+  if (!sheetEl.hidden && sheetEl.dataset.route === '1') closeSheet();
+  updateRouteChip();
+}
+
+routeChip.addEventListener('click', (ev) => {
+  const t = (ev.target as HTMLElement).closest<HTMLElement>('[data-route-show],[data-route-clear]');
+  if (!t) return;
+  if (t.dataset.routeShow !== undefined) showRouteSheet(true);
+  else clearRoute();
+});
+
+function openRouteMultiview() {
+  if (!route) return;
+  const cams = alongRoute((state.cameras?.data ?? []).filter(hasCameraMedia), route.coords, ROUTE_CAMERA_KM).map((h) => h.item);
+  openMultiview(cams, (id) => openEntity('camera', id), {
+    title: 'กล้องตามเส้นทาง',
+    subtitle: `${route.from.name} → ${route.to.name} · เลือกได้สูงสุด 4 กล้อง`,
+    remember: false,
+  });
 }
 
 function renderSheet(e: Entity): string {
@@ -786,6 +1017,7 @@ function openEntity(kind: LayerKey, id: string, pan = true) {
   if (!e) return;
   ensureMapVisible();
   sheetEl.innerHTML = renderSheet(e);
+  delete sheetEl.dataset.route;
   sheetEl.hidden = false;
   void loadHistoryChart();
   startSheetCamera();
@@ -796,6 +1028,7 @@ function openEntity(kind: LayerKey, id: string, pan = true) {
   map.setView([loc.lat, loc.lng], pan ? Math.max(map.getZoom(), 14) : map.getZoom(), { animate: false });
   requestAnimationFrame(() => centerInVisibleArea(loc));
   renderRiskList();
+  updateRouteChip();
 }
 
 const historyCache = new Map<string, { at: number; data: Awaited<ReturnType<typeof api.history>>['data'] }>();
@@ -869,16 +1102,24 @@ function closeSheet() {
   // หยุดดึงภาพจากกล้อง (ภาพสดจะโหลดต่อเนื่องถ้ายังอยู่ในหน้า)
   stopCameraView();
   sheetEl.innerHTML = '';
+  delete sheetEl.dataset.route;
   document.body.classList.remove('sheet-open');
   setSelectedMarker(null);
   renderRiskList();
+  updateRouteChip();
 }
 
 sheetEl.addEventListener('click', (ev) => {
   const t = (ev.target as HTMLElement).closest<HTMLElement>(
-    '[data-close],[data-open],[data-goto],[data-label],[data-save-place],[data-remove-place],[data-cam-refresh],[data-fav-toggle],[data-share],[data-cam-switch],[data-chart-hours]',
+    '[data-close],[data-open],[data-goto],[data-label],[data-save-place],[data-remove-place],[data-cam-refresh],[data-fav-toggle],[data-share],[data-cam-switch],[data-chart-hours],[data-route-to],[data-route-clear],[data-route-multi]',
   );
   if (!t) return;
+  if (t.dataset.routeTo) {
+    void checkRoute(t.dataset.routeTo, sheetEl.querySelector<HTMLSelectElement>('[data-route-from]')?.value ?? 'me');
+    return;
+  }
+  if (t.dataset.routeClear !== undefined) return clearRoute();
+  if (t.dataset.routeMulti !== undefined) return openRouteMultiview();
   if (t.dataset.camSwitch !== undefined) {
     camView.index = Number(t.dataset.camSwitch) || 0;
     t.parentElement?.querySelectorAll('[data-cam-switch]').forEach((b) => b.setAttribute('aria-pressed', String(b === t)));
@@ -925,7 +1166,7 @@ sheetEl.addEventListener('click', (ev) => {
   } else if (t.dataset.goto) showView(t.dataset.goto as View);
 });
 document.addEventListener('keydown', (ev) => {
-  if (ev.key === 'Escape' && !sheetEl.hidden && !document.body.classList.contains('searching')) closeSheet();
+  if (ev.key === 'Escape' && !sheetEl.hidden && !document.body.classList.contains('searching') && !document.body.classList.contains('mv-open')) closeSheet();
 });
 
 // ---------- แผนที่: วาดหมุด ----------

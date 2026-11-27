@@ -9,6 +9,7 @@ import { fetchFloodStatusPages, parseFloodStatuses } from './adapters/floodhub.j
 import { geocodeUrl, parsePhoton } from './adapters/geocode.js';
 import { CAMERAS } from './data/cameras.js';
 import { dohHighwayCameras } from './adapters/doh.js';
+import { MAX_ROUTE_KM, osrmRouteUrl, parseOsrmRoute, parsePoint, roundPoint, straightKm } from './adapters/route.js';
 import { parseLongdoCameras } from './adapters/longdo.js';
 import { PAKKRET_EON_URL, parsePakkretEon } from './adapters/pakkret.js';
 import { parseRangsit, RANGSIT_PAGE } from './adapters/rangsit.js';
@@ -141,6 +142,7 @@ export function createApp(
   };
   const cache = new TtlCache(config.cacheTtlMs, config.staleMaxMs);
   const geocodeCache = new TtlCache(config.geocode.cacheTtlMs, config.geocode.cacheTtlMs);
+  const routeCache = new TtlCache(config.route.cacheTtlMs, config.route.cacheTtlMs);
   // รายชื่อกล้องเปลี่ยนไม่บ่อย เก็บนานกว่าข้อมูลน้ำ และใช้ค่าเก่าได้ถึง 7 วันถ้าต้นทางล่ม
   const cameraCache = new TtlCache(config.cameras.cacheTtlMs, 7 * 24 * 3600_000);
   const app = new Hono();
@@ -638,6 +640,29 @@ export function createApp(
     } catch (err) {
       console.error('[geocode]', err);
       return c.json({ error: 'ค้นหาสถานที่ไม่สำเร็จ' }, 502);
+    }
+  });
+
+  /** เส้นทางขับรถระหว่างสองจุด (เช็กเส้นทาง) — from/to = "lat,lng" */
+  app.get('/api/route', async (c) => {
+    if (!config.route.url) return c.json({ error: 'ปิดการเช็กเส้นทางอยู่' }, 404);
+    const from = parsePoint(c.req.query('from'));
+    const to = parsePoint(c.req.query('to'));
+    if (!from || !to) return c.json({ error: 'ตำแหน่งต้นทางหรือปลายทางไม่ถูกต้อง' }, 400);
+    if (straightKm(from, to) > MAX_ROUTE_KM) return c.json({ error: `เช็กเส้นทางได้ไม่เกิน ${MAX_ROUTE_KM} กม.` }, 400);
+    const a = roundPoint(from);
+    const b = roundPoint(to);
+    try {
+      const result = await routeCache.get(`${a.lat},${a.lng};${b.lat},${b.lng}`, async () => {
+        const route = parseOsrmRoute(await getJson(osrmRouteUrl(config.route.url, a, b)));
+        if (!route) throw new Error('ไม่พบเส้นทาง');
+        return route;
+      });
+      c.header('cache-control', 'public, max-age=600');
+      return c.json({ data: result.value, source: 'OSRM · ข้อมูลถนน © OpenStreetMap contributors' });
+    } catch (err) {
+      console.error('[route]', err);
+      return c.json({ error: 'หาเส้นทางไม่สำเร็จ' }, 502);
     }
   });
 

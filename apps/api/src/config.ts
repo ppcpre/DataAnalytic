@@ -19,6 +19,11 @@ export interface Config {
     /** รหัสสถานีต้นน้ำสำคัญที่จะแสดงเพิ่ม (เรียงจากต้นน้ำลงมา) */
     keyStationCodes: string[];
   };
+  route: {
+    /** บริการเส้นทางแบบ OSRM (เช็กเส้นทาง) — ว่าง = ปิด */
+    url: string;
+    cacheTtlMs: number;
+  };
   geocode: {
     /** endpoint ค้นหาสถานที่แบบ Photon — ว่าง = ปิดการค้นหาสถานที่ */
     url: string;
@@ -85,6 +90,10 @@ export function loadConfig(env: Env = process.env): Config {
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean),
+    },
+    route: {
+      url: env.ROUTER_URL ?? 'https://router.project-osrm.org',
+      cacheTtlMs: Number(env.ROUTER_CACHE_SECONDS ?? 1800) * 1000,
     },
     geocode: {
       url: env.GEOCODER_URL ?? 'https://photon.komoot.io/api/',

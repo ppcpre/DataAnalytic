@@ -24,5 +24,7 @@ export const icons = {
   star: (s = 20) => svg(s, '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>'),
   share: (s = 20) => svg(s, '<path d="M12 15V3"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/>'),
   home: (s = 16) => svg(s, '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>', 2.4),
+  grid: (s = 18) => svg(s, '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'),
+  route: (s = 18) => svg(s, '<circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h7a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h7"/>'),
   roadFlood: (s = 22) => svg(s, '<path d="M4 19h16"/><path d="M3 15c2-2 4 2 6 0s4 2 6 0 4 2 6 0"/><path d="M12 3v8"/><path d="M9 8l3 3 3-3"/>'),
 };

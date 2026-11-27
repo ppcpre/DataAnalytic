@@ -92,19 +92,33 @@ export function cameraViewHtml(c: Camera): string {
 }
 
 // ---------- ตัวเล่น ----------
-let current: { stop: () => void } | null = null;
+export interface CameraPlayer {
+  stop: () => void;
+}
+
+/** ตัวเล่นในหน้าต่างรายละเอียด (เล่นได้ทีละกล้อง) */
+let current: CameraPlayer | null = null;
 
 export function stopCameraView() {
   current?.stop();
   current = null;
 }
 
-const bust = (url: string) => `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
-
+/** เล่นกล้องในหน้าต่างรายละเอียด — หยุดกล้องตัวก่อนหน้าเสมอ */
 export function startCameraView(root: HTMLElement, c: Camera, fresh = false) {
   stopCameraView();
+  current = playCameraView(root, c, fresh);
+}
+
+const bust = (url: string) => `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
+
+/**
+ * เล่นกล้องหนึ่งตัวใน root (ที่มี cameraViewHtml) แยกจากตัวเล่นอื่น — ใช้ได้หลายตัวพร้อมกัน (หน้าดูหลายกล้อง)
+ * ผู้เรียกต้องเรียก stop() เมื่อเลิกแสดง เพื่อปิดการเชื่อมต่อภาพสด
+ */
+export function playCameraView(root: HTMLElement, c: Camera, fresh = false): CameraPlayer | null {
   const view = root.querySelector<HTMLElement>('[data-cam-view]');
-  if (!view) return;
+  if (!view) return null;
   const media = view.querySelector<HTMLElement>('.cam-media')!;
   const msg = view.querySelector<HTMLElement>('.cam-msg')!;
   const label = view.querySelector<HTMLElement>('[data-cam-label]')!;
@@ -332,11 +346,12 @@ export function startCameraView(root: HTMLElement, c: Camera, fresh = false) {
     }
   };
 
-  current = {
+  const player: CameraPlayer = {
     stop: () => {
       stopped = true;
       cleanup();
     },
   };
   tryFrom(0);
+  return player;
 }

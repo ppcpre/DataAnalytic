@@ -693,3 +693,65 @@ button.link-card { width: 100%; text-align: left; font: inherit; color: inherit;
   background: var(--ink); color: var(--surface); font-size: 0.88rem; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
 }
 .toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+
+/* ---------- ดูหลายกล้องพร้อมกัน ---------- */
+.btn-compact { min-height: 40px; padding: 0 12px; flex: none; color: var(--ink); }
+.multiview {
+  position: fixed; inset: 0; z-index: 3000;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: max(12px, env(safe-area-inset-top)) 16px max(12px, env(safe-area-inset-bottom));
+  background: var(--bg); overflow-y: auto;
+}
+body.mv-open { overflow: hidden; }
+.mv-head { display: flex; align-items: center; gap: 12px; }
+.mv-head-text { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.mv-head h2 { margin: 0; font-size: 1.1rem; }
+.mv-head, .mv-chips { flex: none; }
+.mv-chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.mv-chips .chip { max-width: 70vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mv-chips .chip:disabled { opacity: 0.45; }
+.mv-grid { display: grid; grid-template-columns: 1fr; gap: 12px; align-content: start; }
+@media (min-width: 600px) {
+  .mv-grid[data-count='2'], .mv-grid[data-count='3'], .mv-grid[data-count='4'] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) {
+  /* จอใหญ่: 4 กล้องให้พอดีความสูงหน้าจอ */
+  .mv-grid[data-count='3'], .mv-grid[data-count='4'] { max-width: calc((100vh - 170px) * 16 / 9 + 12px); margin: 0 auto; width: 100%; }
+}
+.mv-tile { display: flex; flex-direction: column; gap: 6px; min-width: 0; background: var(--surface); border: 1px solid var(--line-soft); border-radius: 16px; padding: 10px; }
+.mv-tile-head { display: flex; align-items: center; gap: 8px; }
+.mv-tile-name { flex: 1; min-width: 0; font-weight: 600; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mv-tile-open { flex: none; min-height: 36px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); color: var(--brand); font: inherit; font-size: 0.8rem; }
+.mv-tile .cam-view.is-page .cam-frame { aspect-ratio: 16 / 9; max-height: none; }
+.mv-empty { color: var(--muted); text-align: center; padding: 40px 0; }
+
+/* ---------- เช็กเส้นทาง ---------- */
+.route-block { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; border-top: 1px solid var(--line-soft); }
+.route-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+.route-row .btn-secondary { flex: none; color: var(--brand); }
+.route-from { flex: 1 1 180px; min-width: 0; display: grid; gap: 4px; font-size: 0.75rem; color: var(--muted); }
+.route-from select {
+  min-height: 44px; width: 100%; padding: 0 10px; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 0.9rem;
+}
+.route-msg { font-size: 0.8rem; color: var(--muted); min-height: 1em; }
+.route-msg:empty { display: none; }
+.route-cam { background: var(--surface-2); }
+.route-cam-pin { background: var(--brand); }
+.route-cam-pin.is-live { background: var(--camera-live); }
+.leaflet-interactive.route-end, path.route-end { stroke: #fff; stroke-width: 3; fill-opacity: 1; }
+path.route-start { fill: #2563c9; }
+path.route-dest { fill: #a61b1b; }
+.route-chip {
+  position: absolute; left: 16px; bottom: 24px; z-index: 1100;
+  display: flex; align-items: stretch; max-width: calc(100% - 96px);
+  background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-float); overflow: hidden;
+}
+.route-chip button { border: 0; background: none; font: inherit; color: var(--ink); min-height: 44px; }
+.route-chip-main { display: flex; align-items: center; gap: 6px; padding: 0 12px; font-size: 0.85rem; font-weight: 600; color: var(--brand) !important; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.route-chip-x { width: 44px; flex: none; display: flex; align-items: center; justify-content: center; border-left: 1px solid var(--line-soft) !important; color: var(--muted) !important; }
+@media (min-width: 1024px) {
+  /* เดสก์ท็อปซ่อนหัวข้อของแต่ละแท็บ (มีแถบแท็บแล้ว) แต่ยังแสดงปุ่มดูหลายกล้องพร้อมกัน */
+  #sec-fav .sec-head:has(#fav-multiview:not([hidden])) { display: flex; justify-content: flex-end; margin-bottom: 4px; }
+  #sec-fav .sec-head > div:first-child { display: none; }
+}
