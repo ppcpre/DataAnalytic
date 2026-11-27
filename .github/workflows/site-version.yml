@@ -14,6 +14,7 @@ jobs:
       BASE: https://dataanalytic.precare.workers.dev
     steps:
       - run: |
+          sleep 120  # รอ Cloudflare build หลัง push
           for p in / /status /status.html /sw.js; do
             curl -sS -m 30 -D h.txt -o body.txt -w "$p -> HTTP %{http_code} %{size_download}B\n" "$BASE$p"
             grep -iE '^(cache-control|cf-cache-status|age|etag|last-modified):' h.txt | tr -d '\r' | sed 's/^/   /'
@@ -23,3 +24,8 @@ jobs:
           echo "--- sw.js precaches status.html:"; curl -sS -m 30 "$BASE/sw.js" | grep -o 'status[^"]*\.html[^,]*' | head -3 || true
           echo "--- sw.js denylist:"; curl -sS -m 30 "$BASE/sw.js" | grep -o 'denylist[^]]*]' | head -2 || true
           echo "--- assets:"; curl -sS -m 30 "$BASE/" | grep -oE '/assets/[^"]+' | head -5
+          echo "--- route check (Worker -> OSRM): Bang Na -> Don Mueang"
+          curl -sS -m 60 -o route.json -w "HTTP %{http_code} %{time_total}s\n" "$BASE/api/route?from=13.6680,100.6050&to=13.9126,100.6068"
+          jq -c '{error, source, km: .data.distanceKm, min: .data.durationMin, points: (.data.coordinates | length?)}' route.json || head -c 300 route.json
+          echo "--- highway cameras on the live API"
+          curl -sS -m 90 "$BASE/api/cameras" | jq -c '[.data[] | select(.id | startswith("doh-"))] | {count: length, new: [.[] | select(.id | test("PER-14-001|PER-16-012|PER-19-001|PER-11-119|PER-4-023")) | .name]}'
