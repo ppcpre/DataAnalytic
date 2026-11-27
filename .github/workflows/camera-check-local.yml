@@ -1,6 +1,6 @@
 name: Camera check (this branch, before deploy)
 
-# รันแอปจากโค้ดของ branch นี้บนเครื่องทดสอบ แล้วเปิดกล้องใน Chrome — ใช้ตรวจแหล่งกล้องใหม่ก่อน deploy
+# รันแอปจากโค้ดของ branch นี้บนเครื่องทดสอบ แล้วเปิดกล้องใน Chrome — ใช้ตรวจแหล่งกล้องใหม่ก่อน deploy (รันเมื่อแก้ไฟล์นี้หรือกดรันเอง)
 on:
   workflow_dispatch:
     inputs:
