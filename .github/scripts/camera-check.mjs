@@ -145,7 +145,7 @@ async function newAppPage() {
   const p = await ctx.newPage();
   p.on('pageerror', (e) => console.log('PAGEERROR', e.message.slice(0, 200)));
   await p.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
-  await p.waitForSelector('.pin-camera', { timeout: 60000 });
+  await p.waitForSelector('.pin-camera', { timeout: 120000 });
   await p.waitForTimeout(3000);
   return p;
 }

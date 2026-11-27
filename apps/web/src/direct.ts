@@ -19,8 +19,11 @@ const KEY_STATION_CODES = ['C.2', 'C.13', 'C.7A', 'C.35'];
 /** ตรงกับ MAX_READING_AGE_HOURS ฝั่ง API */
 const MAX_READING_AGE_HOURS = 12;
 
+/** ThaiWater อาจค้างไม่ตอบ — หน้าแผนที่ (รวมหมุดกล้อง) รอผลนี้อยู่ จึงต้องตัดเวลา */
+const DIRECT_TIMEOUT_MS = 12000;
+
 async function getJson(url: string): Promise<unknown> {
-  const res = await fetch(url, { credentials: 'omit' });
+  const res = await fetch(url, { credentials: 'omit', signal: AbortSignal.timeout(DIRECT_TIMEOUT_MS) });
   if (!res.ok) throw new Error(`ThaiWater ตอบกลับ HTTP ${res.status}`);
   return res.json();
 }
